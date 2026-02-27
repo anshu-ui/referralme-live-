@@ -1,0 +1,264 @@
+[Warning] 320 console messages are not shown.
+[Error] [Report Only] Refused to connect to https://replit.com/graphql because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://sp.replit.com/v1/t because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://analytics.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je59m0h2v9135634466za200&_p=1758642613950&_gaz=1&gcd=13l3l3l3l2l1&npa=0&dma=0&ul=en-in&sr=1440x900&cid=2036483738.1757827215&ecid=1556349959&ir=1&frm=0&pscdl=noapi&_eu=EBAIAAQ&_s=5&tag_exp=101509157~103116026~103200004~103233427~104527907~104528501~104684208~104684211~104948813~115480710~115616985&dl=https%3A%2F%2Freplit.com%2F%40amit1drona%2FReferralNetwork&dp=%2F%40amit1drona%2FReferralNetwork&dt=replEnvironmentDesktop&sid=1758633925&sct=9&seg=1&_tu=wAQ&en=Agent%20Used&_ee=1&ep.event_category=All&ep.value=0&_et=19722&tfd=144136 because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://stats.g.doubleclick.net/j/collect?t=dc&aip=1&_r=3&v=1&_v=j102&tid=UA-25629695-1&cid=2036483738.1757827215&jid=515272019&gjid=1718680834&_gid=605349767.1758611434&_u=SCCAgEAjQAAAAGgCIAD~&z=688593055 because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://sp.replit.com/v1/t because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://analytics.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je59m0h2v9135634466za200&_p=1758642613950&gcd=13l3l3l3l2l1&npa=0&dma=0&ul=en-in&sr=1440x900&cid=2036483738.1757827215&ecid=1556349959&ir=1&frm=0&pscdl=noapi&_eu=EBAIAAQ&_s=6&tag_exp=101509157~103116026~103200004~103233427~104527907~104528501~104684208~104684211~104948813~115480710~115616985&dl=https%3A%2F%2Freplit.com%2F%40amit1drona%2FReferralNetwork&dp=%2F%40amit1drona%2FReferralNetwork&dt=replEnvironmentDesktop&sid=1758633925&sct=9&seg=1&_tu=wAQ&en=Agent%20Used&_ee=1&ep.event_category=All&ep.value=0&tfd=149741 because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://sp.replit.com/v1/m because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A309c5061&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=27fe1808-283f-4b3b-93aa-2df8dd86d67f because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820 because it does not appear in the connect-src directive of the Content Security Policy.
+[Log] handleGetStarted called (eruda.js, line 2)
+[Log] Starting Firebase signInWithPopup with account selection... (eruda.js, line 2)
+[Error] Sign-in error:
+	(anonymous function) (eruda.js:2:135522)
+	(anonymous function) (new-landing.tsx:107)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] [Report Only] Refused to connect to https://sp.replit.com/v1/t because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation', 'allow-presentation', 'allow-orientation-lock' are invalid sandbox flags. (workspace_iframe.html, line 32)
+[Error] [Report Only] Refused to connect to https://analytics.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je59m0h2v9135634466za200&_p=1758642613950&gcd=13l3l3l3l2l1&npa=0&dma=0&ul=en-in&sr=1440x900&cid=2036483738.1757827215&ecid=1556349959&ir=1&frm=0&pscdl=noapi&_eu=EBAIAAQ&_s=7&tag_exp=101509157~103116026~103200004~103233427~104527907~104528501~104684208~104684211~104948813~115480710~115616985&dl=https%3A%2F%2Freplit.com%2F%40amit1drona%2FReferralNetwork&dp=%2F%40amit1drona%2FReferralNetwork&dt=replEnvironmentDesktop&sid=1758633925&sct=9&seg=1&_tu=wAQ&en=Workspace%20Webview%20Used&_ee=1&ep.event_category=All&ep.value=0&_et=40&tfd=166318 because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] [Report Only] Refused to connect to https://replit.com/graphql because it does not appear in the connect-src directive of the Content Security Policy.
+[Debug] [vite] connecting... (eruda.js, line 2)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Debug] [vite] connected. (eruda.js, line 2)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Log] Initializing Firebase with config: – Object (eruda.js, line 2)
+Object
+[Log] Firebase initialized successfully (eruda.js, line 2)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Warning] Missing required Google Analytics key: VITE_GA_MEASUREMENT_ID (eruda.js, line 2)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Warning] Info: The current domain is not authorized for OAuth operations. This will prevent signInWithPopup, signInWithRedirect, linkWithPopup and linkWithRedirect from working. Add your domain (716394aa-5c57-44da-b4d9-ce915190945a-00-25jsar3hji5e8.worf.repl.co) to the OAuth redirect domains list in the Firebase console -> Authentication -> Settings -> Authorized domains tab. (iframe.js, line 310)
+[Log] handleGetStarted called (eruda.js, line 2)
+[Log] Starting Firebase signInWithPopup with account selection... (eruda.js, line 2)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] [Report Only] Refused to connect to https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Abeacon%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A309c5061&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b4792338-0860-4faa-9ab4-cecf8c4c4e3b because it does not appear in the connect-src directive of the Content Security Policy.
+[Error] Sign-in error: – FirebaseError: Firebase: Error (auth/unauthorized-domain).
+FirebaseError: Firebase: Error (auth/unauthorized-domain).
+	(anonymous function) (eruda.js:2:135522)
+	(anonymous function) (new-landing.tsx:107)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+[Error] [Report Only] Refused to connect to https://sp.replit.com/v1/m because it does not appear in the connect-src directive of the Content Security Policy.
+> Selected Element
+< <a data-replit-metadata="client/src/pages/new-landing.tsx:1296:14" data-component-name="a" href="#how-it-works" class="cta-secondary">See How It Works</a>
+[Error] Source Map loading errors (x4)
+[Error] Failed to load resource: the server responded with a status of 404 () (817e03b853e7cfc4.css.map, line 0)
+[Error] Failed to load resource: the server responded with a status of 404 () (6470dca580e10205.css.map, line 0)
+[Error] Failed to load resource: the server responded with a status of 404 () (9d11eaeb68b9a551.css.map, line 0)
+[Error] Failed to load resource: the server responded with a status of 404 () (abe12dc207fb31c0.css.map, line 0)
+[Error] [Report Only] Refused to connect to https://replit.com/graphql because it does not appear in the connect-src directive of the Content Security Policy.
+[Log] handleGetStarted called (eruda.js, line 2)
+[Log] Starting Firebase signInWithPopup with account selection... (eruda.js, line 2)
+[Error] Sign-in error: – FirebaseError: Firebase: Error (auth/unauthorized-domain).
+FirebaseError: Firebase: Error (auth/unauthorized-domain).
+	(anonymous function) (eruda.js:2:135522)
+	(anonymous function) (new-landing.tsx:107)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:43)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:44)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:45)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:46)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:43)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:44)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:45)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:46)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:43)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:44)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:45)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:46)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.replit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:43)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:44)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to https://staging.firewalledreplit.com. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:45)
+	(anonymous function) (workspace_iframe.html:62)
+[Error] Unable to post message to http://localhost:3000. Recipient has origin https://replit.com.
+
+	postMessage
+	postMessageToWorkspace (workspace_iframe.html:46)
+	(anonymous function) (workspace_iframe.html:62)

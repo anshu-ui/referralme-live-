@@ -1,0 +1,30 @@
+profile-edit:1 Refused to load the script 'https://replit.com/public/js/replit-dev-banner.js' because it violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://apis.google.com https://accounts.google.com https://firebase.googleapis.com https://www.gstatic.com". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.
+Understand this error
+index-KBevSCES.js:3481 Initializing Firebase with config: {apiKey: '***provided***', authDomain: 'referral-me-33430.firebaseapp.com', projectId: 'referral-me-33430', storageBucket: 'referral-me-33430.firebasestorage.app', appId: '***provided***'}
+index-KBevSCES.js:3481 Firebase initialized successfully
+index-KBevSCES.js:5116 Missing required Google Analytics key: VITE_GA_MEASUREMENT_ID
+(anonymous) @ index-KBevSCES.js:5116
+ob @ index-KBevSCES.js:40
+od @ index-KBevSCES.js:40
+(anonymous) @ index-KBevSCES.js:40
+j @ index-KBevSCES.js:25
+R @ index-KBevSCES.js:25Understand this warning
+apis.google.com/:1 Refused to frame 'https://referral-me-33430.firebaseapp.com/' because it violates the following Content Security Policy directive: "frame-src 'self' https://accounts.google.com".
+Understand this error
+index-KBevSCES.js:5096 Profile image uploaded successfully: https://firebasestorage.googleapis.com/v0/b/referral-me-33430.firebasestorage.app/o/uploads%2FRNkUWYG75SbLNtcA3oKq8wOQJT12_1752755964339.jpg?alt=media&token=ffc65044-226e-4288-967c-e23fad758df9
+index-KBevSCES.js:3880  POST https://referralme.in/api/email/welcome 404 (Not Found)
+xle @ index-KBevSCES.js:3880
+f @ index-KBevSCES.js:5096
+await in f
+Aq @ index-KBevSCES.js:37
+Cq @ index-KBevSCES.js:37
+kq @ index-KBevSCES.js:37
+DC @ index-KBevSCES.js:37
+_$ @ index-KBevSCES.js:37
+(anonymous) @ index-KBevSCES.js:37
+rT @ index-KBevSCES.js:40
+HL @ index-KBevSCES.js:37
+A_ @ index-KBevSCES.js:37
+CE @ index-KBevSCES.js:37
+Gq @ index-KBevSCES.js:37Understand this error
+index-KBevSCES.js:3880 Welcome email API returned status: 404

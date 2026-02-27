@@ -1,0 +1,38 @@
+index-NYEU1185.js:3421 Refused to connect to 'https://firebasestorage.googleapis.com/v0/b/referral-me-33430.firebasestorage.app/o?name=uploads%2FtoHeznFmPKgJVqnMNbNODM0ozdi2_1752752551705.jpg' because it violates the following Content Security Policy directive: "connect-src 'self' https://firebase.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://www.google-analytics.com https://api.sendgrid.com".
+
+
+ChatGPT said:
+This error means your web app’s Content Security Policy (CSP) is blocking requests to Firebase Storage because that specific domain (https://firebasestorage.googleapis.com) is not listed in the connect-src directive.
+
+🔍 What's Happening?
+CSP is a security feature that controls which resources the browser is allowed to load for your site. It prevents potentially harmful content (like XSS attacks), but it can also block legitimate resources if not configured correctly.
+
+In your case, the app is trying to connect to Firebase Storage, but that domain is not allowed by your CSP, resulting in this error:
+
+pgsql
+Copy
+Edit
+Refused to connect to 'https://firebasestorage.googleapis.com/...' because it violates the following Content Security Policy directive: "connect-src 'self' ..."
+✅ Solution: Update CSP Header
+You need to allow https://firebasestorage.googleapis.com in your connect-src directive in your CSP header.
+
+If you're using HTML <meta> tag for CSP:
+Update it like this:
+
+html
+Copy
+Edit
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://firebase.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://www.google-analytics.com https://api.sendgrid.com https://firebasestorage.googleapis.com;">
+If you're using HTTP response headers (like in Express or Replit server):
+Update the CSP header:
+
+js
+Copy
+Edit
+res.setHeader("Content-Security-Policy", "connect-src 'self' https://firebase.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://www.google-analytics.com https://api.sendgrid.com https://firebasestorage.googleapis.com;");
+You might also want to allow img-src or media-src if you’re rendering the image (not just connecting via fetch):
+
+html
+Copy
+Edit
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://...; 
