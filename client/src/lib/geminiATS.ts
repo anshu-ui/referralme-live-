@@ -4,10 +4,9 @@ import { GoogleGenAI } from "@google/genai";
 const getGeminiAI = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error("❌ Gemini API key not found. Please check environment variables.");
     return null;
   }
-  return new GoogleGenAI(apiKey);
+  return new GoogleGenAI({ apiKey });
 };
 
 export interface ATSAnalysis {
@@ -19,6 +18,17 @@ export interface ATSAnalysis {
   strengths: string[];
   missingKeywords: string[];
   improvementAreas: string[];
+}
+
+export interface ImportedJobDetails {
+  title: string;
+  company: string;
+  location: string;
+  experienceLevel: "entry" | "mid" | "senior" | "lead";
+  description: string;
+  requirements: string;
+  quickSummary: string;
+  suggestedSkills: string[];
 }
 
 export async function analyzeResumeWithGemini(
@@ -239,4 +249,106 @@ What We Offer:
 Join us and be part of a dynamic team making a real impact!
 `;
   }
+}
+
+export async function extractJobDetailsWithGemini(sourceText: string): Promise<ImportedJobDetails> {
+  const fallback = getFallbackImportedJobDetails(sourceText);
+
+  try {
+    const genAI = getGeminiAI();
+    if (!genAI) {
+      throw new Error("Gemini API key not configured");
+    }
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            company: { type: "string" },
+            location: { type: "string" },
+            experienceLevel: { type: "string", enum: ["entry", "mid", "senior", "lead"] },
+            description: { type: "string" },
+            requirements: { type: "string" },
+            quickSummary: { type: "string" },
+            suggestedSkills: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: 8,
+            },
+          },
+          required: ["title", "company", "location", "experienceLevel", "description", "requirements", "quickSummary", "suggestedSkills"],
+        },
+      },
+    });
+
+    const prompt = `
+Extract structured job details from this internal referral post or JD text.
+
+SOURCE TEXT:
+${sourceText}
+
+Rules:
+- Return concise, recruiter-friendly values.
+- If a field is missing, infer a reasonable default instead of leaving it blank.
+- experienceLevel must be one of: entry, mid, senior, lead.
+- quickSummary should be 1-2 short sentences suitable for a fast referral card.
+- suggestedSkills should contain the most relevant skill keywords only.
+`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const cleanJson = responseText.replace(/\*\*(.*?)\*\*/g, "$1");
+    const parsed = JSON.parse(cleanJson) as ImportedJobDetails;
+
+    if (!parsed.title || !parsed.company || !parsed.description || !parsed.requirements) {
+      throw new Error("Incomplete imported job details");
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("❌ Job detail extraction failed:", error);
+    return fallback;
+  }
+}
+
+function getFallbackImportedJobDetails(sourceText: string): ImportedJobDetails {
+  const lines = sourceText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const title =
+    lines.find((line) => /engineer|developer|manager|designer|analyst|lead|intern/i.test(line)) ||
+    "Referral Opportunity";
+  const companyMatch = sourceText.match(/at\s+([A-Z][A-Za-z0-9&.\- ]+)/i);
+  const locationMatch = sourceText.match(/(remote|hybrid|onsite|on-site|bangalore|bengaluru|mumbai|pune|hyderabad|delhi|gurgaon|noida|chennai)/i);
+  const lowered = sourceText.toLowerCase();
+
+  const skills = ["React", "TypeScript", "Node.js", "Python", "Java", "SQL", "AWS", "Product"]
+    .filter((skill) => lowered.includes(skill.toLowerCase()));
+
+  return {
+    title,
+    company: companyMatch?.[1]?.trim() || "Confidential Company",
+    location: locationMatch?.[1] ? capitalize(locationMatch[1]) : "Remote / Hybrid",
+    experienceLevel: lowered.includes("lead") || lowered.includes("principal")
+      ? "lead"
+      : lowered.includes("senior") || lowered.includes("5+") || lowered.includes("6+")
+        ? "senior"
+        : lowered.includes("entry") || lowered.includes("intern") || lowered.includes("0-2")
+          ? "entry"
+          : "mid",
+    description: sourceText.slice(0, 900).trim() || "Internal referral opportunity shared by a verified referrer.",
+    requirements: sourceText.slice(0, 500).trim() || "Relevant experience, strong communication, and role-specific skills.",
+    quickSummary: "Fast-track referral opening shared from an internal company system. Apply through ReferralMe for referrer review.",
+    suggestedSkills: skills.length > 0 ? skills : ["Communication", "Problem Solving", "Role Fit"],
+  };
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }

@@ -12,10 +12,8 @@ import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { submitReferralRequest } from "../lib/firestore";
 import { trackEvent } from "../lib/analytics";
 import { analyzeResumeWithGemini, type ATSAnalysis } from "../lib/geminiATS";
-import { sendApplicationReceivedNotification } from "../lib/emailService";
+import { useToast } from "../hooks/use-toast";
 import ATSAnalyzer from "./ats-analyzer";
-import { storage } from "../lib/firebase";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 interface ApplicationFormModalProps {
   isOpen: boolean;
@@ -28,6 +26,7 @@ interface ApplicationFormModalProps {
 
 export default function ApplicationFormModal({ isOpen, onClose, job, onApplicationSubmitted }: ApplicationFormModalProps) {
   const { user } = useFirebaseAuth();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showATSAnalyzer, setShowATSAnalyzer] = useState(false);
   const [atsAnalysis, setAtsAnalysis] = useState<ATSAnalysis | null>(null);
@@ -44,6 +43,8 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
     motivation: "",
     resumeText: "",
   });
+  const minAtsScore = Number(job?.minAtsScore || 75);
+  const meetsAtsThreshold = !!atsAnalysis && atsAnalysis.overallScore >= minAtsScore;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,52 +64,87 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       setUploadProgress(0);
       
       try {
-        // Upload to Firebase Storage
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `${user.uid}_${Date.now()}.${fileExtension}`;
-        const storageRef = ref(storage, `resumes/${fileName}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error('Upload error:', error);
-            alert(`Failed to upload resume: ${error.message}`);
-            setIsUploading(false);
-            setResumeFile(null);
-          },
-          async () => {
-            // Upload completed successfully
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload", true);
+
+        xhr.upload.onprogress = (progressEvent) => {
+          if (!progressEvent.lengthComputable) return;
+          const progress = (progressEvent.loaded / progressEvent.total) * 100;
+          setUploadProgress(progress);
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
             try {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              setResumeUrl(downloadURL);
-              setIsUploading(false);
-              console.log('Resume uploaded successfully:', downloadURL);
-              trackEvent('resume_uploaded', 'application_form', file.type);
-            } catch (urlError) {
-              console.error('Error getting download URL:', urlError);
-              alert('Failed to get download URL for resume.');
+              const response = JSON.parse(xhr.responseText);
+              setResumeUrl(response.url);
+              setUploadProgress(100);
+              console.log("Resume uploaded successfully:", response.url);
+              trackEvent("resume_uploaded", "application_form", file.type);
+            } catch (parseError) {
+              console.error("Failed to parse upload response:", parseError);
+              toast({
+                title: "Upload response error",
+                description: "Resume upload finished, but the server response could not be read.",
+                variant: "destructive",
+              });
+              setResumeFile(null);
+            } finally {
               setIsUploading(false);
             }
+          } else {
+            console.error("Upload failed:", xhr.responseText);
+            toast({
+              title: "Resume upload failed",
+              description: "The resume could not be uploaded. Please try again.",
+              variant: "destructive",
+            });
+            setIsUploading(false);
+            setResumeFile(null);
           }
-        );
+        };
+
+        xhr.onerror = () => {
+          console.error("Resume upload network error");
+          toast({
+            title: "Network error",
+            description: "Resume upload failed because of a network error.",
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          setResumeFile(null);
+        };
+
+        xhr.send(formData);
       } catch (error: any) {
         console.error('Error uploading resume:', error);
-        alert(`Failed to upload resume: ${error.message}`);
+        toast({
+          title: "Resume upload failed",
+          description: error.message || "The resume upload could not be completed.",
+          variant: "destructive",
+        });
         setIsUploading(false);
         setResumeFile(null);
       }
     } else {
-      alert('Please upload a PDF, DOCX, DOC, or TXT file');
+      toast({
+        title: "Unsupported file type",
+        description: "Please upload a PDF, DOCX, DOC, or TXT file.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleATSAnalysis = async () => {
     if (!formData.resumeText || !formData.resumeText.trim()) {
-      alert("Please enter your resume content first");
+      toast({
+        title: "Resume content required",
+        description: "Paste or enter your resume content before running ATS analysis.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -122,9 +158,17 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       
       setAtsAnalysis(analysis);
       trackEvent('ats_analysis_completed', 'application_form', analysis.overallScore.toString());
+      toast({
+        title: "ATS analysis complete",
+        description: `Your resume scored ${analysis.overallScore} for this referral opportunity.`,
+      });
     } catch (error) {
       console.error("ATS analysis failed:", error);
-      alert("ATS analysis failed. Please try again.");
+      toast({
+        title: "ATS analysis failed",
+        description: "The AI analysis could not complete. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -132,7 +176,32 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in before submitting an application.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!atsAnalysis) {
+      toast({
+        title: "ATS analysis required",
+        description: `Run ATS analysis first. This role requires a minimum score of ${minAtsScore}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (atsAnalysis.overallScore < minAtsScore) {
+      toast({
+        title: "ATS score below cutoff",
+        description: `Your ATS score is ${atsAnalysis.overallScore}. You need at least ${minAtsScore} to apply.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     
@@ -175,6 +244,10 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       // Call the callback
       onApplicationSubmitted();
       onClose();
+      toast({
+        title: "Application submitted",
+        description: "Your referral request has been sent successfully.",
+      });
       
       // NO AUTOMATIC REDIRECTS - application submitted successfully
       console.log("Application submitted successfully - no redirect");
@@ -194,6 +267,11 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       
     } catch (error) {
       console.error("Error submitting application:", error);
+      toast({
+        title: "Application failed",
+        description: "The application could not be submitted. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -218,11 +296,25 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
           <DialogHeader>
             <DialogTitle>Apply for {job?.title}</DialogTitle>
             <DialogDescription>
-              Submit your application for this referral opportunity. Your information will be shared with the referrer.
+              Submit your application for this referral opportunity. ATS analysis is mandatory, and you must hit the referrer cutoff before applying.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <Card className="border-blue-200 bg-blue-50/60">
+              <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium text-blue-900">Mandatory ATS Gate</p>
+                  <p className="text-sm text-blue-700">
+                    Minimum score required for this referral: <strong>{minAtsScore}</strong>
+                  </p>
+                </div>
+                <Badge variant="outline" className="border-blue-300 text-blue-700 bg-white">
+                  ATS Required
+                </Badge>
+              </CardContent>
+            </Card>
+
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -393,6 +485,13 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                       </p>
                     </div>
                   )}
+                  <div className={`mt-3 p-3 rounded-lg border ${meetsAtsThreshold ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                    <p className={`text-sm ${meetsAtsThreshold ? "text-green-800" : "text-red-800"}`}>
+                      {meetsAtsThreshold
+                        ? `You meet the ATS cutoff for this referral (${minAtsScore}+).`
+                        : `You do not meet the ATS cutoff for this referral yet. Required: ${minAtsScore}, current: ${atsAnalysis.overallScore}.`}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -438,7 +537,9 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                   !formData.experienceLevel || 
                   !formData.motivation || 
                   !formData.resumeText ||
-                  (resumeFile !== null && resumeUrl === null)
+                  (resumeFile !== null && resumeUrl === null) ||
+                  !atsAnalysis ||
+                  !meetsAtsThreshold
                 }
                 className="flex-1"
               >

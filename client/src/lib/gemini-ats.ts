@@ -166,61 +166,43 @@ function getFallbackAnalysis(resumeText: string, jobDescription?: string): ATSAn
   };
 }
 
-// Extract text from uploaded file (simplified version for demo)
+// Extract text from uploaded file.
+// Only use direct text extraction where the browser can read the content accurately.
 export async function extractTextFromFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = async (e) => {
       try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        
-        if (file.type === 'application/pdf') {
-          // For PDF files, we'd use a library like pdf-parse or pdf.js
-          // For now, return a placeholder that simulates extraction
-          const filename = file.name;
-          resolve(`Text extracted from PDF: ${filename}
-          
-Sample resume content including experience, skills, education sections.
-This would be replaced with actual PDF text extraction in production.
-          
-Experience:
-• Software Engineer at TechCorp (2020-2023)
-• Frontend Developer at StartupXYZ (2018-2020)
-
-Skills: JavaScript, React, Node.js, Python, AWS, SQL, Git
-
-Education: Bachelor of Computer Science`);
-        } else if (file.type.includes('word') || file.name.endsWith('.docx')) {
-          // For Word files, we'd use a library like mammoth
-          resolve(`Text extracted from Word document: ${file.name}
-          
-This is simulated text extraction. In production, this would parse actual Word document content.
-          
-Professional Summary:
-Experienced software engineer with 5+ years in web development.
-
-Technical Skills:
-JavaScript, TypeScript, React, Vue.js, Node.js, Python, PostgreSQL, MongoDB, AWS, Docker
-
-Work Experience:
-Senior Software Engineer - Tech Solutions Inc. (2021-Present)
-• Led development of customer-facing web applications
-• Improved application performance by 40%
-• Mentored junior developers
-
-Software Developer - Digital Innovations (2019-2021)
-• Built responsive web applications using React and Node.js
-• Collaborated with cross-functional teams on product features`);
+        if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+          const text = String(e.target?.result || "").trim();
+          if (!text) {
+            reject(new Error("The text file appears to be empty."));
+            return;
+          }
+          resolve(text);
         } else {
-          reject(new Error('Unsupported file type'));
+          reject(
+            new Error(
+              "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan."
+            )
+          );
         }
       } catch (error) {
         reject(error);
       }
     };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsArrayBuffer(file);
+
+    reader.onerror = () => reject(new Error("Failed to read file"));
+
+    if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+      reader.readAsText(file);
+    } else {
+      reject(
+        new Error(
+          "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan."
+        )
+      );
+    }
   });
 }

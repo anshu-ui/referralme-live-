@@ -66,33 +66,6 @@ function Router() {
       await updateUser(userUID, { role, profileCompleted: false });
       console.log("User role updated successfully");
       
-      // Send welcome email after role selection
-      const userName = firebaseUser.displayName || user?.firstName || user?.displayName || "User";
-      const userEmail = firebaseUser.email || user?.email || "";
-      
-      if (userEmail) {
-        console.log("🎯 Sending welcome email after role selection:", { userName, userEmail, role });
-        try {
-          const response = await fetch('/api/email/welcome', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: userName,
-              email: userEmail,
-              role: role
-            })
-          });
-          
-          if (response.ok) {
-            console.log("✅ Welcome email sent successfully after role selection");
-          } else {
-            console.error("❌ Failed to send welcome email:", await response.text());
-          }
-        } catch (error) {
-          console.error("❌ Error sending welcome email:", error);
-        }
-      }
-      
       // Refresh user data to get the updated role
       await refreshUser();
       console.log("User data refreshed");

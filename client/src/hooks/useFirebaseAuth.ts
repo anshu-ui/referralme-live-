@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { User, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
 import { FirestoreUser, getUser, createUser, acceptReferralInvitation, initializeReferralCode } from "../lib/firestore";
+import { sendSignupStartedEmail } from "../lib/emailService";
 import { trackUserSignup, trackUserLogin } from "../lib/analytics";
 
 export function useFirebaseAuth() {
@@ -27,6 +28,12 @@ export function useFirebaseAuth() {
               photoURL: user.photoURL || undefined,
             };
             await createUser(newUserData);
+
+            if (user.email) {
+              sendSignupStartedEmail(user.displayName || user.email || "User", user.email).catch((error) => {
+                console.error("Error sending signup email:", error);
+              });
+            }
             
             // Initialize referral code
             await initializeReferralCode(user.uid, user.displayName || user.email || "User");

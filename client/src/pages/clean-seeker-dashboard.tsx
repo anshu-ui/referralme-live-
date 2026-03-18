@@ -236,9 +236,9 @@ export default function CleanSeekerDashboard() {
           setActiveTab(tab);
           trackTabSwitch(tab, 'seeker');
         }} className="space-y-6">
-          <div className="w-full professional-tabs sticky top-0 z-40">
+          <div className="w-full professional-tabs sticky top-14 sm:top-16 z-30">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="overflow-x-auto tab-scroll-container">
+              <div className="overflow-x-auto tab-scroll-container scrollbar-hide">
                 <TabsList className="flex min-w-max gap-0 p-2 bg-transparent border-none h-auto">
                   <TabsTrigger value="overview" className="professional-tab">
                     <div className="professional-tab-content">
@@ -296,7 +296,7 @@ export default function CleanSeekerDashboard() {
             </div>
           </div>
           
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">

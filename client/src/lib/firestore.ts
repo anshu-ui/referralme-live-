@@ -82,6 +82,21 @@ export interface JobPosting {
   referrerName: string;
   referrerEmail: string;
   isActive: boolean;
+  jobType?: "full-time" | "part-time" | "contract" | "internship";
+  workArrangement?: "remote" | "hybrid" | "onsite";
+  experienceLevel?: "entry" | "mid" | "senior" | "lead";
+  urgency?: "low" | "medium" | "high";
+  niceToHave?: string;
+  benefits?: string;
+  applicationDeadline?: string;
+  skills?: string[];
+  quickSummary?: string;
+  internalReferralLink?: string;
+  applicationMode?: "platform_request" | "direct_internal_link" | "email_resume";
+  visibility?: "public" | "private_link" | "invite_only";
+  minAtsScore?: number;
+  maxReferrals?: number;
+  sourceType?: "manual" | "ai_import" | "quick_post";
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -231,8 +246,11 @@ export const getUser = async (uid: string): Promise<FirestoreUser | null> => {
 export const createJobPosting = async (jobData: Omit<JobPosting, "id" | "createdAt" | "updatedAt">) => {
   try {
     console.log("Creating job posting with data:", jobData);
+    const sanitizedJobData = Object.fromEntries(
+      Object.entries(jobData).filter(([, value]) => value !== undefined)
+    );
     const jobDoc = {
-      ...jobData,
+      ...sanitizedJobData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -761,6 +779,26 @@ export const subscribeToActiveMentors = (callback: (mentors: FirestoreUser[]) =>
     });
   } catch (error) {
     console.error("Error setting up active mentors subscription:", error);
+    throw error;
+  }
+};
+
+export const getSeekersForJobAlerts = async (): Promise<FirestoreUser[]> => {
+  try {
+    const q = query(
+      collection(db, "users"),
+      where("role", "==", "seeker"),
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs
+      .map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }) as FirestoreUser)
+      .filter((user) => user.email?.trim());
+  } catch (error) {
+    console.error("Error getting seekers for job alerts:", error);
     throw error;
   }
 };

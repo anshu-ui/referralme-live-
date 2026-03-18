@@ -8,6 +8,7 @@
   import { getFirestore } from "firebase-admin/firestore";
   import { 
     sendEmail, 
+    generateSignupStartedEmail,
     generateWelcomeEmailSeeker, 
     generateWelcomeEmailReferrer,
     generateJobAlertEmail,
@@ -297,6 +298,33 @@
         }
       } catch (error) {
         console.error('Welcome email endpoint error:', error);
+        res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    // Send initial signup email right after account creation
+    app.post('/api/email/signup-started', async (req: Request, res: Response) => {
+      try {
+        const { name, email } = req.body;
+
+        if (!name || !email) {
+          return res.status(400).json({ error: 'Missing required fields: name, email' });
+        }
+
+        const emailContent = generateSignupStartedEmail(name);
+        const success = await sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        });
+
+        if (success) {
+          res.json({ success: true, message: 'Signup email sent successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to send signup email' });
+        }
+      } catch (error) {
+        console.error('Signup email endpoint error:', error);
         res.status(500).json({ error: 'Email service error' });
       }
     });

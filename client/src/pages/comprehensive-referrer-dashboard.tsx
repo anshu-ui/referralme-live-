@@ -221,28 +221,29 @@ export default function ComprehensiveReferrerDashboard() {
     setIsApplicationDetailsOpen(true);
   };
 
-  const handleApplicationStatusUpdate = async (newStatus: string) => {
-    if (!selectedApplication) return;
+  const handleApplicationStatusUpdate = async (newStatus: string, applicationOverride?: any) => {
+    const application = applicationOverride || selectedApplication;
+    if (!application) return;
     
     try {
-      await updateReferralRequestStatus(selectedApplication.id, newStatus as any);
+      await updateReferralRequestStatus(application.id, newStatus as any);
       
       // Track the status change
-      trackApplicationStatusChange(selectedApplication.id);
+      trackApplicationStatusChange(application.id);
       
       // Send email notification to seeker about status change
       if (newStatus === 'accepted' || newStatus === 'rejected') {
-        const seekerName = selectedApplication.fullName || selectedApplication.seeker?.name || 'Applicant';
-        const seekerEmail = selectedApplication.email || selectedApplication.seeker?.email;
+        const seekerName = application.fullName || application.seeker?.name || 'Applicant';
+        const seekerEmail = application.email || application.seeker?.email;
         const referrerName = user?.firstName && user?.lastName ? 
           `${user.firstName} ${user.lastName}` : 
           user?.displayName || 'Referrer';
         
         if (seekerEmail) {
           console.log("📧 Sending status update email to:", seekerEmail, "Status:", newStatus);
-          const jobData = selectedApplication.job || {
-            title: selectedApplication.jobTitle,
-            company: selectedApplication.company || 'Company'
+          const jobData = application.job || {
+            title: application.jobTitle,
+            company: application.company || 'Company'
           };
           
           sendApplicationStatusUpdate(
@@ -264,8 +265,10 @@ export default function ComprehensiveReferrerDashboard() {
       }
       
       // Close the modal - the real-time subscription will update the data
-      setIsApplicationDetailsOpen(false);
-      setSelectedApplication(null);
+      if (!applicationOverride) {
+        setIsApplicationDetailsOpen(false);
+        setSelectedApplication(null);
+      }
       
       // Status updated successfully - no automatic redirect
       console.log("Application status updated successfully");
@@ -635,9 +638,9 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
           setActiveTab(tab);
           trackTabSwitch(tab, 'referrer');
         }} className="space-y-6">
-          <div className="w-full professional-tabs sticky top-0 z-40">
+          <div className="w-full professional-tabs sticky top-14 sm:top-16 z-30">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="overflow-x-auto tab-scroll-container">
+              <div className="overflow-x-auto tab-scroll-container scrollbar-hide">
                 <TabsList className="flex min-w-max gap-0 p-2 bg-transparent border-none h-auto">
                   <TabsTrigger value="overview" className="professional-tab">
                     <div className="professional-tab-content">
@@ -1073,10 +1076,13 @@ function QuickActions({ onCreateJob }: { onCreateJob: () => void }) {
         <CardTitle>Quick Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Button onClick={onCreateJob} className="w-full justify-start">
+        <Button onClick={onCreateJob} className="w-full justify-start bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
-          Post New Job
+          Quick Referral Opportunity
         </Button>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+          Paste internal JD text, add ATS cutoff, and publish without filling a full public job form.
+        </div>
         <Link href="/profile-edit">
           <Button variant="outline" className="w-full justify-start">
             <User className="h-4 w-4 mr-2" />
@@ -1132,9 +1138,31 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
                     {job.salary?.replace(/\$/g, '₹')}
                   </div>
                 )}
+                {job.quickSummary && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    {job.quickSummary}
+                  </p>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   Posted {job.createdAt ? new Date(job.createdAt.toDate()).toLocaleDateString() : "Recently"}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {job.visibility && (
+                    <Badge variant="outline" className="text-xs">
+                      {job.visibility === "private_link" ? "Private link" : job.visibility === "invite_only" ? "Invite only" : "Public"}
+                    </Badge>
+                  )}
+                  {job.minAtsScore && (
+                    <Badge variant="outline" className="text-xs">
+                      ATS {job.minAtsScore}+
+                    </Badge>
+                  )}
+                  {job.applicationMode && (
+                    <Badge variant="outline" className="text-xs">
+                      {job.applicationMode === "platform_request" ? "Platform apply" : job.applicationMode === "direct_internal_link" ? "Share link after review" : "Manual resume mode"}
+                    </Badge>
+                  )}
                 </div>
               </div>
               
@@ -1226,6 +1254,311 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
 }
 
 function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBadge }: any) {
+  const sortedRequests = [...(requests || [])].sort((a: any, b: any) => {
+    const atsDiff = (b.atsScore || 0) - (a.atsScore || 0);
+    if (atsDiff !== 0) return atsDiff;
+    const aTime = a.createdAt?.toDate?.()?.getTime?.() || 0;
+    const bTime = b.createdAt?.toDate?.()?.getTime?.() || 0;
+    return bTime - aTime;
+  });
+
+  const getMinimumAtsScore = (request: any) => Number(request.job?.minAtsScore || 0);
+  const hasAtsScore = (request: any) => typeof request.atsScore === "number";
+  const meetsCutoff = (request: any) => {
+    const cutoff = getMinimumAtsScore(request);
+    return !cutoff || (hasAtsScore(request) && request.atsScore >= cutoff);
+  };
+
+  const topMatches = sortedRequests.filter((request: any) => request.status === "pending" && meetsCutoff(request));
+  const needsReview = sortedRequests.filter((request: any) => request.status === "pending" && !meetsCutoff(request));
+  const processedRequests = sortedRequests.filter((request: any) => request.status !== "pending");
+
+  const requestSections = [
+    {
+      key: "top-matches",
+      title: "Top Matches",
+      description: "Pending candidates who already meet your ATS cutoff.",
+      emptyState: "No pending candidates are above the current ATS threshold yet.",
+      accent: "border-l-emerald-500 from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-800",
+      badgeClass: "text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-800 dark:bg-emerald-950/30",
+      requests: topMatches,
+    },
+    {
+      key: "needs-review",
+      title: "Needs Review",
+      description: "Pending candidates below cutoff or still missing ATS context.",
+      emptyState: "No pending candidates need manual review right now.",
+      accent: "border-l-amber-500 from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-800",
+      badgeClass: "text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950/30",
+      requests: needsReview,
+    },
+    {
+      key: "processed",
+      title: "Processed",
+      description: "Requests you have already handled or moved forward.",
+      emptyState: "Accepted and rejected requests will appear here once you take action.",
+      accent: "border-l-slate-400 from-slate-50/60 to-white dark:from-slate-900/40 dark:to-gray-800",
+      badgeClass: "text-slate-700 border-slate-300 bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-900/40",
+      requests: processedRequests,
+    },
+  ];
+
+  const getAtsTone = (score: number) => {
+    if (score >= 85) return "bg-green-500 text-green-600";
+    if (score >= 75) return "bg-blue-500 text-blue-600";
+    if (score >= 65) return "bg-yellow-500 text-yellow-600";
+    return "bg-red-500 text-red-600";
+  };
+
+  const getApplicationModeLabel = (request: any) => {
+    switch (request.job?.applicationMode) {
+      case "direct_internal_link":
+        return "Internal link approval";
+      case "email_resume":
+        return "Manual referral mode";
+      default:
+        return "Platform referral";
+    }
+  };
+
+  const getPrimaryActionLabel = (request: any) => {
+    switch (request.job?.applicationMode) {
+      case "direct_internal_link":
+        return "Approve & Share Link";
+      case "email_resume":
+        return "Approve for Referral";
+      default:
+        return "Accept Request";
+    }
+  };
+
+  const renderRequestCard = (request: any, accentClass: string) => {
+    const cutoff = getMinimumAtsScore(request);
+    const passesAts = meetsCutoff(request);
+    const atsTone = hasAtsScore(request) ? getAtsTone(request.atsScore) : null;
+    const [atsDotClass, atsTextClass] = atsTone ? atsTone.split(" ") : ["bg-slate-300", "text-slate-500"];
+
+    return (
+      <Card
+        key={request.id}
+        className={`hover:shadow-lg transition-all duration-300 border-l-4 bg-gradient-to-r ${accentClass}`}
+      >
+        <CardContent className="p-4 md:p-6">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start space-x-3">
+                <Avatar className="h-10 w-10 md:h-12 md:w-12 ring-2 ring-blue-100">
+                  <AvatarImage src={request.seeker?.photoURL || request.seeker?.profileImageUrl || ""} />
+                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-sm md:text-base">
+                    {(request.fullName || request.seekerName || "U").charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white md:text-lg">
+                    {request.fullName || request.seekerName || "Anonymous"}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Applied for:{" "}
+                    <span className="font-medium text-blue-600 dark:text-blue-400">
+                      {request.jobTitle || request.job?.title || "Position"}
+                    </span>
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {getApplicationModeLabel(request)}
+                    </Badge>
+                    {request.job?.visibility && (
+                      <Badge variant="outline" className="text-xs">
+                        {request.job.visibility === "private_link"
+                          ? "Private link"
+                          : request.job.visibility === "invite_only"
+                            ? "Invite only"
+                            : "Public"}
+                      </Badge>
+                    )}
+                    {request.job?.maxReferrals && (
+                      <Badge variant="outline" className="text-xs">
+                        Cap {request.job.maxReferrals}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 sm:flex-col sm:items-end">
+                {getStatusBadge(request.status)}
+                <span className="whitespace-nowrap text-xs text-gray-500">
+                  {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleDateString() : "Recently"}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 bg-white/70 p-3 dark:border-gray-700 dark:bg-gray-800/60 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Contact</p>
+                <p className="break-all text-sm font-medium text-gray-900 dark:text-white">{request.seekerEmail || request.email}</p>
+                {(request.phoneNumber || request.seekerPhone) && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{request.phoneNumber || request.seekerPhone}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">ATS Score</p>
+                {hasAtsScore(request) ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${atsDotClass}`}></div>
+                      <span className={`text-sm font-bold ${atsTextClass}`}>{request.atsScore}%</span>
+                    </div>
+                    <p className={`text-xs font-medium ${passesAts ? "text-emerald-600" : "text-amber-600"}`}>
+                      {cutoff ? (passesAts ? `Passes cutoff ${cutoff}+` : `Below cutoff ${cutoff}+`) : "No cutoff set"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">ATS score not available</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Next Action</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {request.status === "pending"
+                    ? passesAts
+                      ? "Ready for approval"
+                      : "Review before moving forward"
+                    : request.status === "accepted"
+                      ? "Referral approved"
+                      : request.status.replaceAll("_", " ")}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {request.job?.applicationMode === "direct_internal_link"
+                    ? "Use approval when you want to release the internal link."
+                    : request.job?.applicationMode === "email_resume"
+                      ? "Use approval when you are ready to manually refer this resume."
+                      : "Use approval when you want to continue this referral in-platform."}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Submitted</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleDateString() : "Recently"}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-gray-100 pt-3 dark:border-gray-700">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button variant="outline" size="sm" onClick={() => onViewRequest(request)} className="w-full sm:w-auto">
+                  <Eye className="mr-1 h-4 w-4" />
+                  View Details
+                </Button>
+                {request.resumeUrl ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full border-green-200 bg-green-50 text-green-700 hover:bg-green-100 sm:w-auto"
+                    onClick={() => {
+                      const downloadResume = async (resumeUrl: string, fullName: string) => {
+                        if (!resumeUrl) return;
+                        try {
+                          const response = await fetch(resumeUrl);
+                          if (!response.ok) throw new Error("Network response was not ok");
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.href = url;
+
+                          let filename = "resume_file";
+                          try {
+                            const decodedUrl = decodeURIComponent(resumeUrl);
+                            const pathParts = decodedUrl.split("/");
+                            const fileWithParams = pathParts[pathParts.length - 1];
+                            filename = fileWithParams.split("?")[0];
+                          } catch (e) {
+                            filename = `${fullName || "resume"}_original`;
+                          }
+
+                          if (!filename.includes(".")) {
+                            filename += ".pdf";
+                          }
+
+                          link.setAttribute("download", filename);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
+                        } catch (error) {
+                          console.error("Download failed:", error);
+                          window.open(resumeUrl, "_blank");
+                        }
+                      };
+                      downloadResume(request.resumeUrl, request.fullName || request.seekerName);
+                    }}
+                  >
+                    <Download className="mr-1 h-4 w-4" />
+                    Download Resume
+                  </Button>
+                ) : request.resumeText ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full border-green-200 bg-green-50 text-green-700 hover:bg-green-100 sm:w-auto"
+                    onClick={() => {
+                      const resumeContent = request.resumeText || "";
+                      const blob = new Blob([resumeContent], { type: "text/plain" });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement("a");
+                      link.href = url;
+                      link.download = `${request.fullName || request.seekerName || "Resume"}_Resume.txt`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <Download className="mr-1 h-4 w-4" />
+                    Download Resume (Text)
+                  </Button>
+                ) : null}
+                {request.status === "pending" && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
+                      onClick={() => onStatusUpdate("accepted", request)}
+                    >
+                      <CheckCircle className="mr-1 h-4 w-4" />
+                      {getPrimaryActionLabel(request)}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      onClick={() => onStatusUpdate("rejected", request)}
+                    >
+                      <XCircle className="mr-1 h-4 w-4" />
+                      Reject
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <div className="text-center text-xs text-gray-500 dark:text-gray-400 sm:text-left">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Submitted {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleDateString() : "Recently"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header Section */}
@@ -1248,178 +1581,31 @@ function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBad
         </div>
       </div>
       
-      {/* Requests Grid */}
-      <div className="grid gap-4 lg:gap-6">
-        {requests && requests.length > 0 ? requests.map((request: any) => (
-          <Card key={request.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-r from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-900/10">
-            <CardContent className="p-4 md:p-6">
-              {/* Mobile-first layout */}
-              <div className="space-y-4">
-                {/* Header Row */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex items-start space-x-3">
-                    <Avatar className="h-10 w-10 md:h-12 md:w-12 ring-2 ring-blue-100">
-                      <AvatarImage src={request.seeker?.photoURL || request.seeker?.profileImageUrl || ""} />
-                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-sm md:text-base">
-                        {(request.fullName || request.seekerName || "U").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base md:text-lg text-gray-900 dark:text-white truncate">
-                        {request.fullName || request.seekerName || "Anonymous"}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Applied for: <span className="font-medium text-blue-600 dark:text-blue-400">{request.jobTitle || request.job?.title || "Position"}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-start sm:items-end gap-2">
-                    {getStatusBadge(request.status)}
-                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleDateString() : "Recently"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-white/50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Contact</p>
-                    <p className="text-sm text-gray-900 dark:text-white font-medium">{request.seekerEmail || request.email}</p>
-                    {(request.phoneNumber || request.seekerPhone) && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{request.phoneNumber || request.seekerPhone}</p>
-                    )}
-                  </div>
-                  
-                  {request.experienceLevel && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Experience</p>
-                      <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                        {request.experienceLevel === 'entry' ? 'Entry Level (0-2 years)' : 
-                         request.experienceLevel === 'mid' ? 'Mid Level (2-5 years)' : 
-                         request.experienceLevel === 'senior' ? 'Senior Level (5-10 years)' : 
-                         request.experienceLevel === 'lead' ? 'Lead/Principal (10+ years)' : request.experienceLevel}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {request.atsScore && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">ATS Score</p>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          request.atsScore >= 85 ? 'bg-green-500' : 
-                          request.atsScore >= 75 ? 'bg-blue-500' : 
-                          request.atsScore >= 65 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}></div>
-                        <span className={`text-sm font-bold ${
-                          request.atsScore >= 85 ? 'text-green-600' : 
-                          request.atsScore >= 75 ? 'text-blue-600' : 
-                          request.atsScore >= 65 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          {request.atsScore}%
-                        </span>
-                        {request.atsCompatibility && (
-                          <span className="text-xs text-gray-500">({request.atsCompatibility})</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onViewRequest(request)}
-                      className="w-full sm:w-auto"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View Details
-                    </Button>
-                    {request.resumeUrl ? (
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="w-full sm:w-auto bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
-                        onClick={() => {
-                          const downloadResume = async (resumeUrl: string, fullName: string) => {
-                            if (!resumeUrl) return;
-                            try {
-                              const response = await fetch(resumeUrl);
-                              if (!response.ok) throw new Error('Network response was not ok');
-                              const blob = await response.blob();
-                              const url = window.URL.createObjectURL(blob);
-                              const link = document.createElement('a');
-                              link.href = url;
-                              
-                              let filename = 'resume_file';
-                              try {
-                                const decodedUrl = decodeURIComponent(resumeUrl);
-                                const pathParts = decodedUrl.split('/');
-                                const fileWithParams = pathParts[pathParts.length - 1];
-                                filename = fileWithParams.split('?')[0];
-                              } catch (e) {
-                                filename = `${fullName || 'resume'}_original`;
-                              }
-                              
-                              if (!filename.includes('.')) {
-                                filename += '.pdf';
-                              }
-                              
-                              link.setAttribute('download', filename);
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                              window.URL.revokeObjectURL(url);
-                            } catch (error) {
-                              console.error("Download failed:", error);
-                              window.open(resumeUrl, '_blank');
-                            }
-                          };
-                          downloadResume(request.resumeUrl, request.fullName || request.seekerName);
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download Resume
-                      </Button>
-                    ) : request.resumeText && (
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="w-full sm:w-auto bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
-                        onClick={() => {
-                          // Create a downloadable text file from resume text
-                          const resumeContent = request.resumeText || '';
-                          const blob = new Blob([resumeContent], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `${request.fullName || request.seekerName || 'Resume'}_Resume.txt`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download Resume (Text)
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Submitted {request.createdAt ? new Date(request.createdAt.toDate()).toLocaleDateString() : "Recently"}
-                    </span>
-                  </div>
-                </div>
+      <div className="space-y-4 lg:space-y-6">
+        {sortedRequests.length > 0 ? requestSections.map((section) => (
+          <div key={section.key} className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{section.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{section.description}</p>
               </div>
-            </CardContent>
-          </Card>
+              <Badge variant="outline" className={section.badgeClass}>
+                {section.requests.length} {section.requests.length === 1 ? "request" : "requests"}
+              </Badge>
+            </div>
+
+            {section.requests.length > 0 ? (
+              <div className="grid gap-4 lg:gap-6">
+                {section.requests.map((request: any) => renderRequestCard(request, section.accent))}
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-6 text-sm text-gray-500 dark:text-gray-400">
+                  {section.emptyState}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )) : (
           <div className="text-center py-12 md:py-16">
             <div className="bg-gray-50 dark:bg-gray-800 rounded-full p-6 w-20 h-20 mx-auto mb-4 flex items-center justify-center">

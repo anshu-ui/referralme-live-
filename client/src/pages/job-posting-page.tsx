@@ -12,6 +12,8 @@ import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { Briefcase, FileText, Target, ArrowLeft, Send, AlertCircle, MapPin, IndianRupee } from "lucide-react";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { getSeekersForJobAlerts } from "../lib/firestore";
+import { sendJobPostingConfirmation, sendJobAlertToSeekers } from "../lib/emailService";
 
 const jobPostingSchema = z.object({
   title: z.string().min(1, "Job title is required"),
@@ -62,6 +64,17 @@ export default function JobPostingPage() {
       };
 
       await addDoc(collection(db, "jobPostings"), newJob);
+
+      if (newJob.referrerEmail) {
+        await sendJobPostingConfirmation(newJob.referrerName, newJob.referrerEmail, newJob);
+      }
+
+      try {
+        const seekers = await getSeekersForJobAlerts();
+        await sendJobAlertToSeekers(newJob, newJob.referrerName, seekers);
+      } catch (error) {
+        console.error("Error sending job alerts:", error);
+      }
 
 
       form.reset();
