@@ -301,13 +301,10 @@ export default function ComprehensiveReferrerDashboard() {
     try {
       await navigator.clipboard.writeText(profileUrl);
       console.log("✅ Profile URL copied to clipboard successfully");
-      
-      // Show immediate alert feedback
-      alert(`✅ PROFILE LINK COPIED!\n\nYour profile link has been copied to clipboard:\n${profileUrl}\n\nAnyone can visit this link without logging in!`);
-      
+
       toast({
-        title: "✅ Profile Link Copied!",
-        description: "Your public referrer profile link has been copied to clipboard. Anyone can view it without logging in!",
+        title: "Profile link copied",
+        description: "Your public referrer profile link is ready to share.",
         duration: 6000,
         className: "border-green-200 bg-green-50"
       });
@@ -324,13 +321,10 @@ export default function ComprehensiveReferrerDashboard() {
         document.body.removeChild(textArea);
         
         console.log("✅ Profile URL copied via fallback method");
-        
-        // Show immediate alert feedback
-        alert(`✅ PROFILE LINK COPIED!\n\nYour profile link has been copied to clipboard:\n${profileUrl}\n\nAnyone can visit this link without logging in!`);
-        
+
         toast({
-          title: "✅ Profile Link Copied!",
-          description: "Your public referrer profile link has been copied to clipboard. Anyone can view it without logging in!",
+          title: "Profile link copied",
+          description: "Your public referrer profile link is ready to share.",
           duration: 6000,
           className: "border-green-200 bg-green-50"
         });
@@ -417,13 +411,21 @@ export default function ComprehensiveReferrerDashboard() {
         setTimeout(() => {
           window.open(linkedInWebUrl, '_blank');
         }, 1000);
-        
-        alert('📱 LinkedIn will open now!\n\n✅ Complete job post copied to clipboard\n• LinkedIn app will open (if installed)\n• Or web browser will open\n• Paste the content to share your job posting');
+
+        toast({
+          title: "LinkedIn share opened",
+          description: "The full job post was copied to your clipboard for easy sharing.",
+          duration: 5000,
+        });
         
       }).catch(() => {
         // Fallback without clipboard
         window.open(linkedInWebUrl, '_blank');
-        alert('📱 LinkedIn opened in browser with pre-filled job post!');
+        toast({
+          title: "LinkedIn opened",
+          description: "Complete the share from the opened LinkedIn page.",
+          duration: 5000,
+        });
       });
     } else {
       // For desktop: use LinkedIn sharing with complete job content pre-filled in the main post
@@ -433,14 +435,18 @@ export default function ComprehensiveReferrerDashboard() {
       navigator.clipboard.writeText(linkedInArticle.content).then(() => {
         console.log('✅ Complete job content with all details copied to clipboard for desktop');
         window.open(linkedInDesktopUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-        setTimeout(() => {
-          alert('✅ LinkedIn opened with complete job post pre-filled!\n\nThe post includes:\n• Job title & company details\n• Location & salary information\n• Full job description\n• Requirements & skills needed\n• Benefits & perks offered\n\nAll information is ready in the main post area. Just click "Post" to share!');
-        }, 1000);
+        toast({
+          title: "LinkedIn share opened",
+          description: "The full job post was copied to your clipboard for desktop sharing.",
+          duration: 5000,
+        });
       }).catch(() => {
         window.open(linkedInDesktopUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-        setTimeout(() => {
-          alert('LinkedIn opened! The complete job post with all details is ready to be pasted for sharing.');
-        }, 500);
+        toast({
+          title: "LinkedIn opened",
+          description: "Paste your copied job post into the opened LinkedIn share window if needed.",
+          duration: 5000,
+        });
       });
     }
     
@@ -458,13 +464,10 @@ export default function ComprehensiveReferrerDashboard() {
       
       await navigator.clipboard.writeText(jobUrl);
       console.log('✅ Job URL copied to clipboard successfully');
-      
-      // Show immediate alert feedback
-      alert(`✅ JOB LINK COPIED!\n\nJob "${job.title}" link has been copied to clipboard:\n${jobUrl}\n\nAnyone can visit this link without logging in!`);
-      
+
       toast({
-        title: "✅ Job Link Copied! 🔗",
-        description: "Share this link with anyone - no login required to view!",
+        title: "Job link copied",
+        description: "Share this public job link with anyone.",
         duration: 6000,
         className: "border-green-200 bg-green-50"
       });
@@ -483,8 +486,8 @@ export default function ComprehensiveReferrerDashboard() {
       document.body.removeChild(textArea);
       
       toast({
-        title: "✅ Job Link Copied! 🔗",
-        description: "Share this link with anyone - no login required to view!",
+        title: "Job link copied",
+        description: "Share this public job link with anyone.",
         duration: 6000,
         className: "border-green-200 bg-green-50"
       });

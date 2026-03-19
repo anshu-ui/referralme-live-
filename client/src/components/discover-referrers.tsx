@@ -7,7 +7,7 @@ import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Search, Filter, TrendingUp, Award, Users, Star, UserCheck } from "lucide-react";
 import { trackEvent } from "../lib/analytics";
-import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import VerificationBadge from "./verification-badge";
 
@@ -66,14 +66,16 @@ export default function DiscoverReferrers({ onReferrerSelect }: DiscoverReferrer
   useEffect(() => {
     const referrersQuery = query(
       collection(db, "users"),
-      where("role", "==", "referrer"),
-      limit(20)
+      where("role", "==", "referrer")
     );
 
     const unsubscribe = onSnapshot(referrersQuery, (snapshot) => {
       const referrerData = snapshot.docs.map(doc => {
         const data = doc.data();
         const referrerId = doc.id;
+        const jobsPosted = jobCounts[referrerId] || 0;
+        const referralsGiven = referralCounts[referrerId] || 0;
+        const impactScore = jobsPosted * 80 + referralsGiven * 180 + (data.isVerified ? 120 : 0);
         return {
           id: referrerId,
           name: data.displayName || data.email?.split('@')[0] || "Anonymous",
@@ -82,20 +84,31 @@ export default function DiscoverReferrers({ onReferrerSelect }: DiscoverReferrer
           jobTitle: data.jobTitle || data.designation || "Professional",
           company: data.company || "Company",
           bio: data.bio || "Professional helping others find great opportunities",
-          reputationLevel: "rising" as const, // Default level for real users
-          impactScore: Math.floor(Math.random() * 500) + 100, // Will be calculated from real activity
-          jobsPosted: jobCounts[referrerId] || 0, // Real count from job postings
-          referralsGiven: referralCounts[referrerId] || 0, // Real count from completed referrals
+          reputationLevel: referralsGiven >= 8 ? "legend" as const : referralsGiven >= 3 ? "expert" as const : "rising" as const,
+          impactScore,
+          jobsPosted,
+          referralsGiven,
+          successfulPlacements: referralsGiven,
           testimonialCount: 0,
-          averageRating: 4.5,
-          profileViews: Math.floor(Math.random() * 100) + 10,
-          achievements: ["New Member"], // Will be calculated from real achievements
-          isVerified: data.isVerified || false, // Add verification status
+          averageRating: data.isVerified ? 4.8 : 4.4,
+          profileViews: jobsPosted * 12 + referralsGiven * 20 + 10,
+          achievements:
+            referralsGiven >= 8
+              ? ["Top Referrer", "Trusted Network"]
+              : jobsPosted > 0
+                ? ["Active Referrer"]
+                : ["New Member"],
+          isVerified: data.isVerified || false,
+          isSuspended: data.isSuspended || false,
           createdAt: data.createdAt,
         };
       });
-      
-      setRealReferrers(referrerData);
+
+      setRealReferrers(
+        referrerData
+          .filter((referrer) => !referrer.isSuspended)
+          .sort((a, b) => b.impactScore - a.impactScore)
+      );
       setLoading(false);
     }, (error) => {
       console.error("Error fetching referrers:", error);
@@ -258,9 +271,9 @@ export default function DiscoverReferrers({ onReferrerSelect }: DiscoverReferrer
           </Card>
         )}
         
-        {!loading && filteredReferrers.length > 0 && (
+        {!loading && sortedReferrers.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReferrers.map((referrer) => (
+            {sortedReferrers.map((referrer) => (
               <Card key={referrer.id} className="cursor-pointer hover:shadow-lg transition-shadow duration-300" onClick={() => onReferrerSelect(referrer.id)}>
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
@@ -324,11 +337,9 @@ export default function DiscoverReferrers({ onReferrerSelect }: DiscoverReferrer
       </div>
 
       {/* Load More */}
-      {!loading && filteredReferrers.length > 0 && (
+      {!loading && sortedReferrers.length > 0 && (
         <div className="text-center">
-          <Button variant="outline">
-            Load More Referrers
-          </Button>
+          <p className="text-sm text-gray-500">Showing all live referrers on the platform.</p>
         </div>
       )}
     </div>

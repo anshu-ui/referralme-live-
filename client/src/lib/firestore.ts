@@ -23,7 +23,7 @@ export interface FirestoreUser {
   email: string;
   displayName: string;
   photoURL?: string;
-  role?: "seeker" | "referrer";
+  role?: "seeker" | "referrer" | "admin";
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
@@ -40,6 +40,8 @@ export interface FirestoreUser {
   // Profile completion tracking
   profileCompleted?: boolean;
   isVerified?: boolean;
+  isSuspended?: boolean;
+  suspendedReason?: string;
   // Mentorship profile fields
   isMentorshipEnabled?: boolean;
   mentorshipServices?: MentorshipService[];
@@ -97,6 +99,7 @@ export interface JobPosting {
   minAtsScore?: number;
   maxReferrals?: number;
   sourceType?: "manual" | "ai_import" | "quick_post";
+  isArchived?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -160,6 +163,24 @@ export interface ReferralInvite {
   expiresAt: Timestamp;
   acceptedAt?: Timestamp;
   createdAt: Timestamp;
+}
+
+export interface PlatformAnnouncement {
+  id?: string;
+  title: string;
+  message: string;
+  audience: "all" | "seekers" | "referrers" | "admins";
+  priority: "info" | "important" | "critical";
+  status: "draft" | "published" | "archived";
+  ctaLabel?: string;
+  ctaHref?: string;
+  createdByUid: string;
+  createdByEmail: string;
+  deliveryChannels?: Array<"in_app" | "email">;
+  publishedAt?: Timestamp;
+  expiresAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 // User operations
@@ -242,6 +263,91 @@ export const getUser = async (uid: string): Promise<FirestoreUser | null> => {
   return { ...userDoc.data() } as FirestoreUser;
 };
 
+export const getAllUsers = async (): Promise<FirestoreUser[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "users"));
+    const users = querySnapshot.docs.map((userDoc) => ({
+      uid: userDoc.id,
+      ...userDoc.data(),
+    })) as FirestoreUser[];
+
+    users.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    return users;
+  } catch (error) {
+    console.error("Error getting all users:", error);
+    throw error;
+  }
+};
+
+export const createPlatformAnnouncement = async (
+  data: Omit<PlatformAnnouncement, "id" | "createdAt" | "updatedAt" | "publishedAt"> & {
+    publishedAt?: boolean;
+  },
+) => {
+  const announcement = {
+    ...data,
+    publishedAt: data.publishedAt ? serverTimestamp() : null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  const docRef = await addDoc(collection(db, "platformAnnouncements"), announcement);
+  return docRef.id;
+};
+
+export const updatePlatformAnnouncement = async (
+  id: string,
+  updates: Partial<PlatformAnnouncement> & { publishedAt?: boolean },
+) => {
+  const announcementRef = doc(db, "platformAnnouncements", id);
+  await updateDoc(announcementRef, {
+    ...updates,
+    publishedAt:
+      typeof updates.publishedAt === "boolean"
+        ? updates.publishedAt
+          ? serverTimestamp()
+          : null
+        : updates.publishedAt,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const getPlatformAnnouncements = async (): Promise<PlatformAnnouncement[]> => {
+  const querySnapshot = await getDocs(collection(db, "platformAnnouncements"));
+  const announcements = querySnapshot.docs.map((announcementDoc) => ({
+    id: announcementDoc.id,
+    ...announcementDoc.data(),
+  })) as PlatformAnnouncement[];
+
+  announcements.sort((a, b) => {
+    const aTime = a.updatedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+    const bTime = b.updatedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+    return bTime.getTime() - aTime.getTime();
+  });
+
+  return announcements;
+};
+
+export const subscribeToPlatformAnnouncements = (
+  callback: (announcements: PlatformAnnouncement[]) => void,
+) => {
+  const announcementsQuery = query(collection(db, "platformAnnouncements"), orderBy("updatedAt", "desc"));
+
+  return onSnapshot(announcementsQuery, (snapshot) => {
+    const announcements = snapshot.docs.map((announcementDoc) => ({
+      id: announcementDoc.id,
+      ...announcementDoc.data(),
+    })) as PlatformAnnouncement[];
+
+    callback(announcements);
+  });
+};
+
 // Job posting operations
 export const createJobPosting = async (jobData: Omit<JobPosting, "id" | "createdAt" | "updatedAt">) => {
   try {
@@ -289,6 +395,28 @@ export const getJobPostings = async (): Promise<JobPosting[]> => {
     return jobs;
   } catch (error) {
     console.error("Error fetching job postings:", error);
+    throw error;
+  }
+};
+
+export const getAllJobPostings = async (): Promise<JobPosting[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "jobPostings"));
+
+    const jobs = querySnapshot.docs.map((jobDoc) => ({
+      id: jobDoc.id,
+      ...jobDoc.data(),
+    })) as JobPosting[];
+
+    jobs.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    return jobs;
+  } catch (error) {
+    console.error("Error getting all job postings:", error);
     throw error;
   }
 };
@@ -502,6 +630,28 @@ export const getReferralRequestsByReferrer = async (referrerId: string): Promise
     return requests;
   } catch (error) {
     console.error("Error fetching referral requests by referrer:", error);
+    throw error;
+  }
+};
+
+export const getAllReferralRequests = async (): Promise<ReferralRequest[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "referralRequests"));
+
+    const requests = querySnapshot.docs.map((requestDoc) => ({
+      id: requestDoc.id,
+      ...requestDoc.data(),
+    })) as ReferralRequest[];
+
+    requests.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    return requests;
+  } catch (error) {
+    console.error("Error getting all referral requests:", error);
     throw error;
   }
 };

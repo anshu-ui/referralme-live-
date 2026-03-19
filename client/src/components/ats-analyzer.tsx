@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
@@ -9,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ScrollArea } from "../components/ui/scroll-area";
 import { useToast } from "../hooks/use-toast";
 import { Upload, FileText, Target, CheckCircle, AlertCircle, X, Download, Sparkles } from "lucide-react";
-import { analyzeResumeWithGemini, extractTextFromFile, type ATSAnalysisResult } from "../lib/gemini-ats";
+import { analyzeResumeWithGemini, type ATSAnalysisResult } from "../lib/gemini-ats";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { saveATSAnalysis } from "../lib/firestore";
 
@@ -30,29 +29,68 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ATSAnalysisResult | null>(null);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type === "application/pdf" || file.type === "application/msword" || file.type.includes("wordprocessingml")) {
+      const isTextFile = file.type === "text/plain" || file.name.endsWith(".txt");
+      const isDocumentFile =
+        file.type === "application/pdf" ||
+        file.type === "application/msword" ||
+        file.type.includes("wordprocessingml") ||
+        file.name.endsWith(".pdf") ||
+        file.name.endsWith(".doc") ||
+        file.name.endsWith(".docx");
+
+      if (isTextFile || isDocumentFile) {
         setResumeFile(file);
-        
-        // Extract text from file
-        extractTextFromFile(file).then((text) => {
-          setResumeText(text);
-          console.log("✅ Resume text extracted successfully");
-        }).catch((error) => {
-          console.error("Failed to extract text:", error);
+        setResumeText("");
+        setIsUploading(true);
+
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error("Upload failed");
+          }
+
+          const payload = await response.json();
+          const extractedText = String(payload.extractedText || "").trim();
+
+          if (extractedText) {
+            setResumeText(extractedText);
+            toast({
+              title: "Resume uploaded",
+              description: "Resume text extracted successfully. ATS scan is ready.",
+            });
+          } else {
+            toast({
+              title: "Upload complete",
+              description: "The file uploaded, but no readable text was extracted from it.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Failed to upload/extract resume:", error);
           toast({
-            title: "Text extraction failed",
-            description: "Could not extract text from the file. Please try a different file.",
+            title: "Upload failed",
+            description: "The resume could not be uploaded for ATS analysis.",
             variant: "destructive"
           });
-        });
+        } finally {
+          setIsUploading(false);
+        }
       } else {
         toast({
           title: "Invalid file type",
-          description: "Please upload a PDF or Word document.",
+          description: "Please upload a PDF, Word, or TXT resume.",
           variant: "destructive"
         });
       }
@@ -183,7 +221,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                       <input
                         type="file"
                         id="resume-upload"
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf,.doc,.docx,.txt"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
@@ -193,7 +231,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                           {resumeFile ? resumeFile.name : "Click to upload resume"}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Supports PDF, DOC, DOCX files up to 10MB
+                          Supports PDF, DOC, DOCX, and TXT files up to 10MB
                         </p>
                       </label>
                     </div>
@@ -207,6 +245,12 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                         <div className="text-sm text-gray-700 max-h-32 overflow-y-auto bg-white p-3 rounded border">
                           {resumeText.slice(0, 300)}...
                         </div>
+                      </div>
+                    )}
+
+                    {!resumeText && resumeFile && !isUploading && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        This file uploaded successfully, but readable text could not be extracted from it.
                       </div>
                     )}
                   </CardContent>
@@ -237,10 +281,15 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                   </Button>
                   <Button 
                     onClick={analyzeResume}
-                    disabled={isAnalyzing || !resumeText}
+                    disabled={isAnalyzing || isUploading || !resumeText}
                     className="min-w-32"
                   >
-                    {isAnalyzing ? (
+                    {isUploading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Uploading...
+                      </div>
+                    ) : isAnalyzing ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         Analyzing...

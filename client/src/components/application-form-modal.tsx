@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -19,7 +19,7 @@ interface ApplicationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   job: any;
-  onApplicationSubmitted: () => void;
+  onApplicationSubmitted: (application: any) => void;
 }
 
 // Use ATSAnalysis interface from geminiATS.ts
@@ -35,6 +35,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const autoAnalysisKeyRef = useRef<string>("");
   
   const [formData, setFormData] = useState({
     fullName: user?.displayName || user?.firstName || "",
@@ -45,6 +46,47 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
   });
   const minAtsScore = Number(job?.minAtsScore || 75);
   const meetsAtsThreshold = !!atsAnalysis && atsAnalysis.overallScore >= minAtsScore;
+
+  const runATSAnalysis = async (source: "manual" | "auto" = "manual") => {
+    if (!formData.resumeText || !formData.resumeText.trim()) {
+      if (source === "manual") {
+        toast({
+          title: "Resume content required",
+          description: "Paste or enter your resume content before running ATS analysis.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const analysis = await analyzeResumeWithGemini(
+        formData.resumeText,
+        job.title || "Job Position",
+        job.description || "Job description not available"
+      );
+
+      setAtsAnalysis(analysis);
+      trackEvent("ats_analysis_completed", "application_form", analysis.overallScore.toString());
+      toast({
+        title: source === "auto" ? "ATS scan updated automatically" : "ATS analysis complete",
+        description:
+          source === "auto"
+            ? `Your uploaded resume and summary scored ${analysis.overallScore} for this role.`
+            : `Your resume scored ${analysis.overallScore} for this referral opportunity.`,
+      });
+    } catch (error) {
+      console.error("ATS analysis failed:", error);
+      toast({
+        title: "ATS analysis failed",
+        description: "The AI analysis could not complete. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -60,6 +102,8 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
 
     if (isSupported) {
       setResumeFile(file);
+      setAtsAnalysis(null);
+      autoAnalysisKeyRef.current = "";
       setIsUploading(true);
       setUploadProgress(0);
       
@@ -83,6 +127,12 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
               setResumeUrl(response.url);
               setUploadProgress(100);
               console.log("Resume uploaded successfully:", response.url);
+              if (response.extractedText) {
+                setFormData((current) => ({
+                  ...current,
+                  resumeText: current.resumeText.trim() ? current.resumeText : response.extractedText,
+                }));
+              }
               trackEvent("resume_uploaded", "application_form", file.type);
             } catch (parseError) {
               console.error("Failed to parse upload response:", parseError);
@@ -139,40 +189,19 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
   };
 
   const handleATSAnalysis = async () => {
-    if (!formData.resumeText || !formData.resumeText.trim()) {
-      toast({
-        title: "Resume content required",
-        description: "Paste or enter your resume content before running ATS analysis.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const analysis = await analyzeResumeWithGemini(
-        formData.resumeText,
-        job.title || "Job Position",
-        job.description || "Job description not available"
-      );
-      
-      setAtsAnalysis(analysis);
-      trackEvent('ats_analysis_completed', 'application_form', analysis.overallScore.toString());
-      toast({
-        title: "ATS analysis complete",
-        description: `Your resume scored ${analysis.overallScore} for this referral opportunity.`,
-      });
-    } catch (error) {
-      console.error("ATS analysis failed:", error);
-      toast({
-        title: "ATS analysis failed",
-        description: "The AI analysis could not complete. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
+    await runATSAnalysis("manual");
   };
+
+  useEffect(() => {
+    const normalizedResumeText = formData.resumeText.trim();
+    const autoKey = `${resumeUrl || ""}::${normalizedResumeText}::${job?.id || ""}`;
+
+    if (!isOpen || !resumeUrl || !normalizedResumeText || isUploading || isAnalyzing) return;
+    if (autoAnalysisKeyRef.current === autoKey) return;
+
+    autoAnalysisKeyRef.current = autoKey;
+    void runATSAnalysis("auto");
+  }, [formData.resumeText, isAnalyzing, isOpen, isUploading, job?.description, job?.id, job?.title, resumeUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,7 +271,10 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       trackEvent('application_submitted', 'referral_system', job.id);
       
       // Call the callback
-      onApplicationSubmitted();
+      onApplicationSubmitted({
+        ...applicationDataWithJob,
+        atsAnalysis,
+      });
       onClose();
       toast({
         title: "Application submitted",
@@ -361,7 +393,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                 <Input
                   id="resume-upload"
                   type="file"
-                  accept=".pdf,.docx"
+                  accept=".pdf,.doc,.docx,.txt"
                   onChange={handleFileUpload}
                   className="max-w-xs mx-auto"
                   disabled={isUploading}
@@ -382,7 +414,9 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                 {resumeFile && !isUploading && resumeUrl && (
                   <div className="mt-3 flex items-center justify-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-600">{resumeFile.name} uploaded successfully!</span>
+                    <span className="text-sm text-green-600">
+                      {resumeFile.name} uploaded successfully{formData.resumeText.trim() ? " and ATS scan is updating." : "!"}
+                    </span>
                   </div>
                 )}
                 {resumeFile && !isUploading && !resumeUrl && (
@@ -403,7 +437,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                   className="flex items-center gap-2"
                 >
                   <Zap className="h-4 w-4" />
-                  {isAnalyzing ? "Analyzing..." : "Analyze Resume with AI"}
+                  {isAnalyzing ? "Analyzing..." : "Re-run ATS Analysis"}
                 </Button>
               </div>
             </div>
@@ -503,7 +537,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                 id="resumeText"
                 value={formData.resumeText}
                 onChange={(e) => setFormData({...formData, resumeText: e.target.value})}
-                placeholder="Provide a brief summary of your experience, key skills, and achievements relevant to this role..."
+                placeholder="Paste the strongest resume content for this role. ATS analysis will auto-run after upload once this summary is filled."
                 className="min-h-[120px]"
                 required
               />

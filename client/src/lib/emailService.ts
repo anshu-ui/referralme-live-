@@ -161,3 +161,33 @@ export async function sendApplicationStatusUpdate(
     },
   });
 }
+
+export async function sendAdminBroadcastEmail(payload: {
+  recipients: Array<{ email: string; name?: string }>;
+  subject: string;
+  title: string;
+  message: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+}): Promise<{ success: boolean; sent: number; failed: number }> {
+  try {
+    const response = await fetch("/api/admin/broadcast-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Admin broadcast email failed:", errorText);
+      return { success: false, sent: 0, failed: payload.recipients.length };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Admin broadcast email error:", error);
+    return { success: false, sent: 0, failed: payload.recipients.length };
+  }
+}

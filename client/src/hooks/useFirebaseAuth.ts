@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { User, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { FirestoreUser, getUser, createUser, acceptReferralInvitation, initializeReferralCode } from "../lib/firestore";
 import { sendSignupStartedEmail } from "../lib/emailService";
 import { trackUserSignup, trackUserLogin } from "../lib/analytics";
@@ -11,7 +13,14 @@ export function useFirebaseAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribeUserDoc: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
+      }
+
       setFirebaseUser(user);
       
       if (user) {
@@ -53,8 +62,20 @@ export function useFirebaseAuth() {
             
             userData = await getUser(user.uid);
           }
-          
+
           setFirestoreUser(userData);
+
+          const userRef = doc(db, "users", user.uid);
+          unsubscribeUserDoc = onSnapshot(userRef, (snapshot) => {
+            if (snapshot.exists()) {
+              setFirestoreUser({
+                uid: snapshot.id,
+                ...snapshot.data(),
+              } as FirestoreUser);
+            } else {
+              setFirestoreUser(null);
+            }
+          });
         } catch (error) {
           console.error("Error handling user data:", error);
           setFirestoreUser(null);
@@ -66,7 +87,10 @@ export function useFirebaseAuth() {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

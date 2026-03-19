@@ -144,6 +144,7 @@ export default function ProfileEdit() {
       const updateData: Partial<FirestoreUser> = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
+        displayName: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email.trim(),
         phoneNumber: formData.phoneNumber.trim(),
         designation: formData.designation.trim(),

@@ -258,6 +258,33 @@ export function generateJobPostingConfirmationEmail(
   };
 }
 
+export function generatePlatformAnnouncementEmail(
+  recipientName: string,
+  title: string,
+  message: string,
+  ctaLabel?: string,
+  ctaHref?: string,
+) {
+  return {
+    subject: title,
+    html: wrapEmail({
+      preheader: title,
+      eyebrow: "Platform Update",
+      title,
+      intro: `Hi ${recipientName || "there"}, there is a new update from ReferralMe.`,
+      body: `
+        <p style="margin:0 0 14px;">${message.replace(/\n/g, "<br />")}</p>
+        <p style="margin:0 0 14px;">Open ReferralMe to review the latest update, take action, or continue where you left off.</p>
+      `,
+      ctaLabel: ctaLabel || "Open ReferralMe",
+      ctaHref: ctaHref || APP_URL,
+      secondaryLinkLabel: "Visit ReferralMe",
+      secondaryLinkHref: ctaHref || APP_URL,
+      footerNote: "This update was sent from the ReferralMe admin console.",
+    }),
+  };
+}
+
 export function generateJobAlertEmail(
   seekerName: string,
   job: any,

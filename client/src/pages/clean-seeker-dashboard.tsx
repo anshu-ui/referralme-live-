@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useJobPostings, useReferralRequests } from "../hooks/useFirestore";
-import { createReferralRequest } from "../lib/firestore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Link } from "wouter";
@@ -65,7 +64,6 @@ export default function CleanSeekerDashboard() {
     location: "all",
     experience: "all"
   });
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [atsAnalysisResult, setAtsAnalysisResult] = useState<any>(null);
   const [showCommunity, setShowCommunity] = useState(false);
   const [selectedReferrer, setSelectedReferrer] = useState<any>(null);
@@ -81,11 +79,11 @@ export default function CleanSeekerDashboard() {
   const realStats = {
     totalApplications: applications?.length || 0,
     pending: applications?.filter(app => app.status === "pending" || !app.status).length || 0,
-    provided: applications?.filter(app => app.status === "accepted").length || 0,
+    provided: applications?.filter(app => app.status === "accepted" || app.status === "referral_confirmed" || app.status === "sent_to_hr").length || 0,
     declined: applications?.filter(app => app.status === "rejected").length || 0,
-    interviews: applications?.filter(app => app.status === "accepted").length || 0, // Same as provided for backward compatibility
+    interviews: applications?.filter(app => app.status === "interview_scheduled" || app.status === "completed").length || 0,
     atsScore: atsAnalysisResult?.overallScore || null,
-    profileViews: Math.floor(Math.random() * 25) + 15, // Realistic profile view count
+    profileViews: 0,
     responseRate: applications?.length > 0 ? Math.round((applications.filter(app => app.status !== "pending").length / applications.length) * 100) : 0
   };
 
@@ -93,8 +91,39 @@ export default function CleanSeekerDashboard() {
     switch (status) {
       case "pending": return "bg-yellow-100 text-yellow-800";
       case "accepted": return "bg-green-100 text-green-800";
+      case "referral_confirmed": return "bg-emerald-100 text-emerald-800";
+      case "sent_to_hr": return "bg-sky-100 text-sky-800";
+      case "interview_scheduled": return "bg-indigo-100 text-indigo-800";
+      case "completed": return "bg-blue-100 text-blue-800";
       case "rejected": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getApplicationModeLabel = (mode?: string) => {
+    switch (mode) {
+      case "direct_internal_link":
+        return "Direct internal link";
+      case "email_resume":
+        return "Email resume";
+      case "platform_request":
+      default:
+        return "Platform request";
+    }
+  };
+
+  const getTimelineStepStatus = (status?: string) => {
+    switch (status) {
+      case "accepted":
+      case "referral_confirmed":
+      case "sent_to_hr":
+      case "interview_scheduled":
+      case "completed":
+        return 1;
+      case "rejected":
+        return -1;
+      default:
+        return 0;
     }
   };
 
@@ -153,31 +182,6 @@ export default function CleanSeekerDashboard() {
     }
   };
 
-
-
-
-
-  const handleATSAnalysis = async () => {
-    if (!resumeFile) {
-      alert("Please upload a resume file first.");
-      return;
-    }
-
-    // Simulate ATS analysis (in real app, this would call an AI service)
-    setAtsAnalysisResult({
-      score: Math.floor(Math.random() * 30) + 70, // Random score between 70-100
-      suggestions: [
-        "Add more specific technical skills",
-        "Include quantifiable achievements",
-        "Optimize keywords for ATS systems"
-      ],
-      matchedKeywords: ["React", "JavaScript", "Node.js"],
-      missingKeywords: ["TypeScript", "AWS", "Docker"]
-    });
-
-    // Analysis complete
-  };
-
   // Filter job postings based on search and filters
   const filteredJobs = jobPostings?.filter(job => {
     // Safety checks for missing properties
@@ -189,6 +193,14 @@ export default function CleanSeekerDashboard() {
     const matchesLocation = filters.location === "all" || job.location.includes(filters.location);
     return matchesSearch && matchesCompany && matchesLocation;
   }) || [];
+
+  const seekerDisplayName =
+    `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+    user?.displayName ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+  const seekerProfileImage = user?.profileImageUrl || user?.photoURL || "";
 
   return (
     <div className="min-h-screen bg-gray-50 animate-fade-in-up">
@@ -211,15 +223,13 @@ export default function CleanSeekerDashboard() {
               
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <Avatar className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 hover-scale">
-                  <AvatarImage src={user?.photoURL || user?.profileImageUrl || ""} />
+                  <AvatarImage src={seekerProfileImage} />
                   <AvatarFallback>
-                    {user?.firstName?.charAt(0) || user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U"}
+                    {seekerDisplayName.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-xs md:text-sm font-medium text-gray-700 hidden sm:inline mobile-hide">
-                  {user?.firstName && user?.lastName 
-                    ? `${user.firstName} ${user.lastName}` 
-                    : user?.displayName || user?.email?.split('@')[0] || "User"}
+                  {seekerDisplayName}
                 </span>
               </div>
               
@@ -282,13 +292,6 @@ export default function CleanSeekerDashboard() {
                     <div className="professional-tab-content">
                       <Target className="h-4 w-4 professional-tab-icon" />
                       <span>Tools</span>
-                    </div>
-                  </TabsTrigger>
-                  <TabsTrigger value="discover-referrers" className="professional-tab">
-                    <div className="professional-tab-content">
-                      <Network className="h-4 w-4 professional-tab-icon" />
-                      <span className="hidden sm:inline">Discover</span>
-                      <span className="sm:hidden">Find</span>
                     </div>
                   </TabsTrigger>
                 </TabsList>
@@ -365,6 +368,10 @@ export default function CleanSeekerDashboard() {
                   <Brain className="mr-2 h-4 w-4" />
                   ATS Analyzer
                 </Button>
+                <Button variant="outline" onClick={() => setActiveTab("discover-referrers")}>
+                  <Network className="mr-2 h-4 w-4" />
+                  View Referrers
+                </Button>
                 <Link href="/profile-edit">
                   <Button variant="outline">
                     <User className="mr-2 h-4 w-4" />
@@ -396,12 +403,26 @@ export default function CleanSeekerDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {applications?.slice(0, 3).map((app) => (
-                      <div key={app.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h4 className="font-medium">{app.jobTitle}</h4>
-                          <p className="text-sm text-gray-500">Referrer: {app.referrerName}</p>
+                      <div key={app.id} className="rounded-lg border p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-medium">{app.jobTitle}</h4>
+                            <p className="text-sm text-gray-500">Referrer: {app.referrerName}</p>
+                          </div>
+                          {getStatusBadge(app.status || "pending")}
                         </div>
-                        {getStatusBadge(app.status || "pending")}
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-gray-500">
+                          {["Applied", "Review", "Outcome"].map((label, index) => {
+                            const stepStatus = getTimelineStepStatus(app.status || "pending");
+                            const isActive = index === 0 || (index === 1 && stepStatus >= 0) || (index === 2 && stepStatus > 0);
+                            const isRejected = index === 2 && stepStatus < 0;
+                            return (
+                              <div key={label} className={`rounded-full px-2 py-1 text-center ${isRejected ? "bg-red-100 text-red-700" : isActive ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                                {label}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -489,6 +510,41 @@ export default function CleanSeekerDashboard() {
                               </span>
                             )}
                           </div>
+
+                          <div className="mb-4 flex flex-wrap gap-2">
+                            <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                              ATS cutoff {job.minAtsScore || 75}
+                            </Badge>
+                            <Badge variant="outline" className="capitalize">
+                              {getApplicationModeLabel(job.applicationMode)}
+                            </Badge>
+                            {job.visibility ? (
+                              <Badge variant="outline" className="capitalize">
+                                {job.visibility.replace("_", " ")}
+                              </Badge>
+                            ) : null}
+                            {realStats.atsScore ? (
+                              <Badge
+                                className={
+                                  realStats.atsScore >= Number(job.minAtsScore || 75)
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }
+                              >
+                                {realStats.atsScore >= Number(job.minAtsScore || 75) ? "You likely qualify" : "Improve ATS before apply"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-slate-200 text-slate-600">
+                                Run ATS scan to check fit
+                              </Badge>
+                            )}
+                          </div>
+
+                          {job.quickSummary ? (
+                            <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/50 p-3 text-sm text-blue-900">
+                              {job.quickSummary}
+                            </div>
+                          ) : null}
                           
                           <div className="mb-4">
                             <p className={`text-gray-700 whitespace-pre-wrap ${job.id && expandedJobs.has(job.id) ? '' : 'line-clamp-3'}`}>
@@ -542,7 +598,7 @@ export default function CleanSeekerDashboard() {
                                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                               >
                                 <Send className="h-4 w-4 mr-2" />
-                                Apply Now
+                                {realStats.atsScore && realStats.atsScore < Number(job.minAtsScore || 75) ? "Review Before Apply" : "Apply Now"}
                               </Button>
                             )}
                           </div>
@@ -598,6 +654,12 @@ export default function CleanSeekerDashboard() {
                               <p className="text-green-800">{app.referrerEmail}</p>
                             </div>
                           </div>
+                          <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
+                            <div className="rounded-full bg-blue-100 px-2 py-1 text-center text-blue-700">Applied</div>
+                            <div className="rounded-full bg-blue-100 px-2 py-1 text-center text-blue-700">Reviewed</div>
+                            <div className="rounded-full bg-green-100 px-2 py-1 text-center text-green-700">Referral given</div>
+                            <div className="rounded-full bg-gray-100 px-2 py-1 text-center text-gray-500">Next update</div>
+                          </div>
                         </div>
                       )) || []}
                       
@@ -651,6 +713,12 @@ export default function CleanSeekerDashboard() {
                               <span className="text-red-600">Contact:</span>
                               <p className="text-red-800">{app.referrerEmail}</p>
                             </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
+                            <div className="rounded-full bg-blue-100 px-2 py-1 text-center text-blue-700">Applied</div>
+                            <div className="rounded-full bg-blue-100 px-2 py-1 text-center text-blue-700">Reviewed</div>
+                            <div className="rounded-full bg-red-100 px-2 py-1 text-center text-red-700">Declined</div>
+                            <div className="rounded-full bg-gray-100 px-2 py-1 text-center text-gray-500">Closed</div>
                           </div>
                         </div>
                       )) || []}
@@ -721,6 +789,12 @@ export default function CleanSeekerDashboard() {
                             <span className="text-yellow-600">Status:</span>
                             <p className="text-yellow-800">Awaiting Review</p>
                           </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-4 gap-2 text-[11px]">
+                          <div className="rounded-full bg-blue-100 px-2 py-1 text-center text-blue-700">Applied</div>
+                          <div className="rounded-full bg-yellow-100 px-2 py-1 text-center text-yellow-700">With referrer</div>
+                          <div className="rounded-full bg-gray-100 px-2 py-1 text-center text-gray-500">Outcome pending</div>
+                          <div className="rounded-full bg-gray-100 px-2 py-1 text-center text-gray-500">Follow-up</div>
                         </div>
                         {app.coverLetter && (
                           <div className="mt-3">
@@ -1045,7 +1119,7 @@ export default function CleanSeekerDashboard() {
                                   Platform Job
                                 </Badge>
                                 <p className="text-xs text-gray-500">
-                                  Posted {Math.floor(Math.random() * 7) + 1} days ago
+                                  {job.createdAt?.toDate ? `Posted ${new Date(job.createdAt.toDate()).toLocaleDateString()}` : "Recently posted"}
                                 </p>
                               </div>
                             </div>

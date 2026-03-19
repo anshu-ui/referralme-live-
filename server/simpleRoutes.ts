@@ -4,6 +4,8 @@
   import path from "path";
   import fs from "fs";
   import crypto from "crypto";
+  import mammoth from "mammoth";
+  import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
   import { getFirestore } from "firebase-admin/firestore";
   import { 
@@ -16,7 +18,8 @@
     generateApplicationAcceptedEmail,
     generateApplicationDeclinedEmail,
     generateApplicationStatusUpdateEmail,
-    generateJobPostingConfirmationEmail
+    generateJobPostingConfirmationEmail,
+    generatePlatformAnnouncementEmail
   } from "./emailService";
 
   // Initialize Firebase Admin (only if credentials are available)
@@ -73,6 +76,44 @@
       }
     }
   });
+
+  async function extractUploadedText(filePath: string, mimetype: string, originalname: string) {
+    const extension = path.extname(originalname).toLowerCase();
+
+    if (mimetype === "text/plain" || extension === ".txt") {
+      return fs.readFileSync(filePath, "utf8").trim();
+    }
+
+    if (
+      mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimetype === "application/msword" ||
+      extension === ".docx" ||
+      extension === ".doc"
+    ) {
+      const { value } = await mammoth.extractRawText({ path: filePath });
+      return value.trim();
+    }
+
+    if (mimetype === "application/pdf" || extension === ".pdf") {
+      const buffer = fs.readFileSync(filePath);
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+      let text = "";
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => ("str" in item ? item.str : ""))
+          .join(" ")
+          .trim();
+        text += `${pageText}\n`;
+      }
+
+      return text.trim();
+    }
+
+    return "";
+  }
 
   export async function registerRoutes(app: Express): Promise<Server> {
     // Test route
@@ -240,16 +281,32 @@
           return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        const response = {
-          url: `/api/files/${req.file.filename}`,
-          filename: req.file.filename,
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size
-        };
-        
-        console.log('Sending response:', response);
-        res.json(response);
+        extractUploadedText(path.join(uploadDir, req.file.filename), req.file.mimetype, req.file.originalname)
+          .then((extractedText) => {
+            const response = {
+              url: `/api/files/${req.file!.filename}`,
+              filename: req.file!.filename,
+              originalname: req.file!.originalname,
+              mimetype: req.file!.mimetype,
+              size: req.file!.size,
+              extractedText,
+            };
+
+            console.log('Sending response:', { ...response, extractedText: extractedText ? "[present]" : "[empty]" });
+            res.json(response);
+          })
+          .catch((error) => {
+            console.error('Text extraction error:', error);
+            const response = {
+              url: `/api/files/${req.file!.filename}`,
+              filename: req.file!.filename,
+              originalname: req.file!.originalname,
+              mimetype: req.file!.mimetype,
+              size: req.file!.size,
+              extractedText: "",
+            };
+            res.json(response);
+          });
       } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({ message: 'Failed to upload file' });
@@ -562,6 +619,48 @@
         }
       } catch (error) {
         console.error('Job posting confirmation email error:', error);
+        res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/admin/broadcast-email', async (req: Request, res: Response) => {
+      try {
+        const { recipients, subject, title, message, ctaLabel, ctaHref } = req.body;
+
+        if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !title || !message) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        let sent = 0;
+        let failed = 0;
+
+        for (const recipient of recipients) {
+          if (!recipient?.email) {
+            failed += 1;
+            continue;
+          }
+
+          const emailContent = generatePlatformAnnouncementEmail(
+            recipient.name || recipient.email,
+            title,
+            message,
+            ctaLabel,
+            ctaHref,
+          );
+
+          const emailSent = await sendEmail({
+            to: recipient.email,
+            subject: subject || emailContent.subject,
+            html: emailContent.html,
+          });
+
+          if (emailSent) sent += 1;
+          else failed += 1;
+        }
+
+        res.json({ success: failed === 0, sent, failed });
+      } catch (error) {
+        console.error('Admin broadcast email error:', error);
         res.status(500).json({ error: 'Email service error' });
       }
     });
