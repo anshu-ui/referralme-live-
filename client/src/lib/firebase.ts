@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { 
   initializeFirestore, 
+  memoryLocalCache,
   persistentLocalCache, 
   persistentMultipleTabManager 
 } from "firebase/firestore";
@@ -29,12 +30,23 @@ console.log("Initializing Firebase with config:", {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-// Initialize Firestore with cache settings
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+
+function createFirestore() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (error) {
+    console.warn("Falling back to memory Firestore cache:", error);
+    return initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+    });
+  }
+}
+
+export const db = createFirestore();
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
