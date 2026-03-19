@@ -289,12 +289,14 @@ export const createPlatformAnnouncement = async (
     publishedAt?: boolean;
   },
 ) => {
-  const announcement = {
-    ...data,
-    publishedAt: data.publishedAt ? serverTimestamp() : null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
+  const announcement = Object.fromEntries(
+    Object.entries({
+      ...data,
+      publishedAt: data.publishedAt ? serverTimestamp() : null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }).filter(([, value]) => value !== undefined)
+  );
 
   const docRef = await addDoc(collection(db, "platformAnnouncements"), announcement);
   return docRef.id;
@@ -305,16 +307,20 @@ export const updatePlatformAnnouncement = async (
   updates: Partial<PlatformAnnouncement> & { publishedAt?: boolean },
 ) => {
   const announcementRef = doc(db, "platformAnnouncements", id);
-  await updateDoc(announcementRef, {
-    ...updates,
-    publishedAt:
-      typeof updates.publishedAt === "boolean"
-        ? updates.publishedAt
-          ? serverTimestamp()
-          : null
-        : updates.publishedAt,
-    updatedAt: serverTimestamp(),
-  });
+  const sanitizedUpdates = Object.fromEntries(
+    Object.entries({
+      ...updates,
+      publishedAt:
+        typeof updates.publishedAt === "boolean"
+          ? updates.publishedAt
+            ? serverTimestamp()
+            : null
+          : updates.publishedAt,
+      updatedAt: serverTimestamp(),
+    }).filter(([, value]) => value !== undefined)
+  );
+
+  await updateDoc(announcementRef, sanitizedUpdates);
 };
 
 export const getPlatformAnnouncements = async (): Promise<PlatformAnnouncement[]> => {

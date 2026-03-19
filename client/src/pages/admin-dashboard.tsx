@@ -115,6 +115,7 @@ export default function AdminDashboard() {
   const [broadcastPriority, setBroadcastPriority] = useState<AnnouncementPriority>("important");
   const [broadcastCtaLabel, setBroadcastCtaLabel] = useState("");
   const [broadcastCtaHref, setBroadcastCtaHref] = useState("");
+  const [broadcastSpecificEmails, setBroadcastSpecificEmails] = useState("");
   const [publishingAnnouncement, setPublishingAnnouncement] = useState(false);
 
   const loadAdminData = async () => {
@@ -295,6 +296,10 @@ export default function AdminDashboard() {
     const title = broadcastTitle.trim();
     const subject = (broadcastSubject || broadcastTitle).trim();
     const message = broadcastMessage.trim();
+    const specificEmails = broadcastSpecificEmails
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
 
     if (!title || !subject || !message) {
       toast({
@@ -305,19 +310,27 @@ export default function AdminDashboard() {
       return;
     }
 
-    const recipients = users
-      .filter((entry) => {
-        if (!entry.email) return false;
-        if (broadcastAudience === "all") return true;
-        if (broadcastAudience === "seekers") return entry.role === "seeker";
-        if (broadcastAudience === "referrers") return entry.role === "referrer";
-        if (broadcastAudience === "admins") return isAdminUser(entry);
-        return false;
-      })
-      .map((entry) => ({
-        email: entry.email,
-        name: entry.displayName || entry.firstName || entry.email,
-      }));
+    const recipients = specificEmails.length
+      ? specificEmails.map((email) => {
+          const matchedUser = users.find((entry) => entry.email?.toLowerCase() === email);
+          return {
+            email,
+            name: matchedUser?.displayName || matchedUser?.firstName || email,
+          };
+        })
+      : users
+          .filter((entry) => {
+            if (!entry.email) return false;
+            if (broadcastAudience === "all") return true;
+            if (broadcastAudience === "seekers") return entry.role === "seeker";
+            if (broadcastAudience === "referrers") return entry.role === "referrer";
+            if (broadcastAudience === "admins") return isAdminUser(entry);
+            return false;
+          })
+          .map((entry) => ({
+            email: entry.email,
+            name: entry.displayName || entry.firstName || entry.email,
+          }));
 
     if (sendEmail && recipients.length === 0) {
       toast({
@@ -371,6 +384,7 @@ export default function AdminDashboard() {
       setBroadcastMessage("");
       setBroadcastCtaLabel("");
       setBroadcastCtaHref("");
+      setBroadcastSpecificEmails("");
       await loadAdminData();
     } catch (error) {
       console.error("Error publishing announcement:", error);
@@ -417,6 +431,7 @@ export default function AdminDashboard() {
     const acceptedRequests = requests.filter((entry) => entry.status === "accepted").length;
     const rejectedRequests = requests.filter((entry) => entry.status === "rejected").length;
     const liveAnnouncements = announcements.filter((entry) => entry.status === "published").length;
+    const emailCampaigns = announcements.filter((entry) => entry.deliveryChannels?.includes("email")).length;
     const resumesAttached = requests.filter((entry: any) => !!entry.resumeUrl || !!entry.resumeText).length;
     const atsCovered = requests.filter((entry: any) => typeof entry.atsScore === "number").length;
     const avgAtsScore =
@@ -442,6 +457,7 @@ export default function AdminDashboard() {
       acceptedRequests,
       rejectedRequests,
       liveAnnouncements,
+      emailCampaigns,
       resumesAttached,
       atsCovered,
       avgAtsScore,
@@ -756,7 +772,7 @@ export default function AdminDashboard() {
                 Control growth, trust, communication, jobs, users, and referral pipeline activity from one blue-and-white operations workspace.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <HeroPill label="Live updates" value={`${overview.liveAnnouncements}`} caption="announcement(s) active" />
+                <HeroPill label="Live updates" value={`${overview.liveAnnouncements}`} caption="in-app announcement(s) active" />
                 <HeroPill label="Pipeline" value={`${overview.pendingRequests}`} caption="requests waiting review" />
                 <HeroPill label="Trust" value={`${overview.verifiedUsers}`} caption="verified user accounts" />
               </div>
@@ -1386,6 +1402,19 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Specific email recipients</p>
+                    <Input
+                      value={broadcastSpecificEmails}
+                      onChange={(event) => setBroadcastSpecificEmails(event.target.value)}
+                      placeholder="name1@example.com, name2@example.com"
+                      className="border-blue-100 bg-white/90"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Optional. If you enter one or more email addresses here, they override the selected audience for email sending.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Message</p>
                     <textarea
                       value={broadcastMessage}
@@ -1428,9 +1457,10 @@ export default function AdminDashboard() {
                   <CardTitle>Live Communication Status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <SnapshotItem label="Published announcements" value={overview.liveAnnouncements} />
+                  <SnapshotItem label="Published in-app" value={overview.liveAnnouncements} />
+                  <SnapshotItem label="Tracked email campaigns" value={overview.emailCampaigns} />
                   <SnapshotItem label="Addressable users" value={users.filter((entry) => !!entry.email).length} />
-                  <SnapshotItem label="Default audience" value={broadcastAudience} />
+                  <SnapshotItem label="Default audience" value={broadcastSpecificEmails ? "Specific emails" : broadcastAudience} />
                   <div className="rounded-[24px] border border-blue-100 bg-blue-50/60 p-4">
                     <p className="text-sm font-semibold text-slate-900">What this gives you now</p>
                     <div className="mt-3 space-y-2 text-sm text-slate-600">
