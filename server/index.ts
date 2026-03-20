@@ -82,6 +82,10 @@ app.use((req, res, next) => {
   });
 
   // Vite Setup vs Static Serving
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ message: "API route not found" });
+  });
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {

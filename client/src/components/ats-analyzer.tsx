@@ -119,8 +119,12 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
             body: formData,
           });
 
+          const contentType = response.headers.get("content-type") || "";
           if (!response.ok) {
             throw new Error("Upload failed");
+          }
+          if (!contentType.includes("application/json")) {
+            throw new Error("Upload endpoint returned an unexpected response");
           }
 
           const payload = await response.json();
@@ -143,7 +147,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
           console.error("Failed to upload/extract resume:", error);
           toast({
             title: "Upload failed",
-            description: "The resume could not be uploaded for ATS analysis.",
+            description: error instanceof Error ? error.message : "The resume could not be uploaded for ATS analysis.",
             variant: "destructive"
           });
         } finally {

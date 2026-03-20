@@ -181,6 +181,10 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
+              const contentType = xhr.getResponseHeader("content-type") || "";
+              if (!contentType.includes("application/json")) {
+                throw new Error("Upload endpoint returned an unexpected response");
+              }
               const response = JSON.parse(xhr.responseText);
               setResumeUrl(response.url);
               setUploadProgress(100);
@@ -196,7 +200,9 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
               console.error("Failed to parse upload response:", parseError);
               toast({
                 title: "Upload response error",
-                description: "Resume upload finished, but the server response could not be read.",
+                description: parseError instanceof Error
+                  ? parseError.message
+                  : "Resume upload finished, but the server response could not be read.",
                 variant: "destructive",
               });
               setResumeFile(null);
