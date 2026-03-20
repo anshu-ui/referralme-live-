@@ -102,6 +102,7 @@ export default function ComprehensiveReferrerDashboard() {
   const [isMentorAccountSetupOpen, setIsMentorAccountSetupOpen] = useState(false);
   const [isDualPaymentSetupOpen, setIsDualPaymentSetupOpen] = useState(false);
   const [managedJobPostings, setManagedJobPostings] = useState<any[]>([]);
+  const [linkedInShareDraft, setLinkedInShareDraft] = useState<{ job: any; content: string; url: string } | null>(null);
 
   // Real data from Firebase using the subscription-based hooks
   const { jobs: allJobPostings, loading: jobsLoading, createJob, updateJob, deleteJob } = useJobPostings();
@@ -392,7 +393,8 @@ export default function ComprehensiveReferrerDashboard() {
     }
   };
 
-  // LinkedIn sharing handler with mobile-optimized pre-filled post
+  // LinkedIn does not reliably support fully prefilled custom post text from web share URLs.
+  // Best reliable UX: generate a crisp post, copy it, then open LinkedIn for quick paste-and-publish.
   const handleShareToLinkedIn = (job: any) => {
     console.log('🔗 LinkedIn Share clicked for job:', job.title);
     
@@ -401,74 +403,64 @@ export default function ComprehensiveReferrerDashboard() {
     
     const linkedInArticle = generateLinkedInArticle(job, user, referrerPublicLink);
     console.log('📄 Generated article content:', linkedInArticle.content.substring(0, 100) + '...');
+    setLinkedInShareDraft({
+      job,
+      content: linkedInArticle.content,
+      url: referrerPublicLink,
+    });
+  };
+
+  const openLinkedInShare = () => {
+    if (!linkedInShareDraft) return;
+
+    const { job, content, url } = linkedInShareDraft;
+    const linkedInComposeUrl = "https://www.linkedin.com/feed/";
+    const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
     
-    // Mobile-friendly LinkedIn sharing approach
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // For mobile: Try LinkedIn app first, then web fallback
-      const linkedInAppUrl = `linkedin://sharing/share-offsite/?text=${encodeURIComponent(linkedInArticle.content)}&url=${encodeURIComponent(referrerPublicLink)}`;
-      const linkedInWebUrl = `https://www.linkedin.com/sharing/share-offsite/?text=${encodeURIComponent(linkedInArticle.content)}&url=${encodeURIComponent(referrerPublicLink)}`;
-      
-      // Copy content to clipboard for easy access
-      navigator.clipboard.writeText(linkedInArticle.content).then(() => {
+      navigator.clipboard.writeText(content).then(() => {
         console.log('✅ Complete job content copied to clipboard for mobile');
-      }).catch(() => {
-        console.log('Clipboard not available');
-      });
-      
-      // Copy content and open LinkedIn with instructions
-      navigator.clipboard.writeText(linkedInArticle.content).then(() => {
-        console.log('✅ Complete job content copied to clipboard for mobile');
-        
-        // Try LinkedIn app with deep link for sharing
-        const linkedInMobileUrl = `linkedin://sharing?text=${encodeURIComponent(linkedInArticle.content)}`;
-        
-        // Create invisible link to trigger app
+        const linkedInMobileUrl = 'linkedin://feed/';
         const link = document.createElement('a');
         link.href = linkedInMobileUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
-        // Fallback to web if app doesn't respond
         setTimeout(() => {
-          window.open(linkedInWebUrl, '_blank');
+          window.open(linkedInComposeUrl, '_blank');
         }, 1000);
 
         toast({
           title: "LinkedIn share opened",
-          description: "The full job post was copied to your clipboard for easy sharing.",
+          description: "Your LinkedIn post is already generated and copied. Just paste it into LinkedIn and share.",
           duration: 5000,
         });
         
       }).catch(() => {
-        // Fallback without clipboard
-        window.open(linkedInWebUrl, '_blank');
+        window.open(linkedInShareUrl, '_blank');
         toast({
           title: "LinkedIn opened",
-          description: "Complete the share from the opened LinkedIn page.",
+          description: "LinkedIn opened with the job link. If the copy step failed, add your text and share manually.",
           duration: 5000,
         });
       });
     } else {
-      // For desktop: use LinkedIn sharing with complete job content pre-filled in the main post
-      const linkedInDesktopUrl = `https://www.linkedin.com/sharing/share-offsite/?text=${encodeURIComponent(linkedInArticle.content)}&url=${encodeURIComponent(referrerPublicLink)}`;
-      
-      // Copy to clipboard and open LinkedIn with full content
-      navigator.clipboard.writeText(linkedInArticle.content).then(() => {
+      navigator.clipboard.writeText(content).then(() => {
         console.log('✅ Complete job content with all details copied to clipboard for desktop');
-        window.open(linkedInDesktopUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        window.open(linkedInComposeUrl, '_blank', 'width=1100,height=800,scrollbars=yes,resizable=yes');
         toast({
           title: "LinkedIn share opened",
-          description: "The full job post was copied to your clipboard for desktop sharing.",
+          description: "Your LinkedIn post is already generated and copied. Just paste it into LinkedIn and share.",
           duration: 5000,
         });
       }).catch(() => {
-        window.open(linkedInDesktopUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        window.open(linkedInShareUrl, '_blank', 'width=1100,height=800,scrollbars=yes,resizable=yes');
         toast({
           title: "LinkedIn opened",
-          description: "Paste your copied job post into the opened LinkedIn share window if needed.",
+          description: "LinkedIn opened with the job link. If the copy step failed, add your text and share manually.",
           duration: 5000,
         });
       });
@@ -476,6 +468,7 @@ export default function ComprehensiveReferrerDashboard() {
     
     // Track analytics
     trackEvent('job_shared_linkedin', 'social_sharing', job.id);
+    setLinkedInShareDraft(null);
   };
 
   // Enhanced generateLinkedInArticle function with comprehensive job details
@@ -519,56 +512,28 @@ export default function ComprehensiveReferrerDashboard() {
   };
 
   const generateLinkedInArticle = (job: any, user: any, referrerLink: string) => {
-    const title = `🚀 Exciting ${job.title} Opportunity at ${job.company}!`;
-    
-    // Build skills section if available
-    const skillsText = job.skills && job.skills.length > 0 
-      ? `\n🔧 Key Skills Required:\n${job.skills.map((skill: string) => `• ${skill}`).join('\n')}`
-      : '';
-    
-    // Build experience section if available
-    const experienceText = job.experience 
-      ? `\n📈 Experience Level: ${job.experience}`
-      : '';
-    
-    // Build benefits section if available
-    const benefitsText = job.benefits && job.benefits.length > 0
-      ? `\n🎁 Benefits & Perks:\n${job.benefits.map((benefit: string) => `• ${benefit}`).join('\n')}`
-      : '';
-    
-    const content = `🎯 I'm excited to share an amazing career opportunity that just opened up!
+    const title = `${job.title} at ${job.company}`;
+    const topSkills = Array.isArray(job.skills) && job.skills.length > 0
+      ? job.skills.slice(0, 4).join(", ")
+      : "";
+    const cleanSalary = (job.salaryRange || job.salary || "").replace(/\$/g, "₹");
+    const summary =
+      job.quickSummary?.trim() ||
+      job.description?.split(".").map((line: string) => line.trim()).filter(Boolean)[0] ||
+      "Sharing a solid opening from my network.";
 
-🚀 ROLE: ${job.title}
-🏢 COMPANY: ${job.company}
-📍 LOCATION: ${job.location}
-💰 SALARY: ${(job.salaryRange || job.salary || 'Competitive package').replace(/\$/g, '₹')}
-⏰ TYPE: ${job.type || 'Full-time'}${experienceText}
+    const content = `Hiring: ${job.title} at ${job.company}
 
-📝 WHAT YOU'LL BE DOING:
-${job.description || 'Join an innovative team and make a real impact in your career! You\'ll be working on exciting projects that drive business growth and innovation.'}
+Location: ${job.location}
+${cleanSalary ? `Compensation: ${cleanSalary}\n` : ""}${job.jobType || job.type ? `Type: ${job.jobType || job.type}\n` : ""}${job.experienceLevel || job.experience ? `Level: ${job.experienceLevel || job.experience}\n` : ""}${topSkills ? `Skills: ${topSkills}\n` : ""}
+${summary}
 
-🎯 WHAT WE'RE LOOKING FOR:
-${job.requirements || 'Passionate individuals ready to take on new challenges and grow with our dynamic team.'}${skillsText}${benefitsText}
+If this looks relevant, apply here:
+${referrerLink}
 
-✨ WHY THIS IS A GREAT OPPORTUNITY:
-✅ Work with cutting-edge technology and innovative solutions
-✅ Collaborative and inclusive team environment
-✅ Excellent growth and learning opportunities
-✅ Competitive compensation and comprehensive benefits
-✅ Opportunity to make a real impact in a growing company
+${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.company}` : ""}.` : "Shared from my network."}
 
-🚀 READY TO TAKE THE NEXT STEP IN YOUR CAREER?
-
-👉 Apply through my referral link: ${referrerLink}
-
-As an industry professional${user?.company ? ` at ${user.company}` : ''}, I'm here to help connect talented individuals with great opportunities. Feel free to reach out if you have questions about this role or need career guidance.
-
-${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
-
-#Hiring #JobOpportunity #CareerGrowth #${job.company?.replace(/\s+/g, '')} #Referral #${job.title?.replace(/\s+/g, '')} #Jobs #Career #Opportunity #ReferralMe
-
----
-🔗 Shared via ReferralMe - Connecting talent with opportunity`;
+#Hiring #Referral #${String(job.company || "Opportunity").replace(/\s+/g, "")} #${String(job.title || "Jobs").replace(/\s+/g, "")}`;
 
     return { title, content };
   };
@@ -665,7 +630,7 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
           setActiveTab(tab);
           trackTabSwitch(tab, 'referrer');
         }} className="space-y-6">
-          <div className="w-full professional-tabs sticky top-14 sm:top-16 z-30">
+          <div className="w-full professional-tabs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="overflow-x-auto tab-scroll-container scrollbar-hide">
                 <TabsList className="flex min-w-max gap-0 p-2 bg-transparent border-none h-auto">
@@ -895,8 +860,8 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
           </DialogContent>
         </Dialog>
 
-        {/* Edit Job Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      {/* Edit Job Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job Posting</DialogTitle>
@@ -911,6 +876,42 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
                 onSave={() => setIsEditModalOpen(false)}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!linkedInShareDraft} onOpenChange={(open) => {
+          if (!open) {
+            setLinkedInShareDraft(null);
+          }
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>LinkedIn Post Ready</DialogTitle>
+              <DialogDescription>
+                We generated a short professional LinkedIn post for this job. When you continue, we will copy it for you and open LinkedIn. You only need to paste and share.
+              </DialogDescription>
+            </DialogHeader>
+            {linkedInShareDraft ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-900">{linkedInShareDraft.job.title} at {linkedInShareDraft.job.company}</p>
+                  <p className="mt-1 text-xs text-slate-500">This is the exact post text that will be copied.</p>
+                </div>
+                <Textarea
+                  value={linkedInShareDraft.content}
+                  readOnly
+                  className="min-h-[260px] text-sm"
+                />
+                <div className="flex gap-3">
+                  <Button variant="outline" className="flex-1" onClick={() => setLinkedInShareDraft(null)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1" onClick={openLinkedInShare}>
+                    Open LinkedIn
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </DialogContent>
         </Dialog>
       </main>
