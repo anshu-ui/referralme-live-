@@ -64,12 +64,23 @@
       fileSize: 10 * 1024 * 1024 // 10MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Allow common file types
-      const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
-      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
+      const allowedExtensions = new Set([".jpeg", ".jpg", ".png", ".gif", ".pdf", ".doc", ".docx", ".txt"]);
+      const allowedMimeTypes = new Set([
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+      ]);
 
-      if (mimetype && extname) {
+      const extension = path.extname(file.originalname).toLowerCase();
+      const hasAllowedExtension = allowedExtensions.has(extension);
+      const hasAllowedMimeType = allowedMimeTypes.has(file.mimetype);
+
+      if (hasAllowedExtension && hasAllowedMimeType) {
         return cb(null, true);
       } else {
         cb(new Error('Invalid file type'));
