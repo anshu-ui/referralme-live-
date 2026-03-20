@@ -1181,26 +1181,6 @@ export const subscribeToActiveMentors = (callback: (mentors: FirestoreUser[]) =>
   }
 };
 
-export const getSeekersForJobAlerts = async (): Promise<FirestoreUser[]> => {
-  try {
-    const q = query(
-      collection(db, "users"),
-      where("role", "==", "seeker"),
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map((doc) => ({
-        uid: doc.id,
-        ...doc.data(),
-      }) as FirestoreUser)
-      .filter((user) => user.email?.trim());
-  } catch (error) {
-    console.error("Error getting seekers for job alerts:", error);
-    throw error;
-  }
-};
-
 // ===== REFERRAL SYSTEM FUNCTIONS =====
 
 // Generate a unique referral code

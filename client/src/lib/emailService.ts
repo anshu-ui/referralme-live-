@@ -70,33 +70,6 @@ export async function sendJobPostingConfirmation(
   });
 }
 
-export async function sendJobAlertToSeekers(job: any, referrerName: string, seekers: any[]): Promise<void> {
-  if (!job || !referrerName || !Array.isArray(seekers) || seekers.length === 0) {
-    return;
-  }
-
-  const results = await Promise.all(
-    seekers
-      .filter((seeker) => seeker?.email)
-      .map((seeker) =>
-        postEmailRequest({
-          endpoint: "/api/email/job-alert",
-          payload: {
-            seekerName: seeker.displayName || seeker.firstName || seeker.email,
-            seekerEmail: seeker.email,
-            job,
-            referrerName,
-          },
-        }),
-      ),
-  );
-
-  const failures = results.filter((result) => !result).length;
-  if (failures > 0) {
-    console.error(`Failed to send ${failures} job alert email(s)`);
-  }
-}
-
 export async function sendApplicationReceivedNotification(
   referrerName: string,
   referrerEmail: string,

@@ -14,11 +14,10 @@ import { Separator } from "../components/ui/separator";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import {
   createJobPosting,
-  getSeekersForJobAlerts,
   type ScreeningQuestion,
 } from "../lib/firestore";
 import { extractJobDetailsWithGemini, generateJobDescriptionWithGemini } from "../lib/geminiATS";
-import { sendJobAlertToSeekers, sendJobPostingConfirmation } from "../lib/emailService";
+import { sendJobPostingConfirmation } from "../lib/emailService";
 import { useToast } from "../hooks/use-toast";
 import {
   ArrowLeft,
@@ -285,13 +284,6 @@ export default function CreateJobPosting() {
       const referrerEmail = user.email || "";
       if (referrerEmail) {
         await sendJobPostingConfirmation(referrerName, referrerEmail, jobData);
-      }
-
-      try {
-        const seekers = await getSeekersForJobAlerts();
-        await sendJobAlertToSeekers(jobData, referrerName, seekers);
-      } catch (error) {
-        console.error("Error sending job alerts:", error);
       }
 
       setShowLinkedInShare(true);
