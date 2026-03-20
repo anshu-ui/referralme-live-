@@ -56,6 +56,68 @@ export default function FirebaseFileUpload({
     return null;
   };
 
+  const fallbackUploadWithoutStorage = async (file: File, user: ReturnType<typeof getAuth>["currentUser"]) => {
+    console.warn("⚠️ Firebase Storage unavailable. Falling back to base64/local image handling.");
+
+    const compressImage = (sourceFile: File): Promise<string> => {
+      return new Promise((resolve) => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+
+        img.onload = () => {
+          const maxSize = 150;
+          let { width, height } = img;
+
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(sourceFile);
+      });
+    };
+
+    try {
+      const base64 = await compressImage(file);
+      setUploadProgress(100);
+      setUploadedFile(file.name);
+      onFileUploaded(base64, file.name);
+    } catch (compressionError) {
+      console.error("Failed to compress image:", compressionError);
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const basicBase64 = event.target?.result as string;
+        setUploadProgress(100);
+        setUploadedFile(file.name);
+        onFileUploaded(basicBase64, file.name);
+      };
+      reader.onerror = () => {
+        const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || user?.email || "User")}&background=2563eb&color=fff&size=200`;
+        setUploadProgress(100);
+        setUploadedFile(file.name);
+        onFileUploaded(placeholderUrl, file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const uploadFile = async (file: File) => {
     const validation = validateFile(file);
     if (validation) {
@@ -73,6 +135,11 @@ export default function FirebaseFileUpload({
       
       if (!user) {
         throw new Error('You must be logged in to upload files');
+      }
+
+      if (!storage) {
+        await fallbackUploadWithoutStorage(file, user);
+        return;
       }
 
       // Create unique filename
@@ -102,79 +169,7 @@ export default function FirebaseFileUpload({
           if (error.code === 'storage/unknown' || error.code === 'storage/unauthorized' || error.code === 'storage/invalid-url') {
             console.warn('⚠️ Firebase Storage not configured. Converting image to base64 for local storage.');
             
-            // Convert file to compressed base64 to avoid Firestore size limits
-            const compressImage = (file: File): Promise<string> => {
-              return new Promise((resolve) => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                
-                img.onload = () => {
-                  // Resize to maximum 150x150 for profile images
-                  const maxSize = 150;
-                  let { width, height } = img;
-                  
-                  if (width > height) {
-                    if (width > maxSize) {
-                      height = (height * maxSize) / width;
-                      width = maxSize;
-                    }
-                  } else {
-                    if (height > maxSize) {
-                      width = (width * maxSize) / height;
-                      height = maxSize;
-                    }
-                  }
-                  
-                  canvas.width = width;
-                  canvas.height = height;
-                  
-                  ctx?.drawImage(img, 0, 0, width, height);
-                  
-                  // Convert to JPEG with quality compression to reduce size
-                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                  resolve(compressedBase64);
-                };
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                  img.src = e.target?.result as string;
-                };
-                reader.readAsDataURL(file);
-              });
-            };
-            
-            compressImage(file).then((compressedBase64) => {
-              console.log('✅ Image compressed and converted to base64 successfully');
-              
-              setTimeout(() => {
-                setUploadProgress(100);
-                setUploadedFile(file.name);
-                onFileUploaded(compressedBase64, file.name);
-              }, 1000);
-            }).catch((compressionError) => {
-              console.error('Failed to compress image:', compressionError);
-              // Try basic base64 conversion without compression as fallback
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const basicBase64 = e.target?.result as string;
-                setTimeout(() => {
-                  setUploadProgress(100);
-                  setUploadedFile(file.name);
-                  onFileUploaded(basicBase64, file.name);
-                }, 1000);
-              };
-              reader.onerror = () => {
-                // Final fallback to placeholder
-                const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email || 'User')}&background=2563eb&color=fff&size=200`;
-                setTimeout(() => {
-                  setUploadProgress(100);
-                  setUploadedFile(file.name);
-                  onFileUploaded(placeholderUrl, file.name);
-                }, 1000);
-              };
-              reader.readAsDataURL(file);
-            });
+            fallbackUploadWithoutStorage(file, user);
             return;
           }
           

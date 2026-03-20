@@ -9,6 +9,161 @@ const getGeminiAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+const GEMINI_MODEL_CANDIDATES = [
+  import.meta.env.VITE_GEMINI_MODEL,
+  "gemini-2.0-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-flash",
+].filter(Boolean) as string[];
+
+const ATS_STOPWORDS = new Set([
+  "the", "and", "for", "with", "you", "your", "from", "that", "this", "have", "will", "into",
+  "our", "are", "not", "but", "can", "all", "job", "role", "team", "work", "using", "use",
+  "years", "year", "about", "their", "them", "they", "who", "has", "had", "was", "were", "his",
+  "her", "she", "him", "its", "also", "out", "per", "via", "one", "two", "three", "etc",
+]);
+
+const tokenize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.\-/\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2 && !ATS_STOPWORDS.has(token));
+
+const unique = <T,>(items: T[]) => Array.from(new Set(items));
+
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
+
+const buildLocalATSAnalysis = (
+  resumeText: string,
+  jobTitle: string,
+  jobDescription: string,
+): ATSAnalysis => {
+  const normalizedResume = resumeText.toLowerCase();
+  const jobTokens = unique(tokenize(`${jobTitle} ${jobDescription}`));
+  const resumeTokens = new Set(tokenize(resumeText));
+
+  const matchedKeywords = jobTokens.filter((token) => resumeTokens.has(token));
+  const missingKeywords = jobTokens.filter((token) => !resumeTokens.has(token)).slice(0, 10);
+
+  const keywordCoverage = jobTokens.length > 0 ? matchedKeywords.length / jobTokens.length : 0;
+  const keywordScore = clampScore(keywordCoverage * 100);
+
+  const commonSections = ["experience", "education", "skills", "summary", "projects"];
+  const detectedSections = commonSections.filter((section) => normalizedResume.includes(section));
+  const sectionScore = (detectedSections.length / commonSections.length) * 55;
+  const bulletsScore = /(^|\n)\s*[-*•]/.test(resumeText) ? 15 : 0;
+  const contactScore = /@/.test(resumeText) ? 10 : 0;
+  const formatScore = clampScore(sectionScore + bulletsScore + contactScore);
+
+  const quantifiedAchievements = (resumeText.match(/\b\d+[%+x]?\b/g) || []).length;
+  const quantifiedScore = Math.min(25, quantifiedAchievements * 4);
+  const lengthScore = resumeText.trim().length >= 800 ? 20 : resumeText.trim().length >= 400 ? 12 : 5;
+  const skillsPresenceScore = normalizedResume.includes("skills") ? 15 : 5;
+  const contentScore = clampScore(40 + quantifiedScore + lengthScore + skillsPresenceScore);
+
+  const overallScore = clampScore((keywordScore * 0.45) + (formatScore * 0.2) + (contentScore * 0.35));
+
+  const suggestions: string[] = [];
+  if (missingKeywords.length > 0) {
+    suggestions.push(`Add missing keywords that appear in the job description: ${missingKeywords.slice(0, 5).join(", ")}.`);
+  }
+  if (quantifiedAchievements < 3) {
+    suggestions.push("Add quantified achievements with numbers, percentages, or business impact.");
+  }
+  if (!normalizedResume.includes("summary")) {
+    suggestions.push("Add a short professional summary near the top for clearer ATS context.");
+  }
+  if (!normalizedResume.includes("skills")) {
+    suggestions.push("Add a dedicated skills section so ATS systems can index relevant tools and technologies.");
+  }
+  if (!/(^|\n)\s*[-*•]/.test(resumeText)) {
+    suggestions.push("Use bullet points for experience entries so responsibilities and outcomes parse more cleanly.");
+  }
+
+  const strengths: string[] = [];
+  if (matchedKeywords.length > 0) {
+    strengths.push(`Matched ${matchedKeywords.length} relevant job keywords.`);
+  }
+  if (quantifiedAchievements >= 3) {
+    strengths.push("Includes quantified achievements that strengthen experience credibility.");
+  }
+  if (detectedSections.length >= 3) {
+    strengths.push("Uses recognizable resume sections that ATS systems handle well.");
+  }
+  if (/@/.test(resumeText)) {
+    strengths.push("Contains contact information in readable text.");
+  }
+
+  const improvementAreas = unique([
+    missingKeywords.length > 0 ? "Keyword alignment" : "",
+    quantifiedAchievements < 3 ? "Achievement quantification" : "",
+    !normalizedResume.includes("skills") ? "Skills section clarity" : "",
+    !normalizedResume.includes("summary") ? "Professional summary" : "",
+    !/(^|\n)\s*[-*•]/.test(resumeText) ? "Experience formatting" : "",
+  ].filter(Boolean)).slice(0, 5);
+
+  return {
+    overallScore,
+    keywordScore,
+    formatScore,
+    contentScore,
+    suggestions: suggestions.slice(0, 5),
+    strengths: strengths.slice(0, 5),
+    missingKeywords,
+    improvementAreas,
+  };
+};
+
+const generateGeminiText = async (
+  prompt: string,
+  options: {
+    model?: string;
+    responseMimeType?: string;
+    responseSchema?: Record<string, unknown>;
+    allowFallbackModels?: boolean;
+  } = {},
+) => {
+  const genAI = getGeminiAI();
+  if (!genAI) {
+    throw new Error("Gemini API key not configured");
+  }
+  let lastError: unknown;
+
+  const candidateModels = options.model
+    ? [options.model]
+    : options.allowFallbackModels
+      ? GEMINI_MODEL_CANDIDATES
+      : GEMINI_MODEL_CANDIDATES.slice(0, 1);
+
+  for (const model of candidateModels) {
+    try {
+      const response = await genAI.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: options.responseMimeType,
+          responseSchema: options.responseSchema,
+        },
+      });
+
+      return response.text || "";
+    } catch (error) {
+      lastError = error;
+      console.warn(`Gemini model failed: ${model}`, error);
+
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('"code":403') || message.includes('"code":404')) {
+        break;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Gemini request failed");
+};
+
 export interface ATSAnalysis {
   overallScore: number;
   keywordScore: number;
@@ -31,142 +186,184 @@ export interface ImportedJobDetails {
   suggestedSkills: string[];
 }
 
+const ATS_SECTION_HEADERS = ["summary", "experience", "skills", "education", "projects", "certifications"];
+const ATS_ACTION_VERBS = [
+  "built", "led", "developed", "delivered", "improved", "designed", "implemented", "optimized",
+  "launched", "managed", "created", "owned", "reduced", "increased", "scaled", "automated",
+];
+const ATS_KEYWORD_BLACKLIST = new Set([
+  ...Array.from(ATS_STOPWORDS),
+  "required", "preferred", "qualification", "qualifications", "responsibilities", "responsibility",
+  "candidate", "candidates", "position", "opportunity", "company", "ability", "strong", "work",
+  "working", "role", "team", "teams", "plus", "must", "should", "would", "nice", "have",
+  "hiring", "location", "apply", "joining", "join", "come", "build", "building", "platform",
+  "selected", "review", "public", "listing", "shared", "referralme", "referral", "opportunities",
+  "candidate", "candidates", "fast", "track", "verified", "referrer",
+]);
+
+const ATS_JOB_BOILERPLATE_PATTERNS = [
+  /internal referral opportunity shared by a verified company referrer/gi,
+  /fast-track internal referral opening with direct referrer review/gi,
+  /apply through referralme for referrer review/gi,
+  /referral opportunity/gi,
+  /verified company referrer/gi,
+  /platform request/gi,
+];
+
+const sanitizeJobContext = (text: string) =>
+  ATS_JOB_BOILERPLATE_PATTERNS.reduce((current, pattern) => current.replace(pattern, " "), text);
+
+const extractKeywords = (text: string, limit = 20) => {
+  const counts = new Map<string, number>();
+  for (const token of text
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.\-/\s]/g, " ")
+    .split(/\s+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 2 && !ATS_KEYWORD_BLACKLIST.has(entry))) {
+    counts.set(token, (counts.get(token) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([token]) => token);
+};
+
+const extractPriorityKeywords = (jobTitle: string, jobDescription: string, skills: string[] = []) => {
+  const sanitizedTitle = sanitizeJobContext(jobTitle);
+  const sanitizedDescription = sanitizeJobContext(jobDescription);
+  const titleKeywords = extractKeywords(jobTitle, 6).filter(
+    (keyword) => !["engineer", "developer", "manager", "analyst", "specialist", "lead"].includes(keyword),
+  );
+  const descriptionKeywords = extractKeywords(sanitizedDescription, 18);
+  const skillKeywords = skills
+    .flatMap((skill) => extractKeywords(skill, 4))
+    .filter((keyword) => !ATS_KEYWORD_BLACKLIST.has(keyword));
+  return unique([...extractKeywords(sanitizedTitle, 6), ...titleKeywords, ...skillKeywords, ...descriptionKeywords]).slice(0, 18);
+};
+
+const computeDeterministicATSAnalysis = (
+  resumeText: string,
+  jobTitle: string,
+  jobDescription: string,
+  requiredSkills: string[] = [],
+): ATSAnalysis => {
+  const normalizedResume = resumeText.toLowerCase();
+  const hasTargetJobContext = Boolean(jobDescription.trim() || requiredSkills.length > 0 || jobTitle.trim());
+  const priorityKeywords = hasTargetJobContext
+    ? extractPriorityKeywords(jobTitle, jobDescription, requiredSkills)
+    : [];
+  const resumeTokens = new Set(tokenize(resumeText));
+  const matchedKeywords = priorityKeywords.filter((token) => resumeTokens.has(token));
+  const missingKeywords = hasTargetJobContext
+    ? priorityKeywords.filter((token) => !resumeTokens.has(token)).slice(0, 10)
+    : [];
+  const keywordCoverage = priorityKeywords.length ? matchedKeywords.length / priorityKeywords.length : 0;
+  const generalKeywordSignals = unique([
+    normalizedResume.includes("javascript") ? "javascript" : "",
+    normalizedResume.includes("typescript") ? "typescript" : "",
+    normalizedResume.includes("react") ? "react" : "",
+    normalizedResume.includes("node") ? "node" : "",
+    normalizedResume.includes("python") ? "python" : "",
+    normalizedResume.includes("sql") ? "sql" : "",
+    normalizedResume.includes("aws") ? "aws" : "",
+  ].filter(Boolean));
+  const keywordScore = hasTargetJobContext
+    ? clampScore(10 + (keywordCoverage * 90))
+    : clampScore(25 + (generalKeywordSignals.length * 8));
+
+  const foundSections = ATS_SECTION_HEADERS.filter((header) => normalizedResume.includes(header));
+  const sectionScore = (foundSections.length / ATS_SECTION_HEADERS.length) * 45;
+  const bulletScore = /(^|\n)\s*[-*•]/.test(resumeText) ? 20 : 5;
+  const contactScore = /@/.test(resumeText) && /\+?\d[\d\s\-()]{7,}/.test(resumeText) ? 20 : /@/.test(resumeText) ? 12 : 0;
+  const formatScore = clampScore(sectionScore + bulletScore + contactScore);
+
+  const quantifiedAchievements = (resumeText.match(/\b\d+([.,]\d+)?(%|x|k|m|b)?\b/gi) || []).length;
+  const actionVerbMatches = ATS_ACTION_VERBS.filter((verb) => normalizedResume.includes(verb));
+  const educationPresent = normalizedResume.includes("education") || normalizedResume.includes("bachelor") || normalizedResume.includes("master");
+  const skillsPresent = normalizedResume.includes("skills");
+  const lengthScore = resumeText.trim().length >= 1200 ? 15 : resumeText.trim().length >= 700 ? 10 : resumeText.trim().length >= 350 ? 6 : 2;
+  const contentScore = clampScore(
+    8 +
+      Math.min(22, quantifiedAchievements * 3) +
+      Math.min(18, actionVerbMatches.length * 3) +
+      (educationPresent ? 10 : 3) +
+      (skillsPresent ? 14 : 4) +
+      lengthScore,
+  );
+
+  const overallScore = hasTargetJobContext
+    ? clampScore((keywordScore * 0.55) + (formatScore * 0.2) + (contentScore * 0.25))
+    : clampScore((keywordScore * 0.25) + (formatScore * 0.35) + (contentScore * 0.4));
+
+  const suggestions: string[] = [];
+  if (hasTargetJobContext && missingKeywords.length > 0) {
+    suggestions.push(`Add JD keywords such as ${missingKeywords.slice(0, 5).join(", ")} where they truthfully match your background.`);
+  }
+  if (quantifiedAchievements < 3) {
+    suggestions.push("Add measurable impact with numbers, percentages, or delivery outcomes in experience bullets.");
+  }
+  if (!skillsPresent) {
+    suggestions.push("Add a dedicated skills section so resume parsers can capture technologies cleanly.");
+  }
+  if (foundSections.length < 4) {
+    suggestions.push("Use clear section headers like Summary, Experience, Skills, Education, and Projects.");
+  }
+  if (!/(^|\n)\s*[-*•]/.test(resumeText)) {
+    suggestions.push("Use bullet points for work history so ATS systems can parse responsibilities more reliably.");
+  }
+
+  const strengths: string[] = [];
+  if (hasTargetJobContext && matchedKeywords.length >= 5) {
+    strengths.push(`Good JD alignment with ${matchedKeywords.length} matched keywords.`);
+  }
+  if (quantifiedAchievements >= 3) {
+    strengths.push("Includes quantified achievements, which improves recruiter and ATS readability.");
+  }
+  if (foundSections.length >= 4) {
+    strengths.push("Contains standard resume sections that ATS systems usually parse well.");
+  }
+  if (contactScore >= 12) {
+    strengths.push("Includes readable contact details in plain text.");
+  }
+
+  const improvementAreas = unique([
+    hasTargetJobContext && missingKeywords.length > 0 ? "Keyword alignment" : "",
+    quantifiedAchievements < 3 ? "Achievement quantification" : "",
+    !skillsPresent ? "Skills section clarity" : "",
+    foundSections.length < 4 ? "Resume structure" : "",
+    !/(^|\n)\s*[-*•]/.test(resumeText) ? "Experience formatting" : "",
+  ].filter(Boolean)).slice(0, 5);
+
+  const finalSuggestions = suggestions.length > 0
+    ? suggestions.slice(0, 5)
+    : ["Your resume structure is solid. Tailor a few keywords and keep outcome-focused bullets for stronger ATS performance."];
+
+  const finalStrengths = strengths.length > 0
+    ? strengths.slice(0, 5)
+    : ["Resume contains enough readable text for deterministic ATS parsing."];
+
+  return {
+    overallScore,
+    keywordScore,
+    formatScore,
+    contentScore,
+    suggestions: finalSuggestions,
+    strengths: finalStrengths,
+    missingKeywords,
+    improvementAreas,
+  };
+};
+
 export async function analyzeResumeWithGemini(
   resumeText: string,
   jobTitle: string,
-  jobDescription: string
+  jobDescription: string,
+  requiredSkills: string[] = [],
 ): Promise<ATSAnalysis> {
-  try {
-    console.log("🤖 Starting Gemini ATS analysis...");
-    
-    const genAI = getGeminiAI();
-    if (!genAI) {
-      throw new Error("Gemini API key not configured");
-    }
-
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            overallScore: { type: "number", minimum: 0, maximum: 100 },
-            keywordScore: { type: "number", minimum: 0, maximum: 100 },
-            formatScore: { type: "number", minimum: 0, maximum: 100 },
-            contentScore: { type: "number", minimum: 0, maximum: 100 },
-            suggestions: { 
-              type: "array", 
-              items: { type: "string" },
-              maxItems: 5
-            },
-            strengths: { 
-              type: "array", 
-              items: { type: "string" },
-              maxItems: 5
-            },
-            missingKeywords: { 
-              type: "array", 
-              items: { type: "string" },
-              maxItems: 10
-            },
-            improvementAreas: { 
-              type: "array", 
-              items: { type: "string" },
-              maxItems: 5
-            }
-          },
-          required: ["overallScore", "keywordScore", "formatScore", "contentScore", "suggestions", "strengths", "missingKeywords", "improvementAreas"]
-        }
-      }
-    });
-
-    const prompt = `
-You are an expert ATS (Applicant Tracking System) resume analyzer. Analyze the provided resume against the job requirements and provide a comprehensive ATS compatibility score.
-
-JOB TITLE: ${jobTitle}
-
-JOB DESCRIPTION:
-${jobDescription}
-
-RESUME CONTENT:
-${resumeText}
-
-Analyze this resume for ATS compatibility and provide:
-
-1. OVERALL SCORE (0-100): How well this resume would pass through ATS systems
-2. KEYWORD SCORE (0-100): How well the resume matches job-specific keywords
-3. FORMAT SCORE (0-100): How ATS-friendly the formatting and structure is
-4. CONTENT SCORE (0-100): Quality and relevance of content
-
-5. SUGGESTIONS: 3-5 specific actionable improvements to increase ATS score
-6. STRENGTHS: 3-5 current strengths of the resume
-7. MISSING KEYWORDS: Up to 10 important keywords from job description missing in resume
-8. IMPROVEMENT AREAS: 3-5 specific areas that need work
-
-Focus on:
-- Keyword matching with job description
-- ATS-friendly formatting
-- Relevant experience alignment
-- Skills section optimization
-- Industry-specific terminology usage
-
-Provide practical, actionable feedback that will help this resume pass ATS screening.
-`;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    console.log("🤖 Gemini raw response:", responseText);
-    
-    // Clean markdown bold markers (* and **) from keys if they exist in the response
-    // Sometimes Gemini wraps keys in ** even when told to return JSON
-    const cleanJson = responseText.replace(/\*\*(.*?)\*\*/g, '$1');
-    const analysis: ATSAnalysis = JSON.parse(cleanJson);
-    
-    // Validate the response structure
-    if (!analysis.overallScore || !analysis.suggestions || !analysis.strengths) {
-      throw new Error("Invalid response structure from Gemini");
-    }
-    
-    console.log("✅ Gemini ATS analysis completed:", analysis);
-    return analysis;
-    
-  } catch (error) {
-    console.error("❌ Gemini ATS analysis failed:", error);
-    
-    // Return fallback analysis
-    return {
-      overallScore: 75,
-      keywordScore: 70,
-      formatScore: 80,
-      contentScore: 75,
-      suggestions: [
-        "Add more keywords from the job description",
-        "Use standard resume section headers",
-        "Include relevant technical skills",
-        "Quantify achievements with numbers",
-        "Optimize for ATS readability"
-      ],
-      strengths: [
-        "Clear professional experience",
-        "Good educational background",
-        "Relevant industry knowledge"
-      ],
-      missingKeywords: [
-        jobTitle,
-        "leadership",
-        "project management",
-        "team collaboration"
-      ],
-      improvementAreas: [
-        "Keyword optimization",
-        "Skills section enhancement",
-        "Achievement quantification",
-        "Industry-specific terminology"
-      ]
-    };
-  }
+  console.log("📊 Running deterministic ATS analysis...");
+  return computeDeterministicATSAnalysis(resumeText, jobTitle, jobDescription, requiredSkills);
 }
 
 export async function generateJobDescriptionWithGemini(
@@ -178,15 +375,6 @@ export async function generateJobDescriptionWithGemini(
 ): Promise<string> {
   try {
     console.log("🤖 Generating job description with Gemini...");
-    
-    const genAI = getGeminiAI();
-    if (!genAI) {
-      throw new Error("Gemini API key not configured");
-    }
-
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash"
-    });
 
     const prompt = `
 Generate a professional job description for the following position:
@@ -208,8 +396,7 @@ Make it professional, engaging, and ATS-optimized with relevant keywords.
 Use standard corporate language and formatting.
 `;
 
-    const result = await model.generateContent(prompt);
-    let description = result.response.text();
+    let description = await generateGeminiText(prompt, { allowFallbackModels: false });
     
     // Remove markdown bold markers (** and *) from the generated content
     description = description.replace(/\*\*/g, '').replace(/\*/g, '');
@@ -255,36 +442,6 @@ export async function extractJobDetailsWithGemini(sourceText: string): Promise<I
   const fallback = getFallbackImportedJobDetails(sourceText);
 
   try {
-    const genAI = getGeminiAI();
-    if (!genAI) {
-      throw new Error("Gemini API key not configured");
-    }
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            title: { type: "string" },
-            company: { type: "string" },
-            location: { type: "string" },
-            experienceLevel: { type: "string", enum: ["entry", "mid", "senior", "lead"] },
-            description: { type: "string" },
-            requirements: { type: "string" },
-            quickSummary: { type: "string" },
-            suggestedSkills: {
-              type: "array",
-              items: { type: "string" },
-              maxItems: 8,
-            },
-          },
-          required: ["title", "company", "location", "experienceLevel", "description", "requirements", "quickSummary", "suggestedSkills"],
-        },
-      },
-    });
-
     const prompt = `
 Extract structured job details from this internal referral post or JD text.
 
@@ -299,8 +456,28 @@ Rules:
 - suggestedSkills should contain the most relevant skill keywords only.
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const responseText = await generateGeminiText(prompt, {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          company: { type: "string" },
+          location: { type: "string" },
+          experienceLevel: { type: "string", enum: ["entry", "mid", "senior", "lead"] },
+          description: { type: "string" },
+          requirements: { type: "string" },
+          quickSummary: { type: "string" },
+          suggestedSkills: {
+            type: "array",
+            items: { type: "string" },
+            maxItems: 8,
+          },
+        },
+        required: ["title", "company", "location", "experienceLevel", "description", "requirements", "quickSummary", "suggestedSkills"],
+      },
+      allowFallbackModels: false,
+    });
     const cleanJson = responseText.replace(/\*\*(.*?)\*\*/g, "$1");
     const parsed = JSON.parse(cleanJson) as ImportedJobDetails;
 

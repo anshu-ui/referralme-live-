@@ -47,7 +47,16 @@ function createFirestore() {
 }
 
 export const db = createFirestore();
-export const storage = getStorage(app);
+function createStorage() {
+  try {
+    return getStorage(app);
+  } catch (error) {
+    console.warn("Firebase Storage unavailable in this environment:", error);
+    return null;
+  }
+}
+
+export const storage = createStorage();
 export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider to show account selection and email picker

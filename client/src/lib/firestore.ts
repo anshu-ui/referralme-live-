@@ -98,8 +98,59 @@ export interface JobPosting {
   visibility?: "public" | "private_link" | "invite_only";
   minAtsScore?: number;
   maxReferrals?: number;
+  currentReferralCount?: number;
+  autoCloseOnCap?: boolean;
+  templateId?: string;
+  templateName?: string;
+  screeningQuestions?: ScreeningQuestion[];
+  expiresAt?: string;
+  reminderPreference?: "smart" | "daily" | "weekly";
+  digestEnabled?: boolean;
   sourceType?: "manual" | "ai_import" | "quick_post";
   isArchived?: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ScreeningQuestion {
+  id: string;
+  prompt: string;
+  inputType: "short_text" | "long_text" | "select";
+  required: boolean;
+  options?: string[];
+}
+
+export interface ScreeningAnswer {
+  questionId: string;
+  prompt: string;
+  answer: string;
+}
+
+export interface JobTemplate {
+  id?: string;
+  referrerId: string;
+  referrerEmail: string;
+  referrerName: string;
+  name: string;
+  title: string;
+  company: string;
+  location: string;
+  jobType?: JobPosting["jobType"];
+  workArrangement?: JobPosting["workArrangement"];
+  experienceLevel?: JobPosting["experienceLevel"];
+  description: string;
+  requirements: string;
+  quickSummary?: string;
+  urgency?: JobPosting["urgency"];
+  visibility?: JobPosting["visibility"];
+  applicationMode?: JobPosting["applicationMode"];
+  minAtsScore?: number;
+  maxReferrals?: number;
+  autoCloseOnCap?: boolean;
+  reminderPreference?: JobPosting["reminderPreference"];
+  digestEnabled?: boolean;
+  screeningQuestions?: ScreeningQuestion[];
+  skills?: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -117,6 +168,10 @@ export interface ReferralRequest {
   resumeFileName?: string;
   linkedinUrl?: string;
   coverLetter?: string;
+  screeningAnswers?: ScreeningAnswer[];
+  screeningScore?: number;
+  matchScore?: number;
+  shortlistTier?: "auto_shortlist" | "review" | "hold";
   status: "pending" | "accepted" | "rejected" | "referral_confirmed" | "sent_to_hr" | "interview_scheduled" | "completed";
   referrerId: string;
   referrerName: string;
@@ -182,6 +237,82 @@ export interface PlatformAnnouncement {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+const sanitizeFirestorePayload = <T extends Record<string, any>>(payload: T) =>
+  Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
+
+const normalizeScreeningQuestions = (questions?: ScreeningQuestion[]) =>
+  (questions || [])
+    .map((question) => {
+      const options = question.options?.map((option) => option.trim()).filter(Boolean);
+      return {
+        id: question.id,
+        prompt: question.prompt.trim(),
+        inputType: question.inputType,
+        required: question.required,
+        ...(options && options.length > 0 ? { options } : {}),
+      };
+    })
+    .filter((question) => question.prompt);
+
+const getRequestStatusWeight = (status?: ReferralRequest["status"]) => {
+  switch (status) {
+    case "accepted":
+    case "referral_confirmed":
+    case "sent_to_hr":
+    case "interview_scheduled":
+    case "completed":
+      return 1;
+    default:
+      return 0;
+  }
+};
+
+export const isJobExpired = (job?: Partial<JobPosting> | null) => {
+  if (!job?.expiresAt) return false;
+  const expiryDate = new Date(job.expiresAt);
+  return !Number.isNaN(expiryDate.getTime()) && expiryDate.getTime() < Date.now();
+};
+
+export const isJobAtCapacity = (job?: Partial<JobPosting> | null) => {
+  const maxReferrals = Number(job?.maxReferrals || 0);
+  if (!maxReferrals) return false;
+  return Number(job?.currentReferralCount || 0) >= maxReferrals;
+};
+
+export const isJobClosedForApplications = (job?: Partial<JobPosting> | null) =>
+  !job || job.isActive === false || job.isArchived === true || isJobExpired(job) || isJobAtCapacity(job);
+
+export const computeRequestMatchScore = (request: Partial<ReferralRequest>, job?: Partial<JobPosting> | null) => {
+  const atsScore = Number(request.atsScore || 0);
+  const cutoff = Number(job?.minAtsScore || 0);
+  const screeningScore = Number(request.screeningScore || 0);
+  const atsComponent = atsScore ? Math.min(60, atsScore * 0.6) : 0;
+  const screeningComponent = screeningScore ? Math.min(25, screeningScore * 0.25) : 0;
+  const cutoffBoost = cutoff && atsScore >= cutoff ? 15 : 0;
+  return Math.round(Math.min(100, atsComponent + screeningComponent + cutoffBoost));
+};
+
+export const computeShortlistTier = (request: Partial<ReferralRequest>, job?: Partial<JobPosting> | null) => {
+  const cutoff = Number(job?.minAtsScore || 0);
+  const atsScore = Number(request.atsScore || 0);
+  const screeningScore = Number(request.screeningScore || 0);
+  const hasRequiredScreening = !(job?.screeningQuestions || []).some((question) => question.required) || screeningScore > 0;
+
+  if (cutoff && atsScore >= cutoff && hasRequiredScreening) {
+    return "auto_shortlist" as const;
+  }
+
+  if (!cutoff && (atsScore >= 75 || screeningScore >= 75)) {
+    return "auto_shortlist" as const;
+  }
+
+  if (atsScore >= Math.max(55, cutoff - 10) || screeningScore >= 50) {
+    return "review" as const;
+  }
+
+  return "hold" as const;
+};
 
 // User operations
 export const createUser = async (userData: Omit<FirestoreUser, "createdAt" | "updatedAt">) => {
@@ -289,14 +420,12 @@ export const createPlatformAnnouncement = async (
     publishedAt?: boolean;
   },
 ) => {
-  const announcement = Object.fromEntries(
-    Object.entries({
-      ...data,
-      publishedAt: data.publishedAt ? serverTimestamp() : null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }).filter(([, value]) => value !== undefined)
-  );
+  const announcement = sanitizeFirestorePayload({
+    ...data,
+    publishedAt: data.publishedAt ? serverTimestamp() : null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 
   const docRef = await addDoc(collection(db, "platformAnnouncements"), announcement);
   return docRef.id;
@@ -307,18 +436,16 @@ export const updatePlatformAnnouncement = async (
   updates: Partial<PlatformAnnouncement> & { publishedAt?: boolean },
 ) => {
   const announcementRef = doc(db, "platformAnnouncements", id);
-  const sanitizedUpdates = Object.fromEntries(
-    Object.entries({
-      ...updates,
-      publishedAt:
-        typeof updates.publishedAt === "boolean"
-          ? updates.publishedAt
-            ? serverTimestamp()
-            : null
-          : updates.publishedAt,
-      updatedAt: serverTimestamp(),
-    }).filter(([, value]) => value !== undefined)
-  );
+  const sanitizedUpdates = sanitizeFirestorePayload({
+    ...updates,
+    publishedAt:
+      typeof updates.publishedAt === "boolean"
+        ? updates.publishedAt
+          ? serverTimestamp()
+          : null
+        : updates.publishedAt,
+    updatedAt: serverTimestamp(),
+  });
 
   await updateDoc(announcementRef, sanitizedUpdates);
 };
@@ -358,9 +485,11 @@ export const subscribeToPlatformAnnouncements = (
 export const createJobPosting = async (jobData: Omit<JobPosting, "id" | "createdAt" | "updatedAt">) => {
   try {
     console.log("Creating job posting with data:", jobData);
-    const sanitizedJobData = Object.fromEntries(
-      Object.entries(jobData).filter(([, value]) => value !== undefined)
-    );
+    const sanitizedJobData = sanitizeFirestorePayload({
+      ...jobData,
+      screeningQuestions: normalizeScreeningQuestions(jobData.screeningQuestions),
+      currentReferralCount: Number(jobData.currentReferralCount || 0),
+    });
     const jobDoc = {
       ...sanitizedJobData,
       createdAt: serverTimestamp(),
@@ -461,10 +590,11 @@ export const updateJobPosting = async (jobId: string, updates: Partial<JobPostin
   try {
     console.log("Updating job posting:", jobId, updates);
     const jobRef = doc(db, "jobPostings", jobId);
-    await updateDoc(jobRef, {
+    await updateDoc(jobRef, sanitizeFirestorePayload({
       ...updates,
+      screeningQuestions: updates.screeningQuestions ? normalizeScreeningQuestions(updates.screeningQuestions) : undefined,
       updatedAt: serverTimestamp(),
-    });
+    }));
     console.log("Job posting updated successfully:", jobId);
   } catch (error) {
     console.error("Error updating job posting:", error);
@@ -503,11 +633,15 @@ export const getJobPosting = async (jobId: string): Promise<JobPosting | null> =
 export const createReferralRequest = async (requestData: Omit<ReferralRequest, "id" | "createdAt" | "updatedAt">) => {
   try {
     console.log("Creating referral request with data:", requestData);
-    const requestDoc = {
+    const shortlistTier = requestData.shortlistTier || computeShortlistTier(requestData, null);
+    const requestDoc = sanitizeFirestorePayload({
       ...requestData,
+      screeningAnswers: requestData.screeningAnswers || [],
+      matchScore: requestData.matchScore || computeRequestMatchScore(requestData, null),
+      shortlistTier,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    };
+    });
     const docRef = await addDoc(collection(db, "referralRequests"), requestDoc);
     console.log("Referral request created successfully with ID:", docRef.id);
     return docRef.id;
@@ -520,6 +654,21 @@ export const createReferralRequest = async (requestData: Omit<ReferralRequest, "
 // Enhanced referral request submission with ATS integration
 export const submitReferralRequest = async (requestData: any) => {
   try {
+    const linkedJob = requestData.job || null;
+    const screeningAnswers = (requestData.screeningAnswers || []) as ScreeningAnswer[];
+    const normalizedQuestions = (linkedJob?.screeningQuestions || []) as ScreeningQuestion[];
+    const requiredQuestions = normalizedQuestions.filter((question) => question.required);
+    const answeredRequiredCount = requiredQuestions.filter((question) =>
+      screeningAnswers.some((entry) => entry.questionId === question.id && entry.answer?.trim()),
+    ).length;
+    const answeredOptionalCount = normalizedQuestions.filter((question) =>
+      !question.required && screeningAnswers.some((entry) => entry.questionId === question.id && entry.answer?.trim()),
+    ).length;
+    const screeningScore = requiredQuestions.length
+      ? Math.round((answeredRequiredCount / requiredQuestions.length) * 100)
+      : normalizedQuestions.length
+        ? Math.round((answeredOptionalCount / normalizedQuestions.length) * 100)
+        : 0;
     const enhancedRequestData = {
       ...requestData,
       // Ensure all ATS fields are included
@@ -537,11 +686,40 @@ export const submitReferralRequest = async (requestData: any) => {
       skills: requestData.skills || null,
       coverLetter: requestData.motivation,
       resumeUrl: requestData.resumeUrl || null,
+      screeningAnswers,
+      screeningScore,
+      matchScore: computeRequestMatchScore(
+        {
+          atsScore: requestData.atsScore,
+          screeningScore,
+        },
+        linkedJob,
+      ),
+      shortlistTier: computeShortlistTier(
+        {
+          atsScore: requestData.atsScore,
+          screeningScore,
+        },
+        linkedJob,
+      ),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
     const requestRef = await addDoc(collection(db, 'referralRequests'), enhancedRequestData);
+
+    if (linkedJob?.id) {
+      const jobRef = doc(db, "jobPostings", linkedJob.id);
+      const nextCount = Number(linkedJob.currentReferralCount || 0) + 1;
+      await updateDoc(jobRef, sanitizeFirestorePayload({
+        currentReferralCount: nextCount,
+        isActive:
+          linkedJob.autoCloseOnCap && linkedJob.maxReferrals
+            ? nextCount < Number(linkedJob.maxReferrals)
+            : linkedJob.isActive !== false,
+        updatedAt: serverTimestamp(),
+      }));
+    }
     
     console.log('✅ Enhanced referral request submitted with ATS analysis:', requestRef.id);
     
@@ -670,6 +848,36 @@ export const updateReferralRequestStatus = async (requestId: string, status: Ref
   });
 };
 
+export const createJobTemplate = async (
+  templateData: Omit<JobTemplate, "id" | "createdAt" | "updatedAt">,
+) => {
+  const templateDoc = sanitizeFirestorePayload({
+    ...templateData,
+    screeningQuestions: normalizeScreeningQuestions(templateData.screeningQuestions),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  const docRef = await addDoc(collection(db, "jobTemplates"), templateDoc);
+  return docRef.id;
+};
+
+export const getJobTemplatesByReferrer = async (referrerId: string): Promise<JobTemplate[]> => {
+  const q = query(collection(db, "jobTemplates"), where("referrerId", "==", referrerId));
+  const querySnapshot = await getDocs(q);
+  const templates = querySnapshot.docs.map((templateDoc) => ({
+    id: templateDoc.id,
+    ...templateDoc.data(),
+  })) as JobTemplate[];
+
+  templates.sort((a, b) => {
+    const aTime = a.updatedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+    const bTime = b.updatedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+    return bTime.getTime() - aTime.getTime();
+  });
+
+  return templates;
+};
+
 // Real-time listeners with enhanced error handling
 export const subscribeToJobPostings = (callback: (jobs: JobPosting[]) => void) => {
   try {
@@ -696,7 +904,13 @@ export const subscribeToJobPostings = (callback: (jobs: JobPosting[]) => void) =
                 return null;
               }
             })
-            .filter((job): job is JobPosting => job !== null && job.isActive !== false)
+            .filter((job): job is JobPosting => {
+              if (!job || job.isActive === false) return false;
+              if (job.isArchived) return false;
+              if (isJobExpired(job)) return false;
+              if (job.autoCloseOnCap && isJobAtCapacity(job)) return false;
+              return true;
+            })
             .sort((a, b) => {
               const aTime = a.createdAt?.toDate?.() || new Date(0);
               const bTime = b.createdAt?.toDate?.() || new Date(0);
@@ -753,6 +967,34 @@ export const subscribeToReferralRequests = (referrerId: string, callback: (reque
     });
   } catch (error) {
     console.error("Error setting up referral requests subscription:", error);
+    throw error;
+  }
+};
+
+export const subscribeToReferrerJobPostings = (referrerId: string, callback: (jobs: JobPosting[]) => void) => {
+  try {
+    console.log("Setting up referrer job postings subscription for:", referrerId);
+    const q = query(
+      collection(db, "jobPostings"),
+      where("referrerId", "==", referrerId)
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const jobs = querySnapshot.docs.map((jobDoc) => ({
+        id: jobDoc.id,
+        ...jobDoc.data(),
+      })) as JobPosting[];
+
+      jobs.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.() || new Date(0);
+        const bTime = b.createdAt?.toDate?.() || new Date(0);
+        return bTime.getTime() - aTime.getTime();
+      });
+
+      callback(jobs);
+    });
+  } catch (error) {
+    console.error("Error setting up referrer job postings subscription:", error);
     throw error;
   }
 };

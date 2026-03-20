@@ -43,7 +43,15 @@ import {
 } from "../lib/analytics";
 import { sendApplicationStatusUpdate } from "../lib/emailService";
 import { useToast } from "../hooks/use-toast";
-import { updateReferralRequestStatus, deleteJobPosting } from "../lib/firestore";
+import {
+  computeRequestMatchScore,
+  computeShortlistTier,
+  isJobAtCapacity,
+  isJobExpired,
+  subscribeToReferrerJobPostings,
+  updateReferralRequestStatus,
+  deleteJobPosting,
+} from "../lib/firestore";
 // import MentorAccountSetup from "../components/mentor-account-setup";
 // import DualPaymentSetup from "../components/dual-payment-setup";
 import {
@@ -93,13 +101,29 @@ export default function ComprehensiveReferrerDashboard() {
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [isMentorAccountSetupOpen, setIsMentorAccountSetupOpen] = useState(false);
   const [isDualPaymentSetupOpen, setIsDualPaymentSetupOpen] = useState(false);
+  const [managedJobPostings, setManagedJobPostings] = useState<any[]>([]);
 
   // Real data from Firebase using the subscription-based hooks
   const { jobs: allJobPostings, loading: jobsLoading, createJob, updateJob, deleteJob } = useJobPostings();
   const { requests, loading: requestsLoading } = useReferralRequests("referrer");
 
   // Filter job postings to only show those created by this user
-  const myJobPostings = allJobPostings?.filter(job => job.referrerId === user?.uid) || [];
+  const myJobPostings = managedJobPostings.length
+    ? managedJobPostings
+    : allJobPostings?.filter(job => job.referrerId === user?.uid) || [];
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setManagedJobPostings([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToReferrerJobPostings(user.uid, (jobs) => {
+      setManagedJobPostings(jobs);
+    });
+
+    return unsubscribe;
+  }, [user?.uid]);
 
   // Calculate real stats from Firebase data
   const realStats = {
@@ -698,7 +722,7 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <OverviewSection stats={realStats} />
+            <OverviewSection stats={realStats} jobs={myJobPostings} requests={requests || []} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RecentActivity jobs={myJobPostings} requests={requests} />
               <QuickActions 
@@ -711,6 +735,7 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
           <TabsContent value="jobs" className="space-y-6">
             <MyJobsSection 
               jobPostings={myJobPostings} 
+              requests={requests || []}
               onCreateJob={() => navigate("/create-job")}
               onViewJob={handleViewJob}
               onEditJob={handleEditJob}
@@ -724,6 +749,7 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
           <TabsContent value="requests" className="space-y-6">
             <RequestsSection 
               requests={requests || []}
+              jobs={myJobPostings}
               onStatusUpdate={handleApplicationStatusUpdate}
               onViewRequest={handleViewApplication}
               getStatusBadge={getStatusBadge}
@@ -951,37 +977,72 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
 }
 
 // Component Sections
-function OverviewSection({ stats }: { stats: any }) {
+function OverviewSection({ stats, jobs, requests }: { stats: any; jobs: any[]; requests: any[] }) {
+  const expiringJobs = (jobs || []).filter((job) => {
+    if (!job?.expiresAt) return false;
+    const expiryDate = new Date(job.expiresAt);
+    const hoursLeft = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60);
+    return hoursLeft > 0 && hoursLeft <= 72;
+  });
+  const cappedJobs = (jobs || []).filter((job) => isJobAtCapacity(job));
+  const autoShortlisted = (requests || []).filter((request) => computeShortlistTier(request, request.job) === "auto_shortlist" && request.status === "pending");
+  const smartDigest = [
+    autoShortlisted.length ? `${autoShortlisted.length} strong candidates ready for quick approval` : "No top-fit candidates are waiting right now",
+    expiringJobs.length ? `${expiringJobs.length} role${expiringJobs.length > 1 ? "s" : ""} expiring in the next 72 hours` : "No roles are close to expiry",
+    cappedJobs.length ? `${cappedJobs.length} role${cappedJobs.length > 1 ? "s have" : " has"} already reached candidate capacity` : "No role has hit the slot cap",
+  ];
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <StatCard
-        title="Active Posts"
-        value={stats.activePosts}
-        icon={<Briefcase className="h-5 w-5" />}
-        color="text-blue-600"
-        bgColor="bg-blue-50"
-      />
-      <StatCard
-        title="Total Applications"
-        value={stats.totalApplications}
-        icon={<Users className="h-5 w-5" />}
-        color="text-green-600"
-        bgColor="bg-green-50"
-      />
-      <StatCard
-        title="Pending Reviews"
-        value={stats.pendingRequests}
-        icon={<Clock className="h-5 w-5" />}
-        color="text-yellow-600"
-        bgColor="bg-yellow-50"
-      />
-      <StatCard
-        title="Success Rate"
-        value={`${stats.responseRate}%`}
-        icon={<TrendingUp className="h-5 w-5" />}
-        color="text-purple-600"
-        bgColor="bg-purple-50"
-      />
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          title="Active Posts"
+          value={stats.activePosts}
+          icon={<Briefcase className="h-5 w-5" />}
+          color="text-blue-600"
+          bgColor="bg-blue-50"
+        />
+        <StatCard
+          title="Total Applications"
+          value={stats.totalApplications}
+          icon={<Users className="h-5 w-5" />}
+          color="text-green-600"
+          bgColor="bg-green-50"
+        />
+        <StatCard
+          title="Pending Reviews"
+          value={stats.pendingRequests}
+          icon={<Clock className="h-5 w-5" />}
+          color="text-yellow-600"
+          bgColor="bg-yellow-50"
+        />
+        <StatCard
+          title="Success Rate"
+          value={`${stats.responseRate}%`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          color="text-purple-600"
+          bgColor="bg-purple-50"
+        />
+      </div>
+
+      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Bot className="h-5 w-5 text-blue-600" />
+            Smart Digest
+          </CardTitle>
+          <CardDescription>
+            One lightweight automation summary of what needs your attention right now.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          {smartDigest.map((item) => (
+            <div key={item} className="rounded-xl border border-blue-100 bg-white/80 p-4 text-sm text-slate-700">
+              {item}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1109,7 +1170,15 @@ function QuickActions({ onCreateJob }: { onCreateJob: () => void }) {
   );
 }
 
-function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDeleteJob, onShareToLinkedIn, onShareJob }: any) {
+function MyJobsSection({ jobPostings, requests, onCreateJob, onViewJob, onEditJob, onDeleteJob, onShareToLinkedIn, onShareJob }: any) {
+  const expiringJobs = (jobPostings || []).filter((job: any) => {
+    if (!job?.expiresAt) return false;
+    const expiryDate = new Date(job.expiresAt);
+    const daysLeft = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return daysLeft >= 0 && daysLeft <= 7;
+  });
+  const fullJobs = (jobPostings || []).filter((job: any) => isJobAtCapacity(job));
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -1118,6 +1187,41 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
           <Plus className="h-4 w-4 mr-2" />
           Post New Job
         </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Automation Reminders</CardTitle>
+            <CardDescription>Keep the board clean without checking every role manually.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              {expiringJobs.length
+                ? `${expiringJobs.length} role${expiringJobs.length > 1 ? "s" : ""} will expire within 7 days.`
+                : "No roles are expiring soon."}
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              {fullJobs.length
+                ? `${fullJobs.length} role${fullJobs.length > 1 ? "s have" : " has"} reached the slot cap and should stay closed.`
+                : "No role has reached its slot cap yet."}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Template Value</CardTitle>
+            <CardDescription>Repeated roles now move faster because the draft can reuse saved settings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-xl border bg-slate-50 p-3">
+              {(requests || []).filter((request: any) => computeShortlistTier(request, request.job) === "auto_shortlist" && request.status === "pending").length} auto-shortlisted candidates are already prioritized from screening and ATS.
+            </div>
+            <div className="rounded-xl border bg-slate-50 p-3">
+              Screening questions and ATS cutoffs now carry through to every matching workflow without extra admin work.
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1150,12 +1254,13 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
                   <Calendar className="h-4 w-4" />
                   Posted {job.createdAt ? new Date(job.createdAt.toDate()).toLocaleDateString() : "Recently"}
                 </div>
+                {job.expiresAt && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    Expires {new Date(job.expiresAt).toLocaleDateString()}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
-                  {job.visibility && (
-                    <Badge variant="outline" className="text-xs">
-                      {job.visibility === "private_link" ? "Private link" : job.visibility === "invite_only" ? "Invite only" : "Public"}
-                    </Badge>
-                  )}
                   {job.minAtsScore && (
                     <Badge variant="outline" className="text-xs">
                       ATS {job.minAtsScore}+
@@ -1166,6 +1271,16 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
                       {job.applicationMode === "platform_request" ? "Platform apply" : job.applicationMode === "direct_internal_link" ? "Share link after review" : "Manual resume mode"}
                     </Badge>
                   )}
+                  {job.currentReferralCount !== undefined && job.maxReferrals ? (
+                    <Badge variant="outline" className="text-xs">
+                      {job.currentReferralCount}/{job.maxReferrals} slots used
+                    </Badge>
+                  ) : null}
+                  {job.templateName ? (
+                    <Badge variant="outline" className="text-xs">
+                      Template: {job.templateName}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
               
@@ -1230,7 +1345,13 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
                 </div>
                 <div className="flex justify-center sm:justify-end">
                   <Badge variant={job.isActive ? "default" : "secondary"} className="text-xs">
-                    {job.isActive ? "Active" : "Inactive"}
+                    {isJobExpired(job)
+                      ? "Expired"
+                      : isJobAtCapacity(job)
+                        ? "Full"
+                        : job.isActive
+                          ? "Active"
+                          : "Inactive"}
                   </Badge>
                 </div>
               </div>
@@ -1256,8 +1377,21 @@ function MyJobsSection({ jobPostings, onCreateJob, onViewJob, onEditJob, onDelet
   );
 }
 
-function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBadge }: any) {
-  const sortedRequests = [...(requests || [])].sort((a: any, b: any) => {
+function RequestsSection({ requests, jobs, onStatusUpdate, onViewRequest, getStatusBadge }: any) {
+  const jobsById = new Map((jobs || []).map((job: any) => [job.id, job]));
+  const enrichedRequests = (requests || []).map((request: any) => {
+    const linkedJob = request.job || jobsById.get(request.jobPostingId) || null;
+    return {
+      ...request,
+      job: linkedJob,
+      matchScore: request.matchScore ?? computeRequestMatchScore(request, linkedJob),
+      shortlistTier: request.shortlistTier ?? computeShortlistTier(request, linkedJob),
+    };
+  });
+
+  const sortedRequests = [...enrichedRequests].sort((a: any, b: any) => {
+    const matchDiff = (b.matchScore || 0) - (a.matchScore || 0);
+    if (matchDiff !== 0) return matchDiff;
     const atsDiff = (b.atsScore || 0) - (a.atsScore || 0);
     if (atsDiff !== 0) return atsDiff;
     const aTime = a.createdAt?.toDate?.()?.getTime?.() || 0;
@@ -1272,8 +1406,9 @@ function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBad
     return !cutoff || (hasAtsScore(request) && request.atsScore >= cutoff);
   };
 
-  const topMatches = sortedRequests.filter((request: any) => request.status === "pending" && meetsCutoff(request));
-  const needsReview = sortedRequests.filter((request: any) => request.status === "pending" && !meetsCutoff(request));
+  const topMatches = sortedRequests.filter((request: any) => request.status === "pending" && request.shortlistTier === "auto_shortlist");
+  const needsReview = sortedRequests.filter((request: any) => request.status === "pending" && request.shortlistTier === "review");
+  const onHold = sortedRequests.filter((request: any) => request.status === "pending" && request.shortlistTier === "hold");
   const processedRequests = sortedRequests.filter((request: any) => request.status !== "pending");
 
   const requestSections = [
@@ -1289,11 +1424,20 @@ function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBad
     {
       key: "needs-review",
       title: "Needs Review",
-      description: "Pending candidates below cutoff or still missing ATS context.",
+      description: "Pending candidates with decent fit that still need your judgement.",
       emptyState: "No pending candidates need manual review right now.",
       accent: "border-l-amber-500 from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-800",
       badgeClass: "text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950/30",
       requests: needsReview,
+    },
+    {
+      key: "on-hold",
+      title: "Hold Queue",
+      description: "Low-fit candidates captured without cluttering your main review lane.",
+      emptyState: "No low-fit candidates are waiting in hold.",
+      accent: "border-l-rose-400 from-rose-50/60 to-white dark:from-rose-950/20 dark:to-gray-800",
+      badgeClass: "text-rose-700 border-rose-300 bg-rose-50 dark:text-rose-300 dark:border-rose-800 dark:bg-rose-950/30",
+      requests: onHold,
     },
     {
       key: "processed",
@@ -1366,19 +1510,26 @@ function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBad
                       {request.jobTitle || request.job?.title || "Position"}
                     </span>
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {getApplicationModeLabel(request)}
-                    </Badge>
-                    {request.job?.visibility && (
-                      <Badge variant="outline" className="text-xs">
-                        {request.job.visibility === "private_link"
-                          ? "Private link"
-                          : request.job.visibility === "invite_only"
-                            ? "Invite only"
-                            : "Public"}
-                      </Badge>
-                    )}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {getApplicationModeLabel(request)}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${
+                      request.shortlistTier === "auto_shortlist"
+                        ? "border-emerald-300 text-emerald-700"
+                        : request.shortlistTier === "review"
+                          ? "border-amber-300 text-amber-700"
+                          : "border-rose-300 text-rose-700"
+                    }`}
+                  >
+                    {request.shortlistTier === "auto_shortlist"
+                      ? "Auto-shortlisted"
+                      : request.shortlistTier === "review"
+                        ? "Needs review"
+                        : "Hold queue"}
+                  </Badge>
                     {request.job?.maxReferrals && (
                       <Badge variant="outline" className="text-xs">
                         Cap {request.job.maxReferrals}
@@ -1438,6 +1589,16 @@ function RequestsSection({ requests, onStatusUpdate, onViewRequest, getStatusBad
                     : request.job?.applicationMode === "email_resume"
                       ? "Use approval when you are ready to manually refer this resume."
                       : "Use approval when you want to continue this referral in-platform."}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Automation score</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.matchScore || 0}/100</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {request.screeningAnswers?.length
+                    ? `${request.screeningAnswers.length} screening answer${request.screeningAnswers.length > 1 ? "s" : ""}`
+                    : "No screening answers attached"}
                 </p>
               </div>
 

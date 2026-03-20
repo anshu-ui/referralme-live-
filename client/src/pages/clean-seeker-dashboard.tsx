@@ -3,6 +3,7 @@ import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useJobPostings, useReferralRequests } from "../hooks/useFirestore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { isJobAtCapacity, isJobExpired } from "../lib/firestore";
 import { Link } from "wouter";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -477,7 +478,10 @@ export default function CleanSeekerDashboard() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredJobs.map((job) => (
+                {filteredJobs.map((job) => {
+                  const jobClosed = isJobExpired(job) || (job.autoCloseOnCap && isJobAtCapacity(job));
+                  const screeningCount = (job.screeningQuestions || []).length;
+                  return (
                   <Card key={job.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="space-y-4">
@@ -518,9 +522,14 @@ export default function CleanSeekerDashboard() {
                             <Badge variant="outline" className="capitalize">
                               {getApplicationModeLabel(job.applicationMode)}
                             </Badge>
-                            {job.visibility ? (
-                              <Badge variant="outline" className="capitalize">
-                                {job.visibility.replace("_", " ")}
+                            {screeningCount ? (
+                              <Badge variant="outline" className="border-slate-200 text-slate-700">
+                                {screeningCount} screening question{screeningCount > 1 ? "s" : ""}
+                              </Badge>
+                            ) : null}
+                            {jobClosed ? (
+                              <Badge className="bg-red-100 text-red-800">
+                                {isJobExpired(job) ? "Expired" : "Cap reached"}
                               </Badge>
                             ) : null}
                             {realStats.atsScore ? (
@@ -591,6 +600,11 @@ export default function CleanSeekerDashboard() {
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Applied
                               </Button>
+                            ) : jobClosed ? (
+                              <Button disabled variant="outline" size="sm" className="w-full sm:w-auto">
+                                <Clock className="h-4 w-4 mr-2" />
+                                Closed
+                              </Button>
                             ) : (
                               <Button 
                                 onClick={() => handleApplyToJob(job)}
@@ -606,7 +620,8 @@ export default function CleanSeekerDashboard() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>

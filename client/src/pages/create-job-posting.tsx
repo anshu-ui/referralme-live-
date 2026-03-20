@@ -12,25 +12,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { createJobPosting, getSeekersForJobAlerts } from "../lib/firestore";
+import {
+  createJobPosting,
+  getSeekersForJobAlerts,
+  type ScreeningQuestion,
+} from "../lib/firestore";
 import { extractJobDetailsWithGemini, generateJobDescriptionWithGemini } from "../lib/geminiATS";
 import { sendJobAlertToSeekers, sendJobPostingConfirmation } from "../lib/emailService";
+import { useToast } from "../hooks/use-toast";
 import {
   ArrowLeft,
   Bot,
   Briefcase,
+  Clock3,
   Eye,
-  Globe,
   Import,
   IndianRupee,
   Link2,
   Lock,
-  MapPin,
   Plus,
+  Save,
   Send,
   Shield,
   Sparkles,
   Target,
+  TimerReset,
   Users,
   Wand2,
 } from "lucide-react";
@@ -49,7 +55,6 @@ const jobPostingSchema = z.object({
   quickSummary: z.string().min(12, "Add a short summary for candidates"),
   internalReferralLink: z.string().optional(),
   applicationMode: z.enum(["platform_request", "direct_internal_link", "email_resume"]),
-  visibility: z.enum(["public", "private_link", "invite_only"]),
   minAtsScore: z.coerce.number().min(50).max(95),
   maxReferrals: z.coerce.number().min(1).max(50),
   urgency: z.enum(["low", "medium", "high"]),
@@ -61,6 +66,7 @@ type JobPostingFormData = z.infer<typeof jobPostingSchema>;
 export default function CreateJobPosting() {
   const [, setLocation] = useLocation();
   const { user } = useFirebaseAuth();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -68,6 +74,18 @@ export default function CreateJobPosting() {
   const [newSkill, setNewSkill] = useState("");
   const [skillTags, setSkillTags] = useState<string[]>([]);
   const [showLinkedInShare, setShowLinkedInShare] = useState(false);
+  const [expiresInDays, setExpiresInDays] = useState("21");
+  const [autoCloseOnCap, setAutoCloseOnCap] = useState(true);
+  const [digestEnabled, setDigestEnabled] = useState(true);
+  const [reminderPreference, setReminderPreference] = useState<"smart" | "daily" | "weekly">("smart");
+  const [screeningQuestions, setScreeningQuestions] = useState<ScreeningQuestion[]>([
+    {
+      id: "why-fit",
+      prompt: "Why are you a strong fit for this role?",
+      inputType: "long_text",
+      required: true,
+    },
+  ]);
 
   const {
     register,
@@ -84,7 +102,6 @@ export default function CreateJobPosting() {
       workArrangement: "hybrid",
       experienceLevel: "mid",
       applicationMode: "platform_request",
-      visibility: "private_link",
       minAtsScore: 75,
       maxReferrals: 8,
       urgency: "medium",
@@ -109,7 +126,11 @@ export default function CreateJobPosting() {
 
   const importFromText = async () => {
     if (!sourceText.trim()) {
-      alert("Paste the internal JD, hiring mail, or opening text first.");
+      toast({
+        title: "Add source text first",
+        description: "Paste the internal JD, hiring mail, or opening text before importing.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -129,7 +150,11 @@ export default function CreateJobPosting() {
       }
     } catch (error) {
       console.error("Job import failed:", error);
-      alert("Import failed. You can still use quick post manually.");
+      toast({
+        title: "Import failed",
+        description: "You can still post manually and publish from the draft.",
+        variant: "destructive",
+      });
     } finally {
       setIsImporting(false);
     }
@@ -138,7 +163,11 @@ export default function CreateJobPosting() {
   const generateJobDescription = async () => {
     const formData = getValues();
     if (!formData.title || !formData.company) {
-      alert("Add at least the title and company before using AI assist.");
+      toast({
+        title: "More detail needed",
+        description: "Add at least the role title and company before using AI assist.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -156,20 +185,61 @@ export default function CreateJobPosting() {
       setValue("requirements", sections[1]?.trim() || "Role-specific skills and strong job fit.", { shouldValidate: true });
     } catch (error) {
       console.error("AI generation error:", error);
-      alert("AI assist failed. You can keep the quick summary and post manually.");
+      toast({
+        title: "AI assist failed",
+        description: "You can still keep the quick summary and publish manually.",
+        variant: "destructive",
+      });
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
+  const addScreeningQuestion = () => {
+    setScreeningQuestions((current) => [
+      ...current,
+      {
+        id: `screen-${Date.now()}`,
+        prompt: "",
+        inputType: "short_text",
+        required: false,
+      },
+    ]);
+  };
+
+  const updateScreeningQuestion = (id: string, updates: Partial<ScreeningQuestion>) => {
+    setScreeningQuestions((current) =>
+      current.map((question) => (question.id === id ? { ...question, ...updates } : question)),
+    );
+  };
+
+  const removeScreeningQuestion = (id: string) => {
+    setScreeningQuestions((current) => current.filter((question) => question.id !== id));
+  };
+
   const onSubmit = async (data: JobPostingFormData) => {
     if (!user) {
-      alert("You must be logged in to post a referral opportunity.");
+      toast({
+        title: "Sign in required",
+        description: "You must be logged in to post a referral opportunity.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const normalizedQuestions = screeningQuestions
+        .map((question) => ({
+          ...question,
+          prompt: question.prompt.trim(),
+          options: question.options?.map((option) => option.trim()).filter(Boolean),
+        }))
+        .filter((question) => question.prompt);
+      const expiresAt = new Date(Date.now() + Number(expiresInDays || "21") * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
       const salary =
         data.salaryMin || data.salaryMax
           ? `₹${data.salaryMin || "?"}L - ₹${data.salaryMax || "?"}L`
@@ -197,9 +267,15 @@ export default function CreateJobPosting() {
         quickSummary: data.quickSummary,
         internalReferralLink: data.internalReferralLink?.trim() || "",
         applicationMode: data.applicationMode,
-        visibility: data.visibility,
+        visibility: "public",
         minAtsScore: Number(data.minAtsScore),
         maxReferrals: Number(data.maxReferrals),
+        currentReferralCount: 0,
+        autoCloseOnCap,
+        screeningQuestions: normalizedQuestions,
+        expiresAt,
+        reminderPreference,
+        digestEnabled,
         sourceType: sourceText.trim() ? "ai_import" : "quick_post",
       } as const;
 
@@ -221,7 +297,11 @@ export default function CreateJobPosting() {
       setShowLinkedInShare(true);
     } catch (error) {
       console.error("Error posting job:", error);
-      alert("Posting failed. Please try again.");
+      toast({
+        title: "Publishing failed",
+        description: "The referral opportunity could not be published. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -229,11 +309,10 @@ export default function CreateJobPosting() {
 
   const handlePreview = () => {
     const previewData = getValues();
-    alert(
-      `Preview\n\n${previewData.title} at ${previewData.company}\n${previewData.location}\n` +
-        `Visibility: ${previewData.visibility}\nATS cutoff: ${previewData.minAtsScore}\n` +
-        `Application mode: ${previewData.applicationMode}`,
-    );
+    toast({
+      title: `${previewData.title} at ${previewData.company}`,
+      description: `Public listing • ATS cutoff: ${previewData.minAtsScore} • Mode: ${previewData.applicationMode}`,
+    });
   };
 
   return (
@@ -445,25 +524,14 @@ export default function CreateJobPosting() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5 text-amber-700" />
-                Privacy, Application, and ATS Controls
+                Application and ATS Controls
               </CardTitle>
               <CardDescription>
-                These settings reduce manual effort and keep internal referral links protected.
+                These settings reduce manual effort while keeping application quality under control.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <Label>Visibility</Label>
-                  <Select value={values.visibility} onValueChange={(value) => setValue("visibility", value as JobPostingFormData["visibility"], { shouldValidate: true })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">Public listing</SelectItem>
-                      <SelectItem value="private_link">Private link after review</SelectItem>
-                      <SelectItem value="invite_only">Invite-only / manual approval</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Application Mode</Label>
                   <Select value={values.applicationMode} onValueChange={(value) => setValue("applicationMode", value as JobPostingFormData["applicationMode"], { shouldValidate: true })}>
@@ -501,6 +569,64 @@ export default function CreateJobPosting() {
                 </div>
               </div>
 
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="expiresInDays">Auto-expire after</Label>
+                  <Input
+                    id="expiresInDays"
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={expiresInDays}
+                    onChange={(event) => setExpiresInDays(event.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Inactive roles close automatically after this many days.</p>
+                </div>
+                <div className="rounded-xl border bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Auto-close at cap</p>
+                      <p className="text-xs text-slate-500">Stop new applications once your slot limit is reached.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={autoCloseOnCap}
+                      onChange={(event) => setAutoCloseOnCap(event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Reminder cadence</Label>
+                  <Select value={reminderPreference} onValueChange={(value) => setReminderPreference(value as "smart" | "daily" | "weekly")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="smart">Smart reminders</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly digest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-slate-500">Smart reminders only surface when something needs action.</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-blue-50/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Weekly digest enabled</p>
+                    <p className="text-xs text-slate-600">
+                      Keep one lightweight digest available in the dashboard with pending top matches, expiring roles, and slot pressure.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={digestEnabled}
+                    onChange={(event) => setDigestEnabled(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                </div>
+              </div>
+
               {values.applicationMode === "direct_internal_link" && (
                 <div>
                   <Label htmlFor="internalReferralLink">Internal Referral Link</Label>
@@ -509,7 +635,7 @@ export default function CreateJobPosting() {
                     <Input id="internalReferralLink" {...register("internalReferralLink")} placeholder="https://internal.company.com/referral/..." className="pl-9" />
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    This is stored with the opportunity but should only be shared after approval if visibility is private.
+                    This is stored with the opportunity and can be shared after you decide how to handle candidates.
                   </p>
                 </div>
               )}
@@ -531,9 +657,103 @@ export default function CreateJobPosting() {
             </CardContent>
           </Card>
 
+          <Card className="border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                Screening Questions
+              </CardTitle>
+              <CardDescription>
+                Ask 2-3 focused questions once and let the platform pre-sort candidates before you review them.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {screeningQuestions.map((question, index) => (
+                <div key={question.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900">Question {index + 1}</p>
+                    {screeningQuestions.length > 1 ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeScreeningQuestion(question.id)}>
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
+                  <Input
+                    value={question.prompt}
+                    onChange={(event) => updateScreeningQuestion(question.id, { prompt: event.target.value })}
+                    placeholder="e.g. What relevant backend systems have you built recently?"
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Select
+                      value={question.inputType}
+                      onValueChange={(value) => updateScreeningQuestion(question.id, { inputType: value as ScreeningQuestion["inputType"] })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="short_text">Short answer</SelectItem>
+                        <SelectItem value="long_text">Long answer</SelectItem>
+                        <SelectItem value="select">Multiple choice</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2">
+                      <span className="text-sm text-slate-700">Required answer</span>
+                      <input
+                        type="checkbox"
+                        checked={question.required}
+                        onChange={(event) => updateScreeningQuestion(question.id, { required: event.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                    </div>
+                  </div>
+                  {question.inputType === "select" ? (
+                    <Input
+                      value={question.options?.join(", ") || ""}
+                      onChange={(event) => updateScreeningQuestion(question.id, { options: event.target.value.split(",") })}
+                      placeholder="Comma-separated options"
+                    />
+                  ) : null}
+                </div>
+              ))}
+              <Button type="button" variant="outline" onClick={addScreeningQuestion}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add screening question
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TimerReset className="h-5 w-5 text-slate-700" />
+                Automation Summary
+              </CardTitle>
+              <CardDescription>
+                This role will use a cleaner review workflow the moment it goes live.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-xl border bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2"><Clock3 className="h-4 w-4 text-blue-600" /> Auto-expiry</p>
+                <p className="mt-2 text-xs text-slate-600">Closes in {expiresInDays || "21"} days unless you renew it.</p>
+              </div>
+              <div className="rounded-xl border bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2"><Users className="h-4 w-4 text-blue-600" /> Slot control</p>
+                <p className="mt-2 text-xs text-slate-600">{autoCloseOnCap ? "Applications stop automatically at your cap." : "You will manage capacity manually."}</p>
+              </div>
+              <div className="rounded-xl border bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /> Auto-shortlist</p>
+                <p className="mt-2 text-xs text-slate-600">ATS and screening answers will pre-rank candidates in your request queue.</p>
+              </div>
+              <div className="rounded-xl border bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2"><Save className="h-4 w-4 text-blue-600" /> Digest</p>
+                <p className="mt-2 text-xs text-slate-600">{digestEnabled ? `${reminderPreference} reminders will keep this role visible.` : "Digest is disabled for this role."}</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
             <p className="text-sm text-slate-500">
-              Best results: import the internal JD, keep the summary short, and use a private visibility mode for sensitive links.
+              Best results: import the internal JD, keep the summary short, and use ATS cutoff plus screening to control candidate quality.
             </p>
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => setLocation("/referrer-dashboard")}>
@@ -558,7 +778,7 @@ export default function CreateJobPosting() {
               </p>
             </div>
             <div className="rounded-xl border bg-slate-50 p-4 text-sm text-slate-700 space-y-2">
-              <p className="flex items-center gap-2"><Globe className="h-4 w-4" /> Visibility: {values.visibility}</p>
+              <p className="flex items-center gap-2"><Lock className="h-4 w-4" /> Listing: public</p>
               <p className="flex items-center gap-2"><Target className="h-4 w-4" /> ATS cutoff: {values.minAtsScore}</p>
               <p className="flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Salary: {values.salaryMin || values.salaryMax ? `₹${values.salaryMin || "?"}L - ₹${values.salaryMax || "?"}L` : "Not shared"}</p>
             </div>

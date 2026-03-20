@@ -5,13 +5,14 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { FileText, Upload, Zap, Award, CheckCircle, AlertCircle, Send } from "lucide-react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { submitReferralRequest } from "../lib/firestore";
+import { isJobClosedForApplications, submitReferralRequest, type ScreeningAnswer, type ScreeningQuestion } from "../lib/firestore";
 import { trackEvent } from "../lib/analytics";
-import { analyzeResumeWithGemini, type ATSAnalysis } from "../lib/geminiATS";
+import { type ATSAnalysis } from "../lib/geminiATS";
+import { analyzeDetailedResumeForRole } from "../lib/gemini-ats";
 import { useToast } from "../hooks/use-toast";
 import ATSAnalyzer from "./ats-analyzer";
 
@@ -23,6 +24,12 @@ interface ApplicationFormModalProps {
 }
 
 // Use ATSAnalysis interface from geminiATS.ts
+
+const getScoreSummary = (score: number) => {
+  if (score >= 80) return "Strong";
+  if (score >= 60) return "Moderate";
+  return "Needs work";
+};
 
 export default function ApplicationFormModal({ isOpen, onClose, job, onApplicationSubmitted }: ApplicationFormModalProps) {
   const { user } = useFirebaseAuth();
@@ -36,6 +43,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const autoAnalysisKeyRef = useRef<string>("");
+  const [screeningAnswers, setScreeningAnswers] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     fullName: user?.displayName || user?.firstName || "",
@@ -46,6 +54,41 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
   });
   const minAtsScore = Number(job?.minAtsScore || 75);
   const meetsAtsThreshold = !!atsAnalysis && atsAnalysis.overallScore >= minAtsScore;
+  const screeningQuestions = (job?.screeningQuestions || []) as ScreeningQuestion[];
+  const isJobClosed = isJobClosedForApplications(job);
+  const missingRequiredScreening = screeningQuestions.some(
+    (question) => question.required && !screeningAnswers[question.id]?.trim(),
+  );
+  const atsScoreCards = atsAnalysis
+    ? [
+        {
+          name: "Keyword Match",
+          score: atsAnalysis.keywordScore,
+          description: "Alignment with the role description, requirements, and skills.",
+        },
+        {
+          name: "Resume Structure",
+          score: atsAnalysis.formatScore,
+          description: "Section headers, bullet formatting, and parser-friendly layout.",
+        },
+        {
+          name: "Content Strength",
+          score: atsAnalysis.contentScore,
+          description: "Impact, quantified achievements, and experience clarity.",
+        },
+      ]
+    : [];
+  const atsPriorityFixes = atsAnalysis
+    ? Array.from(
+        new Set([
+          atsAnalysis.suggestions[0],
+          atsAnalysis.suggestions[1],
+          atsAnalysis.missingKeywords.length > 0
+            ? `Add truthful role keywords like ${atsAnalysis.missingKeywords.slice(0, 4).join(", ")}.`
+            : null,
+        ].filter(Boolean) as string[]),
+      ).slice(0, 3)
+    : [];
 
   const runATSAnalysis = async (source: "manual" | "auto" = "manual") => {
     if (!formData.resumeText || !formData.resumeText.trim()) {
@@ -61,10 +104,21 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
 
     setIsAnalyzing(true);
     try {
-      const analysis = await analyzeResumeWithGemini(
+      const roleContext = [
+        job.description || "",
+        job.requirements || "",
+        Array.isArray(job.skills) ? job.skills.join(" ") : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const analysis = await analyzeDetailedResumeForRole(
         formData.resumeText,
-        job.title || "Job Position",
-        job.description || "Job description not available"
+        roleContext || "Job description not available",
+        {
+          jobTitle: job.title || "Job Position",
+          requiredSkills: Array.isArray(job.skills) ? job.skills : [],
+        },
       );
 
       setAtsAnalysis(analysis);
@@ -80,7 +134,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       console.error("ATS analysis failed:", error);
       toast({
         title: "ATS analysis failed",
-        description: "The AI analysis could not complete. Please try again.",
+        description: "The ATS score could not be calculated. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -104,6 +158,10 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       setResumeFile(file);
       setAtsAnalysis(null);
       autoAnalysisKeyRef.current = "";
+      setFormData((current) => ({
+        ...current,
+        resumeText: "",
+      }));
       setIsUploading(true);
       setUploadProgress(0);
       
@@ -130,7 +188,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
               if (response.extractedText) {
                 setFormData((current) => ({
                   ...current,
-                  resumeText: current.resumeText.trim() ? current.resumeText : response.extractedText,
+                  resumeText: response.extractedText,
                 }));
               }
               trackEvent("resume_uploaded", "application_form", file.type);
@@ -214,6 +272,15 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       return;
     }
 
+    if (isJobClosed) {
+      toast({
+        title: "Role is closed",
+        description: "This opportunity has already expired or reached its application cap.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!atsAnalysis) {
       toast({
         title: "ATS analysis required",
@@ -248,6 +315,11 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
         motivation: formData.motivation,
         resumeText: formData.resumeText,
         resumeUrl: resumeUrl, // Use the actual uploaded file URL
+        screeningAnswers: screeningQuestions.map((question) => ({
+          questionId: question.id,
+          prompt: question.prompt,
+          answer: screeningAnswers[question.id] || "",
+        })) as ScreeningAnswer[],
         // Include ATS analysis if available
         atsScore: atsAnalysis?.overallScore || null,
         atsCompatibility: atsAnalysis ? (atsAnalysis.overallScore >= 85 ? 'excellent' : atsAnalysis.overallScore >= 75 ? 'good' : atsAnalysis.overallScore >= 65 ? 'fair' : 'poor') : null,
@@ -296,6 +368,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
       setResumeUrl(null);
       setUploadProgress(0);
       setAtsAnalysis(null);
+      setScreeningAnswers({});
       
     } catch (error) {
       console.error("Error submitting application:", error);
@@ -333,6 +406,14 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {isJobClosed ? (
+              <Card className="border-red-200 bg-red-50/70">
+                <CardContent className="p-4">
+                  <p className="font-medium text-red-900">This role is closed for new applications.</p>
+                  <p className="mt-1 text-sm text-red-700">The referrer has either reached the candidate cap or the role has expired.</p>
+                </CardContent>
+              </Card>
+            ) : null}
             <Card className="border-blue-200 bg-blue-50/60">
               <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -442,6 +523,59 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
               </div>
             </div>
 
+            {screeningQuestions.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Referrer Screening</CardTitle>
+                  <CardDescription>
+                    Answer these questions once so the referrer can review only the best-fit candidates faster.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {screeningQuestions.map((question) => (
+                    <div key={question.id} className="space-y-2">
+                      <Label htmlFor={question.id}>
+                        {question.prompt}
+                        {question.required ? " *" : ""}
+                      </Label>
+                      {question.inputType === "long_text" ? (
+                        <Textarea
+                          id={question.id}
+                          value={screeningAnswers[question.id] || ""}
+                          onChange={(event) => setScreeningAnswers((current) => ({ ...current, [question.id]: event.target.value }))}
+                          className="min-h-[90px]"
+                          required={question.required}
+                        />
+                      ) : question.inputType === "select" ? (
+                        <Select
+                          value={screeningAnswers[question.id] || ""}
+                          onValueChange={(value) => setScreeningAnswers((current) => ({ ...current, [question.id]: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an answer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(question.options || []).map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          id={question.id}
+                          value={screeningAnswers[question.id] || ""}
+                          onChange={(event) => setScreeningAnswers((current) => ({ ...current, [question.id]: event.target.value }))}
+                          required={question.required}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : null}
+
             {/* ATS Analysis Results */}
             {atsAnalysis && (
               <Card>
@@ -450,6 +584,9 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                     <Award className="h-5 w-5" />
                     ATS Analysis Results
                   </CardTitle>
+                  <CardDescription>
+                    Review the weak areas first, then rerun the ATS scan before you submit.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between p-3 rounded-lg border">
@@ -458,7 +595,7 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                       <div>
                         <p className="font-medium">ATS Compatibility Score</p>
                         <p className="text-sm text-gray-600">
-                          AI-powered ATS analysis
+                          Rule-based ATS analysis
                         </p>
                       </div>
                     </div>
@@ -467,48 +604,61 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-3 mt-4">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Keywords</p>
-                      <p className="font-semibold">{atsAnalysis.keywordScore}%</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Format</p>
-                      <p className="font-semibold">{atsAnalysis.formatScore}%</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Content</p>
-                      <p className="font-semibold">{atsAnalysis.contentScore}%</p>
-                    </div>
-                  </div>
-                  
-                  {/* Suggestions and Improvements */}
-                  {atsAnalysis.suggestions && atsAnalysis.suggestions.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700 mb-2">💡 Suggestions for Improvement:</h4>
-                        <ul className="text-xs text-gray-600 space-y-1">
-                          {atsAnalysis.suggestions.slice(0, 3).map((suggestion, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                              <span className="text-blue-500">•</span>
-                              <span>{suggestion}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      {atsAnalysis.missingKeywords && atsAnalysis.missingKeywords.length > 0 && (
-                        <div>
-                          <h4 className="font-medium text-sm text-gray-700 mb-2">🔍 Missing Keywords:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {atsAnalysis.missingKeywords.slice(0, 6).map((keyword, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {keyword}
-                              </Badge>
-                            ))}
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    {atsScoreCards.map((item) => (
+                      <div key={item.name} className="rounded-xl border border-slate-200 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{item.name}</p>
+                            <p className="mt-1 text-xs text-slate-600">{item.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{item.score}%</p>
+                            <p className="text-xs text-slate-500">{getScoreSummary(item.score)}</p>
                           </div>
                         </div>
-                      )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-green-200 bg-green-50/70 p-4">
+                      <h4 className="font-medium text-sm text-green-800">What is already strong</h4>
+                      <div className="mt-2 space-y-2">
+                        {atsAnalysis.strengths.slice(0, 3).map((item, index) => (
+                          <div key={index} className="flex items-start gap-2 text-xs text-green-900">
+                            <CheckCircle className="mt-0.5 h-3.5 w-3.5 text-green-600" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4">
+                      <h4 className="font-medium text-sm text-orange-800">Top fixes before you apply</h4>
+                      <div className="mt-2 space-y-2">
+                        {atsPriorityFixes.map((item, index) => (
+                          <div key={index} className="flex items-start gap-2 text-xs text-orange-900">
+                            <span className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-orange-600 text-[10px] font-semibold text-white">
+                              {index + 1}
+                            </span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {atsAnalysis.missingKeywords && atsAnalysis.missingKeywords.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2">Role keywords still missing</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {atsAnalysis.missingKeywords.slice(0, 6).map((keyword, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   )}
                   
@@ -571,6 +721,8 @@ export default function ApplicationFormModal({ isOpen, onClose, job, onApplicati
                   !formData.experienceLevel || 
                   !formData.motivation || 
                   !formData.resumeText ||
+                  missingRequiredScreening ||
+                  isJobClosed ||
                   (resumeFile !== null && resumeUrl === null) ||
                   !atsAnalysis ||
                   !meetsAtsThreshold

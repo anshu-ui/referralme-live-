@@ -1,7 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize Gemini with API key - using the correct environment variable
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+import {
+  analyzeResumeWithGemini as analyzeDetailedResumeWithGemini,
+  type ATSAnalysis,
+} from "./geminiATS";
 
 export interface ATSAnalysisResult {
   overallScore: number;
@@ -16,178 +16,188 @@ export interface ATSAnalysisResult {
   recommendations: string[];
 }
 
-export async function analyzeResumeWithGemini(
-  resumeText: string, 
-  jobDescription?: string
-): Promise<ATSAnalysisResult> {
-  try {
-    const prompt = `As an expert ATS (Applicant Tracking System) analyzer, please analyze this resume against ${jobDescription ? 'the provided job description' : 'general ATS best practices'}.
-
-Resume Text:
-${resumeText}
-
-${jobDescription ? `Job Description:
-${jobDescription}` : ''}
-
-Please analyze the resume and provide a comprehensive ATS compatibility assessment. Return your analysis in JSON format with the following structure:
-
-{
-  "overallScore": number (0-100),
-  "skillsScore": number (0-100),
-  "experienceScore": number (0-100), 
-  "formatScore": number (0-100),
-  "keywordsScore": number (0-100),
-  "suggestions": [array of specific improvement suggestions],
-  "strongPoints": [array of resume strengths],
-  "missingKeywords": [array of important missing keywords],
-  "matchedKeywords": [array of relevant keywords found],
-  "recommendations": [array of actionable recommendations]
+interface AnalyzerRoleContext {
+  jobTitle?: string;
+  requiredSkills?: string[];
 }
 
-Focus on:
-- ATS parsing compatibility
-- Keyword optimization for ${jobDescription ? 'the specific role' : 'general tech roles'}
-- Format and structure analysis
-- Skills relevance and presentation
-- Experience quantification and relevance
-- Missing critical elements
+const RESPONSIBILITY_SIGNALS = [
+  "responsibilities",
+  "what you will do",
+  "what you'll do",
+  "you will",
+  "your role",
+  "day to day",
+];
 
-Provide specific, actionable feedback that will help improve ATS compatibility and increase the chances of passing through automated screening.`;
+const QUALIFICATION_SIGNALS = [
+  "requirements",
+  "qualifications",
+  "must have",
+  "nice to have",
+  "skills",
+  "experience",
+];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            overallScore: { type: "number" },
-            skillsScore: { type: "number" },
-            experienceScore: { type: "number" },
-            formatScore: { type: "number" },
-            keywordsScore: { type: "number" },
-            suggestions: {
-              type: "array",
-              items: { type: "string" }
-            },
-            strongPoints: {
-              type: "array", 
-              items: { type: "string" }
-            },
-            missingKeywords: {
-              type: "array",
-              items: { type: "string" }
-            },
-            matchedKeywords: {
-              type: "array",
-              items: { type: "string" }
-            },
-            recommendations: {
-              type: "array",
-              items: { type: "string" }
-            }
-          },
-          required: ["overallScore", "skillsScore", "experienceScore", "formatScore", "keywordsScore", "suggestions", "strongPoints", "missingKeywords", "matchedKeywords", "recommendations"]
-        }
-      },
-      contents: prompt,
-    });
+const JOB_DESCRIPTION_SIGNALS = [
+  ...RESPONSIBILITY_SIGNALS,
+  ...QUALIFICATION_SIGNALS,
+  "about the role",
+  "about the job",
+  "job description",
+];
 
-    // Get the response text - ensuring proper error handling
-    const rawJson = response.text || "";
-    console.log('✅ Gemini ATS Analysis Response received:', rawJson ? 'Success' : 'Empty');
+const ANALYZER_KEYWORD_BLACKLIST = new Set([
+  "the", "and", "for", "with", "from", "that", "this", "your", "you", "our", "are", "not", "but",
+  "all", "job", "role", "team", "work", "using", "use", "years", "year", "about", "their", "them",
+  "they", "also", "per", "via", "one", "two", "three", "etc", "resume", "ats", "hiring", "talent",
+  "find", "early", "stage", "early-stage", "technical", "product", "engineer", "developer", "manager",
+  "specialist", "lead", "india", "gurugram", "gurgaon", "bangalore", "bengaluru", "mumbai", "pune",
+  "hyderabad", "delhi", "noida", "remote", "onsite", "hybrid", "don", "come", "build", "building",
+  "company", "startup", "startups", "best", "software", "collaboration", "scripts",
+]);
 
-    if (!rawJson || typeof rawJson !== 'string' || rawJson.trim() === '') {
-      throw new Error("Empty or invalid response from Gemini AI");
-    }
+const keywordSet = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.\-/\s]/g, " ")
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length > 2 && !ANALYZER_KEYWORD_BLACKLIST.has(token)),
+    ),
+  );
 
-    try {
-      const analysis: ATSAnalysisResult = JSON.parse(rawJson);
-      
-      // Validate the parsed response has required fields
-      if (typeof analysis.overallScore !== 'number' || !Array.isArray(analysis.suggestions)) {
-        throw new Error("Invalid response format from Gemini AI");
-      }
-      
-      return analysis;
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", parseError);
-      console.error("Raw response was:", rawJson);
-      throw new Error("Invalid JSON response from Gemini AI");
-    }
-  } catch (error) {
-    console.error("Gemini ATS analysis failed:", error);
-    
-    // Fallback analysis if Gemini fails
-    return getFallbackAnalysis(resumeText, jobDescription);
+export const isLikelyJobDescription = (value?: string) => {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) {
+    return false;
   }
-}
 
-// Fallback analysis if Gemini API fails
-function getFallbackAnalysis(resumeText: string, jobDescription?: string): ATSAnalysisResult {
-  const text = resumeText.toLowerCase();
-  
-  // Basic keyword analysis
-  const commonKeywords = ["experience", "skills", "education", "management", "development", "javascript", "react", "python", "aws", "sql"];
-  const matchedKeywords = commonKeywords.filter(keyword => text.includes(keyword));
-  const missingKeywords = commonKeywords.filter(keyword => !text.includes(keyword));
-  
-  const skillsScore = Math.min(95, (matchedKeywords.length / commonKeywords.length) * 100);
-  const experienceScore = text.includes("years") || text.includes("experience") ? 85 : 60;
-  const formatScore = 80; // Assume decent formatting
-  const keywordsScore = skillsScore;
-  const overallScore = Math.round((skillsScore + experienceScore + formatScore + keywordsScore) / 4);
+  const signalMatches = JOB_DESCRIPTION_SIGNALS.filter((signal) => text.includes(signal)).length;
+  const responsibilityMatches = RESPONSIBILITY_SIGNALS.filter((signal) => text.includes(signal)).length;
+  const qualificationMatches = QUALIFICATION_SIGNALS.filter((signal) => text.includes(signal)).length;
+  const bulletCount = (text.match(/(^|\n)\s*[-*•]/g) || []).length;
+  const lineCount = text.split("\n").filter((line) => line.trim()).length;
+  const tokenCount = keywordSet(text).length;
+
+  return (
+    tokenCount >= 20 &&
+    (
+      (responsibilityMatches >= 1 && qualificationMatches >= 1) ||
+      (responsibilityMatches >= 1 && bulletCount >= 3 && lineCount >= 6) ||
+      (qualificationMatches >= 2 && bulletCount >= 4 && lineCount >= 6) ||
+      (signalMatches >= 3 && bulletCount >= 4 && tokenCount >= 40)
+    )
+  );
+};
+
+const deriveJobTitle = (jobDescription: string, fallbackJobTitle?: string) => {
+  if (fallbackJobTitle?.trim()) {
+    return fallbackJobTitle.trim();
+  }
+
+  const firstLines = String(jobDescription || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const titleLine = firstLines.find((line) =>
+    /engineer|developer|designer|manager|analyst|specialist|architect|consultant|intern|lead/i.test(line),
+  );
+
+  return titleLine || "";
+};
+
+const deriveRequiredSkills = (jobDescription: string, providedSkills: string[] = []) =>
+  Array.from(new Set([
+    ...providedSkills.filter(Boolean).map((skill) => skill.trim()),
+    ...keywordSet(jobDescription).slice(0, 12),
+  ])).slice(0, 12);
+
+const convertToAnalyzerResult = (
+  analysis: ATSAnalysis,
+  resumeText: string,
+  jobDescription?: string,
+): ATSAnalysisResult => {
+  const effectiveJobDescription = isLikelyJobDescription(jobDescription) ? String(jobDescription || "") : "";
+  const jobTokens = keywordSet(effectiveJobDescription);
+  const resumeTokens = new Set(keywordSet(resumeText));
+  const matchedKeywords = jobTokens.filter((token) => resumeTokens.has(token)).slice(0, 12);
+  const missingKeywords = analysis.missingKeywords
+    .filter((token) => !ANALYZER_KEYWORD_BLACKLIST.has(token.toLowerCase()))
+    .slice(0, 10);
+
+  const skillsScore = analysis.keywordScore;
+  const experienceScore = Math.max(
+    0,
+    Math.min(100, Math.round((analysis.contentScore * 0.6) + (analysis.formatScore * 0.4))),
+  );
 
   return {
-    overallScore,
+    overallScore: analysis.overallScore,
     skillsScore,
     experienceScore,
-    formatScore,
-    keywordsScore,
-    suggestions: [
-      "Add more quantifiable achievements with specific numbers",
-      "Include industry-specific keywords relevant to your target role",
-      "Optimize section headers for better ATS parsing",
-      "Add a professional summary section at the top"
-    ],
-    strongPoints: [
-      "Contains relevant technical keywords",
-      "Professional formatting structure",
-      "Clear experience section"
-    ],
-    missingKeywords: missingKeywords.slice(0, 5),
-    matchedKeywords: matchedKeywords.slice(0, 8),
-    recommendations: [
-      "Consider using more action verbs in your experience descriptions",
-      "Quantify your achievements with specific metrics and percentages",
-      "Tailor your resume keywords to match the specific job requirements",
-      "Ensure consistent formatting throughout the document"
-    ]
+    formatScore: analysis.formatScore,
+    keywordsScore: analysis.keywordScore,
+    suggestions: analysis.suggestions,
+    strongPoints: analysis.strengths,
+    missingKeywords,
+    matchedKeywords,
+    recommendations: analysis.improvementAreas,
   };
+};
+
+export async function analyzeDetailedResumeForRole(
+  resumeText: string,
+  jobDescription?: string,
+  context: AnalyzerRoleContext = {},
+): Promise<ATSAnalysis> {
+  const effectiveJobDescription = isLikelyJobDescription(jobDescription) ? String(jobDescription || "") : "";
+  const jobTitle = deriveJobTitle(effectiveJobDescription, context.jobTitle);
+  const requiredSkills = deriveRequiredSkills(effectiveJobDescription, context.requiredSkills);
+  return analyzeDetailedResumeWithGemini(
+    resumeText,
+    jobTitle,
+    effectiveJobDescription,
+    requiredSkills,
+  );
 }
 
-// Extract text from uploaded file.
-// Only use direct text extraction where the browser can read the content accurately.
+export async function analyzeResumeWithGemini(
+  resumeText: string,
+  jobDescription?: string,
+  context: AnalyzerRoleContext = {},
+): Promise<ATSAnalysisResult> {
+  const analysis = await analyzeDetailedResumeForRole(resumeText, jobDescription, context);
+  const effectiveJobDescription = isLikelyJobDescription(jobDescription) ? String(jobDescription || "") : "";
+
+  return convertToAnalyzerResult(analysis, resumeText, effectiveJobDescription);
+}
+
 export async function extractTextFromFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = async (e) => {
+    reader.onload = async (event) => {
       try {
         if (file.type === "text/plain" || file.name.endsWith(".txt")) {
-          const text = String(e.target?.result || "").trim();
+          const text = String(event.target?.result || "").trim();
           if (!text) {
             reject(new Error("The text file appears to be empty."));
             return;
           }
           resolve(text);
-        } else {
-          reject(
-            new Error(
-              "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan."
-            )
-          );
+          return;
         }
+
+        reject(
+          new Error(
+            "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan.",
+          ),
+        );
       } catch (error) {
         reject(error);
       }
@@ -197,12 +207,13 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
     if (file.type === "text/plain" || file.name.endsWith(".txt")) {
       reader.readAsText(file);
-    } else {
-      reject(
-        new Error(
-          "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan."
-        )
-      );
+      return;
     }
+
+    reject(
+      new Error(
+        "Automatic extraction for PDF and Word files is not enabled here yet. Paste your resume text for an accurate ATS scan.",
+      ),
+    );
   });
 }

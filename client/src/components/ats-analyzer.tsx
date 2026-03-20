@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ScrollArea } from "../components/ui/scroll-area";
 import { useToast } from "../hooks/use-toast";
 import { Upload, FileText, Target, CheckCircle, AlertCircle, X, Download, Sparkles } from "lucide-react";
-import { analyzeResumeWithGemini, type ATSAnalysisResult } from "../lib/gemini-ats";
+import { analyzeResumeWithGemini, isLikelyJobDescription, type ATSAnalysisResult } from "../lib/gemini-ats";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { saveATSAnalysis } from "../lib/firestore";
 
@@ -20,6 +20,32 @@ interface ATSAnalyzerProps {
   company?: string;
 }
 
+const getScoreSummary = (score: number) => {
+  if (score >= 80) return "Strong";
+  if (score >= 60) return "Moderate";
+  return "Needs work";
+};
+
+const getPriorityFixes = (analysis: ATSAnalysisResult, hasTargetJobDescription: boolean) => {
+  const fixes = [
+    analysis.suggestions[0],
+    analysis.recommendations.includes("Resume structure")
+      ? "Add clear section headers such as Summary, Experience, Skills, and Education."
+      : null,
+    analysis.recommendations.includes("Experience formatting")
+      ? "Convert dense work history into short bullet points with outcomes."
+      : null,
+    analysis.recommendations.includes("Achievement quantification")
+      ? "Add numbers, percentages, or delivery impact to your experience bullets."
+      : null,
+    hasTargetJobDescription && analysis.missingKeywords.length > 0
+      ? `Add truthful JD keywords like ${analysis.missingKeywords.slice(0, 4).join(", ")}.`
+      : null,
+  ].filter(Boolean) as string[];
+
+  return Array.from(new Set(fixes)).slice(0, 3);
+};
+
 export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTitle, company }: ATSAnalyzerProps) {
   const { toast } = useToast();
   const { user } = useFirebaseAuth();
@@ -30,6 +56,42 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
   const [analysisResult, setAnalysisResult] = useState<ATSAnalysisResult | null>(null);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const hasTargetJobDescription = isLikelyJobDescription(jobDescription);
+  const scoreCards = analysisResult
+    ? [
+        {
+          name: "Keyword Match",
+          score: analysisResult.keywordsScore,
+          description: hasTargetJobDescription
+            ? "How well your resume matches the role language."
+            : "General technical signal strength from your resume text.",
+        },
+        {
+          name: "Resume Structure",
+          score: analysisResult.formatScore,
+          description: "Section headers, bullets, and clean ATS-readable layout.",
+        },
+        {
+          name: "Content Strength",
+          score: analysisResult.experienceScore,
+          description: "Impact, experience clarity, and relevance of your content.",
+        },
+        {
+          name: "ATS Readability",
+          score: analysisResult.formatScore,
+          description: "How easy it is for parsers to read contact info and experience.",
+        },
+      ]
+    : [];
+  const priorityFixes = analysisResult ? getPriorityFixes(analysisResult, hasTargetJobDescription) : [];
+  const needsWork = analysisResult
+    ? Array.from(
+        new Set([
+          ...analysisResult.recommendations,
+          ...(analysisResult.missingKeywords.length > 0 && hasTargetJobDescription ? ["JD keyword alignment"] : []),
+        ]),
+      ).slice(0, 4)
+    : [];
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -127,9 +189,10 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
     }
 
     try {
-      console.log("🤖 Starting Gemini ATS analysis...");
-      // Use Gemini AI for real analysis
-      const result = await analyzeResumeWithGemini(resumeText, jobDescription);
+      console.log("📊 Starting deterministic ATS analysis...");
+      const result = await analyzeResumeWithGemini(resumeText, jobDescription, {
+        jobTitle,
+      });
       
       setAnalysisResult(result);
       setIsAnalyzing(false);
@@ -173,7 +236,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
       setIsAnalyzing(false);
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing your resume. Please try again.",
+        description: "There was an error calculating your ATS score. Please try again.",
         variant: "destructive"
       });
     }
@@ -200,7 +263,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
             ATS Resume Analyzer
           </DialogTitle>
           <DialogDescription>
-            Get an AI-powered analysis of your resume's ATS compatibility and optimization suggestions
+            Get a rule-based ATS analysis of your resume with keyword, structure, and content recommendations
           </DialogDescription>
         </DialogHeader>
 
@@ -261,7 +324,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                   <CardHeader>
                     <CardTitle className="text-lg">Target Job Description (Optional)</CardTitle>
                     <CardDescription>
-                      Paste a job description to get more targeted keyword suggestions
+                      Paste a real job description with requirements or responsibilities to enable keyword matching
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -357,93 +420,137 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                   </CardContent>
                 </Card>
 
-                {/* Detailed Scores */}
+                {/* Score Breakdown */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Detailed Analysis</CardTitle>
+                    <CardTitle>Where To Improve</CardTitle>
+                    <CardDescription>
+                      Focus on the lowest areas first. They move your ATS result the most.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {[
-                      { name: "Skills Match", score: analysisResult.skillsScore },
-                      { name: "Experience Relevance", score: analysisResult.experienceScore },
-                      { name: "Format Compatibility", score: analysisResult.formatScore },
-                      { name: "Keyword Optimization", score: analysisResult.keywordsScore }
-                    ].map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
-                        <span className="font-medium">{item.name}</span>
-                        <div className="flex items-center gap-3 w-40">
-                          <Progress value={item.score} className="flex-1 h-2" />
-                          <span className={`font-semibold ${getScoreColor(item.score)}`}>
-                            {item.score}%
-                          </span>
+                  <CardContent className="grid gap-3 md:grid-cols-2">
+                    {scoreCards.map((item) => (
+                      <div key={item.name} className="rounded-xl border border-slate-200 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-slate-900">{item.name}</p>
+                            <p className="mt-1 text-xs text-slate-600">{item.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-semibold ${getScoreColor(item.score)}`}>{item.score}%</p>
+                            <p className="text-xs text-slate-500">{getScoreSummary(item.score)}</p>
+                          </div>
                         </div>
+                        <Progress value={item.score} className="mt-3 h-2" />
                       </div>
                     ))}
                   </CardContent>
                 </Card>
 
-                {/* Strong Points */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        What Is Already Strong
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-2">
+                        {analysisResult.strongPoints.map((point, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <CheckCircle className="mt-0.5 h-4 w-4 text-green-500" />
+                            <span className="text-sm">{point}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-orange-600">
+                        <AlertCircle className="h-5 w-5" />
+                        What Needs Work
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-2">
+                        {needsWork.length > 0 ? needsWork.map((item, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 text-orange-500" />
+                            <span className="text-sm">{item}</span>
+                          </div>
+                        )) : (
+                          <p className="text-sm text-slate-600">No major ATS weaknesses were detected.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="h-5 w-5" />
-                      Strong Points
-                    </CardTitle>
+                    <CardTitle>Top 3 Fixes To Improve Your Score</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-2">
-                      {analysisResult.strongPoints.map((point, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{point}</span>
+                    <div className="space-y-3">
+                      {priorityFixes.map((fix, index) => (
+                        <div key={index} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm text-slate-700">{fix}</span>
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Missing Keywords */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-orange-600">
-                      <AlertCircle className="h-5 w-5" />
-                      Missing Keywords
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {analysisResult.missingKeywords.map((keyword, index) => (
-                        <Badge key={index} variant="outline" className="text-orange-600 border-orange-200">
-                          {keyword}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                {hasTargetJobDescription && analysisResult.missingKeywords.length > 0 ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-orange-600">
+                        <AlertCircle className="h-5 w-5" />
+                        Missing Keywords
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {analysisResult.missingKeywords.map((keyword, index) => (
+                          <Badge key={index} variant="outline" className="text-orange-600 border-orange-200">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
-                {/* Matched Keywords */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="h-5 w-5" />
-                      Matched Keywords
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {analysisResult.matchedKeywords.map((keyword, index) => (
-                        <Badge key={index} variant="secondary" className="text-green-600 bg-green-50">
-                          {keyword}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                {hasTargetJobDescription && analysisResult.matchedKeywords.length > 0 ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        Matched Keywords
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {analysisResult.matchedKeywords.map((keyword, index) => (
+                          <Badge key={index} variant="secondary" className="text-green-600 bg-green-50">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 {/* Recommendations */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>AI Recommendations</CardTitle>
+                    <CardTitle>Detailed Recommendations</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
