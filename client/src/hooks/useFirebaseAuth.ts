@@ -4,7 +4,6 @@ import { auth, googleProvider } from "../lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { FirestoreUser, getUser, createUser, acceptReferralInvitation, initializeReferralCode } from "../lib/firestore";
-import { sendSignupStartedEmail } from "../lib/emailService";
 import { trackUserSignup, trackUserLogin } from "../lib/analytics";
 
 export function useFirebaseAuth() {
@@ -14,6 +13,8 @@ export function useFirebaseAuth() {
 
   useEffect(() => {
     let unsubscribeUserDoc: (() => void) | null = null;
+    const hasWindow = typeof window !== "undefined";
+    const getEffectKey = (uid: string, kind: string) => `referralme:${kind}:${uid}`;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (unsubscribeUserDoc) {
@@ -37,12 +38,6 @@ export function useFirebaseAuth() {
               photoURL: user.photoURL || undefined,
             };
             await createUser(newUserData);
-
-            if (user.email) {
-              sendSignupStartedEmail(user.displayName || user.email || "User", user.email).catch((error) => {
-                console.error("Error sending signup email:", error);
-              });
-            }
             
             // Initialize referral code
             await initializeReferralCode(user.uid, user.displayName || user.email || "User");
@@ -51,10 +46,13 @@ export function useFirebaseAuth() {
             const urlParams = new URLSearchParams(window.location.search);
             const referralCode = urlParams.get('ref');
             
-            if (referralCode) {
+            if (referralCode && (!hasWindow || !window.sessionStorage.getItem(getEffectKey(user.uid, "referral-accepted")))) {
               try {
                 await acceptReferralInvitation(referralCode, user.uid);
                 console.log("Referral accepted successfully");
+                if (hasWindow) {
+                  window.sessionStorage.setItem(getEffectKey(user.uid, "referral-accepted"), "1");
+                }
               } catch (error) {
                 console.error("Error accepting referral:", error);
               }

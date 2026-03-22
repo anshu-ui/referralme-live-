@@ -246,6 +246,57 @@ export default function JobDetails({ jobId }: JobDetailsProps) {
               </CardHeader>
             </Card>
 
+            <Card className="border-blue-100 bg-gradient-to-r from-blue-50 to-white">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">Why this shared role is worth a closer look</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  View all the role details now. Sign up only when you are ready to request a referral.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+                <div className="rounded-xl border border-blue-100 bg-white p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Shared by</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {referrerData ? "Verified referrer" : "ReferralMe referrer"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {referrerData?.company ? `${referrerData.company} professional` : "Professional network member"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-blue-100 bg-white p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">ATS cutoff</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {jobData.minAtsScore ? `${jobData.minAtsScore}+ recommended` : "General fit review"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Check your resume before applying if you want a stronger fit.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-blue-100 bg-white p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Screening</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {(jobData.screeningQuestions || []).length > 0
+                      ? `${jobData.screeningQuestions.length} quick question${jobData.screeningQuestions.length > 1 ? "s" : ""}`
+                      : "No extra screening"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {(jobData.screeningQuestions || []).length > 0
+                      ? "Be ready to answer a few role-fit questions in the application."
+                      : "You can apply directly through the normal referral flow."}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-blue-100 bg-white p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">How it works</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    View now, apply when ready
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    You can explore the role first and only sign in when you want to request the referral.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Job Details Tabs */}
             <Tabs defaultValue="description" className="w-full">
               <TabsList className="grid w-full grid-cols-3 h-auto">
@@ -347,6 +398,11 @@ export default function JobDetails({ jobId }: JobDetailsProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 p-4 sm:p-6">
+                {jobData.quickSummary ? (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-950">
+                    {jobData.quickSummary}
+                  </div>
+                ) : null}
                 <Button 
                   onClick={handleApply} 
                   className="w-full text-sm sm:text-base" 
@@ -371,6 +427,11 @@ export default function JobDetails({ jobId }: JobDetailsProps) {
                   <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     {jobData.createdAt ? `Posted ${new Date(jobData.createdAt.seconds * 1000).toLocaleDateString()}` : 'Recently posted'}
                   </p>
+                  {!firebaseUser ? (
+                    <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
+                      You can read the full role first. Sign in only when you are ready to request a referral.
+                    </p>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -433,6 +494,32 @@ export default function JobDetails({ jobId }: JobDetailsProps) {
                   <span className="text-sm text-gray-500">Job Type</span>
                   <span className="text-sm font-semibold">{jobData.jobType || 'Full-time'}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Application mode</span>
+                  <span className="text-sm font-semibold">
+                    {jobData.applicationMode === "direct_internal_link"
+                      ? "Direct link"
+                      : jobData.applicationMode === "email_resume"
+                        ? "Email resume"
+                        : "Platform request"}
+                  </span>
+                </div>
+                {jobData.maxReferrals ? (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Referral slots</span>
+                    <span className="text-sm font-semibold">
+                      {Number(jobData.currentReferralCount || 0)}/{jobData.maxReferrals}
+                    </span>
+                  </div>
+                ) : null}
+                {jobData.expiresAt ? (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Apply before</span>
+                    <span className="text-sm font-semibold">
+                      {new Date(jobData.expiresAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>

@@ -27,6 +27,7 @@ import ComingSoonBadge from "../components/coming-soon-badge";
 import DiscoverReferrers from "../components/discover-referrers";
 import ReferrerProfileModal from "../components/referrer-profile-modal";
 import AutoAchievementSystem from "../components/auto-achievement-system";
+import { useToast } from "../hooks/use-toast";
 import { 
   Search, MapPin, IndianRupee, Calendar, Building, Send, 
   MessageCircle, FileText, TrendingUp, Target, Star, 
@@ -38,7 +39,7 @@ import {
   Users, Trophy, Zap, Brain, TrendingDown, LogOut, Bot,
   PieChart, LineChart, ArrowUp, ArrowDown, Percent, 
   Sparkles, Flame, Medal, Gift, Crown, Shield, CheckCircle2,
-  Lightbulb, Network, ChevronDown, ChevronUp
+  Lightbulb, Network, ChevronDown, ChevronUp, Copy
 } from "lucide-react";
 import { 
   trackEvent, 
@@ -53,6 +54,7 @@ import {
 
 export default function CleanSeekerDashboard() {
   const { user, logout } = useFirebaseAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
@@ -202,6 +204,61 @@ export default function CleanSeekerDashboard() {
     "User";
 
   const seekerProfileImage = user?.profileImageUrl || user?.photoURL || "";
+  const seekerRecord = (user || {}) as Record<string, any>;
+  const profileSignals = [
+    seekerRecord.displayName || seekerRecord.firstName || seekerRecord.lastName,
+    seekerRecord.email,
+    seekerRecord.role,
+    seekerRecord.bio || seekerRecord.about || seekerRecord.headline,
+    seekerRecord.skills?.length ? "skills" : null,
+    seekerRecord.resumeUrl || seekerRecord.resumeText,
+    seekerRecord.linkedinUrl || seekerRecord.githubUrl,
+  ];
+  const profileCompletion = Math.max(
+    seekerRecord.profileCompleted ? 100 : 0,
+    Math.round((profileSignals.filter(Boolean).length / profileSignals.length) * 100),
+  );
+  const atsShareUrl = typeof window !== "undefined" ? `${window.location.origin}/#resume-scan` : "/#resume-scan";
+  const atsShareMessage =
+    "Check your ATS score free on ReferralMe and improve your resume before applying: " + atsShareUrl;
+
+  const handleShareATSScan = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Free ATS Resume Scan",
+          text: "Check your ATS score free on ReferralMe and improve your resume before applying.",
+          url: atsShareUrl,
+        });
+        return;
+      }
+
+      window.open(`https://wa.me/?text=${encodeURIComponent(atsShareMessage)}`, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error sharing ATS scan:", error);
+      toast({
+        title: "Share not completed",
+        description: "You can still copy the ATS scan link below.",
+      });
+    }
+  };
+
+  const handleCopyATSLink = async () => {
+    try {
+      await navigator.clipboard.writeText(atsShareUrl);
+      toast({
+        title: "ATS scan link copied",
+        description: "Share it with friends to bring more job seekers into ReferralMe.",
+      });
+    } catch (error) {
+      console.error("Error copying ATS scan link:", error);
+      toast({
+        title: "Copy failed",
+        description: "The ATS scan link could not be copied. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 animate-fade-in-up">
@@ -381,6 +438,116 @@ export default function CleanSeekerDashboard() {
                 </Link>
               </CardContent>
             </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-blue-100 p-3">
+                      <Brain className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Improve Before You Apply</CardTitle>
+                      <CardDescription>Check your ATS score before sending more applications.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-white px-4 py-3">
+                    <span className="text-sm text-gray-600">Latest ATS score</span>
+                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                      {realStats.atsScore ?? "--"}/100
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Stronger ATS performance usually means better referral readiness and fewer wasted applications.
+                  </p>
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setIsATSAnalyzerOpen(true)}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Run ATS Scan
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-emerald-100 p-3">
+                      <Users className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Share Free ATS Scan</CardTitle>
+                      <CardDescription>Help a friend improve their resume before they apply.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Share ReferralMe&apos;s free ATS scan with friends who are applying right now.
+                  </p>
+                  <div className="flex gap-3">
+                    <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={handleShareATSScan}>
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Share
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={handleCopyATSLink}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy Link
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Best for WhatsApp groups, friends, and college or alumni circles.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-100 bg-gradient-to-br from-amber-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-amber-100 p-3">
+                      <TrendingUp className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Referral Momentum</CardTitle>
+                      <CardDescription>See where you are strong and what to improve next.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg border bg-white p-3 text-center">
+                      <p className="text-xs text-gray-500">Profile</p>
+                      <p className="text-lg font-semibold text-gray-900">{profileCompletion}%</p>
+                    </div>
+                    <div className="rounded-lg border bg-white p-3 text-center">
+                      <p className="text-xs text-gray-500">Applied</p>
+                      <p className="text-lg font-semibold text-gray-900">{realStats.totalApplications}</p>
+                    </div>
+                    <div className="rounded-lg border bg-white p-3 text-center">
+                      <p className="text-xs text-gray-500">Response</p>
+                      <p className="text-lg font-semibold text-gray-900">{realStats.responseRate}%</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {profileCompletion < 100
+                      ? "Complete your profile and keep your ATS score strong to improve referral chances."
+                      : "Your profile is in good shape. Keep applying to strong-fit roles and track your response rate."}
+                  </p>
+                  <div className="flex gap-3">
+                    <Link href="/profile-edit" className="flex-1">
+                      <Button variant="outline" className="w-full">
+                        <User className="mr-2 h-4 w-4" />
+                        Edit Profile
+                      </Button>
+                    </Link>
+                    <Button className="flex-1" onClick={() => setActiveTab("jobs")}>
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Browse Jobs
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Empty State or Recent Activity */}
             {applications && applications.length === 0 ? (

@@ -62,6 +62,38 @@ function useRotatingLabel(labels: string[], interval = 2200) {
   return labels[index];
 }
 
+function getFriendlySignInError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("popup") && normalized.includes("closed")) {
+    return "Google sign-in was closed before it finished. Please try again.";
+  }
+
+  if (normalized.includes("popup") && normalized.includes("blocked")) {
+    return "Your browser blocked the Google sign-in popup. Please allow popups and try again.";
+  }
+
+  return "We couldn't complete sign-in right now. Please try again in a moment.";
+}
+
+async function getUserProfileWithRetry(uid: string, attempts = 2) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await getUserProfile(uid);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export default function NewLanding() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
@@ -131,8 +163,17 @@ export default function NewLanding() {
       setIsSigningIn(true); setSignInError(null);
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
-        await refreshUser();
-        const userData = await getUserProfile(result.user.uid);
+        await refreshUser().catch((error) => {
+          console.error("Error refreshing user after sign-in:", error);
+        });
+
+        let userData: Awaited<ReturnType<typeof getUserProfile>> = null;
+        try {
+          userData = await getUserProfileWithRetry(result.user.uid);
+        } catch (error) {
+          console.error("Error fetching signed-in user profile on landing:", error);
+        }
+
         if (userData?.role && userData?.profileCompleted) {
           setLocation(userData.role === "seeker" ? "/seeker-dashboard" : "/referrer-dashboard");
         } else if (userData?.role) {
@@ -141,8 +182,9 @@ export default function NewLanding() {
           setLocation("/role-selection");
         }
       }
-    } catch (error: any) {
-      setSignInError(error.message || "Failed to sign in.");
+    } catch (error) {
+      console.error("Landing sign-in failed:", error);
+      setSignInError(getFriendlySignInError(error));
     } finally {
       setIsSigningIn(false);
     }

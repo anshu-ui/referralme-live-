@@ -1267,6 +1267,12 @@ export const sendReferralInvitation = async (
 // Accept referral invitation (called when new user signs up with referral code)
 export const acceptReferralInvitation = async (referralCode: string, newUserId: string) => {
   try {
+    const newUserRef = doc(db, "users", newUserId);
+    const newUserDoc = await getDoc(newUserRef);
+    if (newUserDoc.exists() && newUserDoc.data()?.referredBy) {
+      return null;
+    }
+
     // Find pending invitation with this referral code
     const q = query(
       collection(db, "referralInvites"),
@@ -1275,35 +1281,52 @@ export const acceptReferralInvitation = async (referralCode: string, newUserId: 
     );
     
     const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error("Invalid or expired referral code");
-    }
-    
-    const inviteDoc = querySnapshot.docs[0];
-    const inviteData = inviteDoc.data() as ReferralInvite;
-    
-    // Check if invitation expired
-    if (inviteData.expiresAt.toDate() < new Date()) {
+
+    let inviteData: ReferralInvite | null = null;
+    let referrerUserId: string | null = null;
+    let rewardAmount = 7;
+
+    if (!querySnapshot.empty) {
+      const inviteDoc = querySnapshot.docs[0];
+      inviteData = inviteDoc.data() as ReferralInvite;
+
+      // Check if invitation expired
+      if (inviteData.expiresAt.toDate() < new Date()) {
+        await updateDoc(doc(db, "referralInvites", inviteDoc.id), {
+          status: "expired"
+        });
+        throw new Error("Referral invitation has expired");
+      }
+
+      // Update invitation status
       await updateDoc(doc(db, "referralInvites", inviteDoc.id), {
-        status: "expired"
+        status: "accepted",
+        acceptedAt: serverTimestamp(),
       });
-      throw new Error("Referral invitation has expired");
+
+      referrerUserId = inviteData.referrerUserId;
+      rewardAmount = inviteData.rewardAmount || rewardAmount;
+    } else {
+      const referrerQuery = query(
+        collection(db, "users"),
+        where("referralCode", "==", referralCode)
+      );
+      const referrerSnapshot = await getDocs(referrerQuery);
+
+      if (referrerSnapshot.empty) {
+        throw new Error("Invalid or expired referral code");
+      }
+
+      referrerUserId = referrerSnapshot.docs[0].id;
     }
-    
-    // Update invitation status
-    await updateDoc(doc(db, "referralInvites", inviteDoc.id), {
-      status: "accepted",
-      acceptedAt: serverTimestamp(),
-    });
-    
+
     // Update new user with referral info
-    await updateDoc(doc(db, "users", newUserId), {
+    await updateDoc(newUserRef, {
       referredBy: referralCode,
     });
     
     // Update referrer's stats
-    const referrerRef = doc(db, "users", inviteData.referrerUserId);
+    const referrerRef = doc(db, "users", referrerUserId!);
     const referrerDoc = await getDoc(referrerRef);
     
     if (referrerDoc.exists()) {
@@ -1320,7 +1343,7 @@ export const acceptReferralInvitation = async (referralCode: string, newUserId: 
           ...currentStats,
           totalReferred: currentStats.totalReferred + 1,
           successfulReferrals: currentStats.successfulReferrals + 1,
-          premiumDaysEarned: currentStats.premiumDaysEarned + inviteData.rewardAmount,
+          premiumDaysEarned: currentStats.premiumDaysEarned + rewardAmount,
         },
         updatedAt: serverTimestamp(),
       });
@@ -1450,10 +1473,10 @@ export interface ATSAnalysisHistory {
 // Save ATS analysis to history
 export const saveATSAnalysis = async (analysisData: Omit<ATSAnalysisHistory, "id" | "analyzedAt">) => {
   try {
-    const docRef = await addDoc(collection(db, "atsAnalysisHistory"), {
+    const docRef = await addDoc(collection(db, "atsAnalysisHistory"), sanitizeFirestorePayload({
       ...analysisData,
       analyzedAt: serverTimestamp(),
-    });
+    }));
     
     console.log("✅ ATS analysis saved to history:", docRef.id);
     return docRef.id;
@@ -1480,6 +1503,25 @@ export const getUserATSAnalysisHistory = async (userId: string): Promise<ATSAnal
   } catch (error) {
     console.error("Error getting ATS analysis history:", error);
     // Return empty array if collection doesn't exist yet
+    return [];
+  }
+};
+
+// Get all ATS analyses for admin reporting
+export const getAllATSAnalysisHistory = async (): Promise<ATSAnalysisHistory[]> => {
+  try {
+    const q = query(
+      collection(db, "atsAnalysisHistory"),
+      orderBy("analyzedAt", "desc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as ATSAnalysisHistory[];
+  } catch (error) {
+    console.error("Error getting all ATS analysis history:", error);
     return [];
   }
 };

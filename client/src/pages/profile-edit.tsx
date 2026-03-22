@@ -188,8 +188,8 @@ export default function ProfileEdit() {
       const dashboardPath = userRole === "referrer" ? "/referrer-dashboard" : "/seeker-dashboard";
       console.log("🎯 FINAL: User role:", userRole, "Dashboard path:", dashboardPath);
       
-      // Send welcome email for all profile completions (including recreated accounts)  
-      if (updateData.profileCompleted) {
+      // Send welcome email only the first time profile completion happens
+      if (updateData.profileCompleted && wasProfileIncomplete) {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
         console.log("✅ SENDING WELCOME EMAIL:");
         console.log("  - Name:", fullName);
@@ -197,7 +197,6 @@ export default function ProfileEdit() {
         console.log("  - Role:", userRole);
         console.log("  - Was incomplete before:", wasProfileIncomplete);
         
-        // Send welcome email regardless of previous completion status
         sendWelcomeEmail(fullName, formData.email, userRole)
           .then((result) => {
             console.log("✅ Welcome email sent successfully:", result);

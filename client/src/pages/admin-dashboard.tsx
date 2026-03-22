@@ -26,12 +26,14 @@ import {
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { isAdminUser } from "../lib/admin";
 import {
+  type ATSAnalysisHistory,
   type FirestoreUser,
   type JobPosting,
   type PlatformAnnouncement,
   type ReferralRequest,
   createPlatformAnnouncement,
   deleteJobPosting,
+  getAllATSAnalysisHistory,
   getAllJobPostings,
   getPlatformAnnouncements,
   getAllReferralRequests,
@@ -101,6 +103,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<FirestoreUser[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [requests, setRequests] = useState<ReferralRequest[]>([]);
+  const [atsAnalyses, setAtsAnalyses] = useState<ATSAnalysisHistory[]>([]);
   const [announcements, setAnnouncements] = useState<PlatformAnnouncement[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [jobSearch, setJobSearch] = useState("");
@@ -120,15 +123,17 @@ export default function AdminDashboard() {
 
   const loadAdminData = async () => {
     try {
-      const [nextUsers, nextJobs, nextRequests, nextAnnouncements] = await Promise.all([
+      const [nextUsers, nextJobs, nextRequests, nextAtsAnalyses, nextAnnouncements] = await Promise.all([
         getAllUsers(),
         getAllJobPostings(),
         getAllReferralRequests(),
+        getAllATSAnalysisHistory(),
         getPlatformAnnouncements(),
       ]);
       setUsers(nextUsers);
       setJobs(nextJobs);
       setRequests(nextRequests);
+      setAtsAnalyses(nextAtsAnalyses);
       setAnnouncements(nextAnnouncements);
     } catch (error) {
       console.error("Error loading admin data:", error);
@@ -419,6 +424,16 @@ export default function AdminDashboard() {
   };
 
   const overview = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayScans = atsAnalyses.filter((entry) => {
+      const analyzedDate = entry.analyzedAt?.toDate?.();
+      return analyzedDate ? analyzedDate >= startOfToday : false;
+    });
+    const uniqueTodayScanners = new Set(todayScans.map((entry) => entry.userId).filter(Boolean)).size;
+    const avgTodayAtsScore = todayScans.length
+      ? Math.round(todayScans.reduce((sum, entry) => sum + Number(entry.overallScore || 0), 0) / todayScans.length)
+      : 0;
     const seekers = users.filter((entry) => entry.role === "seeker").length;
     const referrers = users.filter((entry) => entry.role === "referrer").length;
     const admins = users.filter((entry) => isAdminUser(entry)).length;
@@ -461,9 +476,12 @@ export default function AdminDashboard() {
       resumesAttached,
       atsCovered,
       avgAtsScore,
+      atsScansToday: todayScans.length,
+      uniqueTodayScanners,
+      avgTodayAtsScore,
       acceptanceRate: requests.length ? Math.round((acceptedRequests / requests.length) * 100) : 0,
     };
-  }, [announcements, users, jobs, requests]);
+  }, [announcements, atsAnalyses, users, jobs, requests]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((entry) => {
@@ -507,7 +525,35 @@ export default function AdminDashboard() {
   const recentSignups = users.slice(0, 5);
   const recentJobs = jobs.slice(0, 5);
   const recentRequests = requests.slice(0, 5);
+  const recentAtsScans = atsAnalyses.slice(0, 8);
   const recentAnnouncements = announcements.slice(0, 4);
+
+  const atsScansToday = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    return atsAnalyses
+      .filter((entry) => {
+        const analyzedDate = entry.analyzedAt?.toDate?.();
+        return analyzedDate ? analyzedDate >= startOfToday : false;
+      })
+      .slice(0, 10);
+  }, [atsAnalyses]);
+
+  const getUserLabel = (userId: string) => {
+    const matchedUser = users.find((entry) => entry.uid === userId);
+    if (!matchedUser) {
+      return {
+        name: "Unknown user",
+        email: userId,
+      };
+    }
+
+    return {
+      name: matchedUser.displayName || matchedUser.firstName || matchedUser.email || "Unknown user",
+      email: matchedUser.email || userId,
+    };
+  };
 
   const exportCsv = (filename: string, rows: Array<Record<string, unknown>>) => {
     if (!rows.length) {
@@ -611,6 +657,28 @@ export default function AdminDashboard() {
     );
   };
 
+  const handleExportAtsScans = () => {
+    exportCsv(
+      "referralme-ats-scans.csv",
+      atsAnalyses.map((entry) => {
+        const userLabel = getUserLabel(entry.userId);
+        return {
+          id: entry.id || "",
+          userId: entry.userId,
+          userName: userLabel.name,
+          userEmail: userLabel.email,
+          overallScore: entry.overallScore,
+          jobTitle: entry.jobTitle || "",
+          company: entry.company || "",
+          analyzedAt: entry.analyzedAt?.toDate?.()?.toISOString?.() || "",
+          suggestionsCount: entry.suggestions?.length || 0,
+          missingKeywordsCount: entry.missingKeywords?.length || 0,
+          matchedKeywordsCount: entry.matchedKeywords?.length || 0,
+        };
+      }),
+    );
+  };
+
   const growthChartData = useMemo(() => {
     const months = new Map<string, { label: string; users: number; jobs: number; requests: number }>();
 
@@ -644,6 +712,34 @@ export default function AdminDashboard() {
 
     return Array.from(months.values()).slice(-6);
   }, [users, jobs, requests]);
+
+  const atsTrendData = useMemo(() => {
+    const days = new Map<string, { label: string; scans: number; avgScoreTotal: number }>();
+
+    atsAnalyses.forEach((entry) => {
+      const date = entry.analyzedAt?.toDate?.();
+      if (!date) return;
+      const key = date.toISOString().slice(0, 10);
+      if (!days.has(key)) {
+        days.set(key, {
+          label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          scans: 0,
+          avgScoreTotal: 0,
+        });
+      }
+      const bucket = days.get(key)!;
+      bucket.scans += 1;
+      bucket.avgScoreTotal += Number(entry.overallScore || 0);
+    });
+
+    return Array.from(days.values())
+      .slice(-7)
+      .map((entry) => ({
+        label: entry.label,
+        scans: entry.scans,
+        avgScore: entry.scans ? Math.round(entry.avgScoreTotal / entry.scans) : 0,
+      }));
+  }, [atsAnalyses]);
 
   const requestStatusData = useMemo(
     () => [
@@ -743,6 +839,36 @@ export default function AdminDashboard() {
     return Array.from(counts.values()).sort((a, b) => b.requests - a.requests).slice(0, 6);
   }, [requests]);
 
+  const topAtsUsers = useMemo(() => {
+    const counts = new Map<string, { name: string; email: string; scans: number; avgScoreTotal: number; bestScore: number }>();
+
+    atsAnalyses.forEach((entry) => {
+      const userLabel = getUserLabel(entry.userId);
+      const key = entry.userId || userLabel.email;
+      if (!counts.has(key)) {
+        counts.set(key, {
+          name: userLabel.name,
+          email: userLabel.email,
+          scans: 0,
+          avgScoreTotal: 0,
+          bestScore: 0,
+        });
+      }
+      const current = counts.get(key)!;
+      current.scans += 1;
+      current.avgScoreTotal += Number(entry.overallScore || 0);
+      current.bestScore = Math.max(current.bestScore, Number(entry.overallScore || 0));
+    });
+
+    return Array.from(counts.values())
+      .map((entry) => ({
+        ...entry,
+        avgScore: entry.scans ? Math.round(entry.avgScoreTotal / entry.scans) : 0,
+      }))
+      .sort((a, b) => b.scans - a.scans)
+      .slice(0, 6);
+  }, [atsAnalyses, users]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -803,6 +929,11 @@ export default function AdminDashboard() {
           <MetricCard title="Resume Coverage" value={`${requests.length ? Math.round((overview.resumesAttached / requests.length) * 100) : 0}%`} hint={`${overview.resumesAttached} requests with resume data`} icon={FileText} />
           <MetricCard title="ATS Coverage" value={`${requests.length ? Math.round((overview.atsCovered / requests.length) * 100) : 0}%`} hint={`${overview.atsCovered} requests with ATS scoring`} icon={Target} />
           <MetricCard title="Verified Users" value={overview.verifiedUsers} hint={`${users.length ? Math.round((overview.verifiedUsers / users.length) * 100) : 0}% trust coverage`} icon={Shield} />
+        </div>
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <MetricCard title="ATS Scans Today" value={overview.atsScansToday} hint="Resume scans completed since midnight" icon={Activity} />
+          <MetricCard title="Unique Scanners Today" value={overview.uniqueTodayScanners} hint="People who ran ATS at least once today" icon={Users} />
+          <MetricCard title="Avg ATS Today" value={overview.avgTodayAtsScore || "--"} hint="Average ATS score from today's scans" icon={Target} />
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
@@ -910,6 +1041,78 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              <Card className={`xl:col-span-2 ${ADMIN_SURFACE}`}>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>ATS Activity Today</CardTitle>
+                    <p className="text-sm text-slate-500">See who ran ATS scans today, when they scanned, and how those resumes scored.</p>
+                  </div>
+                  <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50" onClick={handleExportAtsScans}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export ATS CSV
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {atsScansToday.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                      No ATS scans have been recorded today yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {atsScansToday.map((entry) => {
+                        const userLabel = getUserLabel(entry.userId);
+                        return (
+                          <div key={entry.id || `${entry.userId}-${entry.jobTitle || "scan"}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{userLabel.name}</p>
+                                <p className="text-xs text-slate-500">{userLabel.email}</p>
+                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                                  <Badge variant="outline" className="border-slate-200 bg-white text-slate-700">Score {entry.overallScore}%</Badge>
+                                  <Badge variant="outline" className="border-slate-200 bg-white text-slate-700">{entry.company || "General ATS scan"}</Badge>
+                                  {entry.jobTitle ? (
+                                    <Badge variant="outline" className="border-slate-200 bg-white text-slate-700">{entry.jobTitle}</Badge>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <div className="text-xs text-slate-500">{getTimeLabel(entry.analyzedAt)}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>Recent ATS Scans</CardTitle>
+                  <p className="text-sm text-slate-500">Latest scan activity across the platform.</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {recentAtsScans.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                      No ATS scan history yet.
+                    </div>
+                  ) : (
+                    recentAtsScans.map((entry) => {
+                      const userLabel = getUserLabel(entry.userId);
+                      return (
+                        <div key={entry.id || `${entry.userId}-${entry.jobTitle || "scan-recent"}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-sm font-semibold text-slate-900">{userLabel.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {entry.overallScore}% • {entry.jobTitle || entry.company || "General scan"} • {getTimeLabel(entry.analyzedAt)}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
@@ -1009,6 +1212,62 @@ export default function AdminDashboard() {
                       <Bar dataKey="value" fill="#7c3aed" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              <Card className={`xl:col-span-2 ${ADMIN_SURFACE}`}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>ATS Scan Trend</CardTitle>
+                    <p className="text-sm text-slate-500">Daily ATS scan volume and average score over the last 7 visible days.</p>
+                  </div>
+                  <LineChartIcon className="h-5 w-5 text-slate-400" />
+                </CardHeader>
+                <CardContent className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={atsTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" />
+                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip />
+                      <Bar yAxisId="left" dataKey="scans" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                      <Bar yAxisId="right" dataKey="avgScore" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>Top ATS Users</CardTitle>
+                  <p className="text-sm text-slate-500">Who is using the ATS tool most often.</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {topAtsUsers.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                      No ATS usage data yet.
+                    </div>
+                  ) : (
+                    topAtsUsers.map((entry) => (
+                      <div key={`${entry.email}-${entry.name}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{entry.name}</p>
+                            <p className="text-xs text-slate-500">{entry.email}</p>
+                          </div>
+                          <Badge variant="outline" className="border-slate-200 bg-white text-slate-700">
+                            {entry.scans} scan{entry.scans === 1 ? "" : "s"}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-600">
+                          Avg score {entry.avgScore}% • Best score {entry.bestScore}%
+                        </p>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </div>
