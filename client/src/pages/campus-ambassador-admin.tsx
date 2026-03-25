@@ -19,6 +19,7 @@ import {
   deleteCampusAmbassadorTask,
   deleteCampusAmbassadorShowcaseItem,
   deleteCampusTaskSubmissionsForAmbassador,
+  deleteCampusTaskSubmissionsForTask,
   getCampusAmbassadorApplications,
   getCampusAmbassadorMembers,
   getCampusAmbassadorPageSettings,
@@ -770,7 +771,9 @@ export default function CampusAmbassadorAdminPage() {
   const handleDeleteTask = async (taskId?: string) => {
     if (!taskId) return;
     try {
+      await deleteCampusTaskSubmissionsForTask(taskId);
       await deleteCampusAmbassadorTask(taskId);
+      setSubmissions((current) => current.filter((entry) => entry.taskId !== taskId));
       toast({ title: "Task deleted" });
       await loadCampusAdminData();
     } catch (error) {

@@ -916,6 +916,14 @@ export default function CampusAmbassadorDashboard() {
                     storageOverride={campusStorage}
                     authOverride={campusAuth}
                     pathPrefix="campus-ambassador/proof"
+                    allowBase64Fallback={false}
+                    onUploadError={(message) =>
+                      toast({
+                        title: "Proof upload failed",
+                        description: message,
+                        variant: "destructive",
+                      })
+                    }
                     onFileUploaded={(fileUrl) => setProofImageUrl(fileUrl)}
                   />
 
@@ -1074,6 +1082,14 @@ export default function CampusAmbassadorDashboard() {
                     storageOverride={campusStorage}
                     authOverride={campusAuth}
                     pathPrefix="campus-ambassador/profile"
+                    allowBase64Fallback={false}
+                    onUploadError={(message) =>
+                      toast({
+                        title: "Profile photo upload failed",
+                        description: message,
+                        variant: "destructive",
+                      })
+                    }
                     onFileUploaded={(fileUrl) => setProfileForm((current) => ({ ...current, profileImageUrl: fileUrl }))}
                   />
                   <Button className="bg-[#1d4ed8] text-white hover:bg-[#1e40af]" onClick={handleSaveProfile} disabled={savingProfile}>

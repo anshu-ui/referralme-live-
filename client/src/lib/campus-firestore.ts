@@ -571,6 +571,16 @@ export const deleteCampusTaskSubmissionsForAmbassador = async (email: string) =>
   );
 };
 
+export const deleteCampusTaskSubmissionsForTask = async (taskId: string) => {
+  const db = ensureCampusDb();
+  const submissions = await getCampusTaskSubmissions();
+  await Promise.all(
+    submissions
+      .filter((entry) => entry.taskId === taskId && entry.id)
+      .map((entry) => deleteDoc(doc(db, "campusTaskSubmissions", entry.id as string))),
+  );
+};
+
 export const createCampusTaskSubmission = async (
   submission: Omit<CampusTaskSubmission, "id" | "submittedAt" | "updatedAt" | "reviewedAt" | "status">,
 ) => {
@@ -611,21 +621,30 @@ export const reviewCampusTaskSubmission = async (
   const db = ensureCampusDb();
   const submissionRef = doc(db, "campusTaskSubmissions", submission.id as string);
   const memberRef = doc(db, "campusAmbassadors", submission.ambassadorEmail.toLowerCase());
+  const awardedPoints = Number(submission.pointsAwarded || 0);
+  const nextPointsAwarded = nextStatus === "approved" ? awardedPoints : 0;
 
   await updateDoc(
     submissionRef,
     sanitizePayload({
       status: nextStatus,
       reviewNote: reviewNote?.trim() || undefined,
-      pointsAwarded: nextStatus === "approved" ? submission.pointsAwarded || 0 : 0,
+      pointsAwarded: nextPointsAwarded,
       reviewedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
   );
 
-  if (nextStatus === "approved" && submission.pointsAwarded > 0) {
+  const pointsDelta =
+    submission.status === "approved" && nextStatus !== "approved"
+      ? -awardedPoints
+      : submission.status !== "approved" && nextStatus === "approved"
+        ? awardedPoints
+        : 0;
+
+  if (pointsDelta !== 0) {
     await updateDoc(memberRef, {
-      points: increment(submission.pointsAwarded),
+      points: increment(pointsDelta),
       updatedAt: serverTimestamp(),
     });
   }
