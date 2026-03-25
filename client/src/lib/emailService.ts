@@ -164,3 +164,20 @@ export async function sendAdminBroadcastEmail(payload: {
     return { success: false, sent: 0, failed: payload.recipients.length };
   }
 }
+
+export async function sendCampusAmbassadorStatusEmail(payload: {
+  name: string;
+  email: string;
+  status: "shortlisted" | "accepted";
+  dashboardUrl?: string;
+}): Promise<boolean> {
+  if (!payload.name || !payload.email || !payload.status) {
+    console.error("Missing required fields for campus ambassador status email", payload);
+    return false;
+  }
+
+  return postEmailRequest({
+    endpoint: "/api/email/campus-ambassador-status",
+    payload,
+  });
+}

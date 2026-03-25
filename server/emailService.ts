@@ -14,6 +14,7 @@ const LOGO_URL = "https://referralme.in/logo.png";
 const APP_URL = "https://referralme.in";
 const SEEKER_DASHBOARD_URL = `${APP_URL}/seeker-dashboard`;
 const REFERRER_DASHBOARD_URL = `${APP_URL}/referrer-dashboard`;
+const CAMPUS_DASHBOARD_URL = `${APP_URL}/campus-ambassador/dashboard`;
 
 // ---------- CORE EMAIL FUNCTION ----------
 export async function sendEmail({
@@ -226,6 +227,50 @@ export function generateWelcomeEmailReferrer(name: string) {
       secondaryLinkLabel: "Manage Referral Requests",
       secondaryLinkHref: REFERRER_DASHBOARD_URL,
       footerNote: "Clear ATS thresholds and concise job summaries help you review faster and attract better-fit applicants.",
+    }),
+  };
+}
+
+export function generateCampusAmbassadorShortlistedEmail(name: string) {
+  return {
+    subject: "You made the shortlist for ReferralMe Campus Ambassador",
+    html: wrapEmail({
+      preheader: "You’re shortlisted. The next step is almost here.",
+      eyebrow: "Campus Ambassador",
+      title: `You’re shortlisted, ${name}`,
+      intro: "Your application stood out, and you’ve made it to the shortlist for the ReferralMe Campus Ambassador program.",
+      body: `
+        <p style="margin:0 0 14px;">This means your profile, campus fit, and energy look strong from our side.</p>
+        <p style="margin:0 0 14px;">Hold tight while we complete the next review step. If you’re selected, you’ll get direct access to the ambassador dashboard and the first program updates there.</p>
+        <p style="margin:0;">Big win already. You’re officially in the strong-consideration zone.</p>
+      `,
+      ctaLabel: "View Program Page",
+      ctaHref: `${APP_URL}/campus-ambassador`,
+      secondaryLinkLabel: "Open Campus Ambassador Page",
+      secondaryLinkHref: `${APP_URL}/campus-ambassador`,
+      footerNote: "No extra action is needed right now. We’ll email you again if you’re moved to the accepted stage.",
+    }),
+  };
+}
+
+export function generateCampusAmbassadorAcceptedEmail(name: string, dashboardUrl = CAMPUS_DASHBOARD_URL) {
+  return {
+    subject: "You’re in. Welcome to ReferralMe Campus Ambassador",
+    html: wrapEmail({
+      preheader: "You’re accepted. Sign in with the same email to open your campus dashboard.",
+      eyebrow: "Campus Ambassador",
+      title: `Welcome to the squad, ${name}`,
+      intro: "You’ve been accepted into the ReferralMe Campus Ambassador program.",
+      body: `
+        <p style="margin:0 0 14px;">Your dashboard access is now unlocked.</p>
+        <p style="margin:0 0 14px;">To open it, click the button below and sign in with the <strong>same Google email</strong> you used in your application.</p>
+        <p style="margin:0;">That’s your access key. No password setup, no extra friction.</p>
+      `,
+      ctaLabel: "Sign In to Ambassador Dashboard",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Sign In to Campus Dashboard",
+      secondaryLinkHref: dashboardUrl,
+      footerNote: "If you sign in with a different email, dashboard access will not open.",
     }),
   };
 }

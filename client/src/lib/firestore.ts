@@ -238,6 +238,80 @@ export interface PlatformAnnouncement {
   updatedAt: Timestamp;
 }
 
+export interface CampusAmbassadorApplication {
+  id?: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  collegeName: string;
+  course: string;
+  graduationYear: string;
+  city?: string;
+  linkedinUrl?: string;
+  instagramHandle?: string;
+  societies?: string;
+  communityReach?: string;
+  whyJoin: string;
+  availabilityHours: string;
+  heardFrom?: string;
+  status: "pending" | "shortlisted" | "interview_scheduled" | "accepted" | "rejected" | "inactive";
+  source?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface CampusAmbassadorShowcaseItem {
+  id?: string;
+  section:
+    | "highlight"
+    | "leaderboard"
+    | "gallery"
+    | "pillar"
+    | "mission"
+    | "campus_moment"
+    | "program_point"
+    | "benefit"
+    | "reward_tier"
+    | "timeline"
+    | "faq"
+    | "testimonial"
+    | "hero_stat"
+    | "info_row";
+  title: string;
+  subtitle?: string;
+  description?: string;
+  badge?: string;
+  accent?: string;
+  initials?: string;
+  metric?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  order: number;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface CampusAmbassadorPageSettings {
+  id?: string;
+  heroEyebrow?: string;
+  heroTitle?: string;
+  heroDescription?: string;
+  footerTitle?: string;
+  footerSubtitle?: string;
+  footerDescription?: string;
+  footerTagline?: string;
+  contactEmail?: string;
+  linkedinHref?: string;
+  instagramHref?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 const sanitizeFirestorePayload = <T extends Record<string, any>>(payload: T) =>
   Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
 
@@ -429,6 +503,165 @@ export const createPlatformAnnouncement = async (
 
   const docRef = await addDoc(collection(db, "platformAnnouncements"), announcement);
   return docRef.id;
+};
+
+export const createCampusAmbassadorApplication = async (
+  applicationData: Omit<CampusAmbassadorApplication, "id" | "createdAt" | "updatedAt" | "status">
+) => {
+  try {
+    const docRef = await addDoc(
+      collection(db, "campusAmbassadorApplications"),
+      sanitizeFirestorePayload({
+        ...applicationData,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+
+    console.log("✅ Campus ambassador application created:", docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating campus ambassador application:", error);
+    throw error;
+  }
+};
+
+export const getCampusAmbassadorApplications = async (): Promise<CampusAmbassadorApplication[]> => {
+  try {
+    const q = query(collection(db, "campusAmbassadorApplications"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((item) => ({
+      id: item.id,
+      ...item.data(),
+    })) as CampusAmbassadorApplication[];
+  } catch (error) {
+    console.error("Error getting campus ambassador applications:", error);
+    return [];
+  }
+};
+
+export const updateCampusAmbassadorApplication = async (
+  applicationId: string,
+  updates: Partial<Omit<CampusAmbassadorApplication, "id" | "createdAt">>,
+) => {
+  try {
+    await updateDoc(
+      doc(db, "campusAmbassadorApplications", applicationId),
+      sanitizeFirestorePayload({
+        ...updates,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  } catch (error) {
+    console.error("Error updating campus ambassador application:", error);
+    throw error;
+  }
+};
+
+export const deleteCampusAmbassadorApplication = async (applicationId: string) => {
+  try {
+    await deleteDoc(doc(db, "campusAmbassadorApplications", applicationId));
+  } catch (error) {
+    console.error("Error deleting campus ambassador application:", error);
+    throw error;
+  }
+};
+
+export const getCampusAmbassadorShowcaseItems = async (): Promise<CampusAmbassadorShowcaseItem[]> => {
+  try {
+    const q = query(collection(db, "campusAmbassadorShowcase"), orderBy("order", "asc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((item) => ({
+      id: item.id,
+      ...item.data(),
+    })) as CampusAmbassadorShowcaseItem[];
+  } catch (error) {
+    console.error("Error getting campus ambassador showcase items:", error);
+    return [];
+  }
+};
+
+export const getCampusAmbassadorPageSettings = async (): Promise<CampusAmbassadorPageSettings | null> => {
+  try {
+    const settingsRef = doc(db, "campusAmbassadorPage", "settings");
+    const snapshot = await getDoc(settingsRef);
+    if (!snapshot.exists()) return null;
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    } as CampusAmbassadorPageSettings;
+  } catch (error) {
+    console.error("Error getting campus ambassador page settings:", error);
+    return null;
+  }
+};
+
+export const upsertCampusAmbassadorPageSettings = async (
+  settings: Omit<CampusAmbassadorPageSettings, "id" | "createdAt" | "updatedAt">,
+) => {
+  try {
+    const settingsRef = doc(db, "campusAmbassadorPage", "settings");
+    const existing = await getDoc(settingsRef);
+    await setDoc(
+      settingsRef,
+      sanitizeFirestorePayload({
+        ...settings,
+        createdAt: existing.exists() ? existing.data().createdAt || serverTimestamp() : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+      { merge: true },
+    );
+  } catch (error) {
+    console.error("Error upserting campus ambassador page settings:", error);
+    throw error;
+  }
+};
+
+export const createCampusAmbassadorShowcaseItem = async (
+  item: Omit<CampusAmbassadorShowcaseItem, "id" | "createdAt" | "updatedAt">,
+) => {
+  try {
+    const docRef = await addDoc(
+      collection(db, "campusAmbassadorShowcase"),
+      sanitizeFirestorePayload({
+        ...item,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating campus ambassador showcase item:", error);
+    throw error;
+  }
+};
+
+export const updateCampusAmbassadorShowcaseItem = async (
+  itemId: string,
+  updates: Partial<Omit<CampusAmbassadorShowcaseItem, "id" | "createdAt">>,
+) => {
+  try {
+    await updateDoc(
+      doc(db, "campusAmbassadorShowcase", itemId),
+      sanitizeFirestorePayload({
+        ...updates,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  } catch (error) {
+    console.error("Error updating campus ambassador showcase item:", error);
+    throw error;
+  }
+};
+
+export const deleteCampusAmbassadorShowcaseItem = async (itemId: string) => {
+  try {
+    await deleteDoc(doc(db, "campusAmbassadorShowcase", itemId));
+  } catch (error) {
+    console.error("Error deleting campus ambassador showcase item:", error);
+    throw error;
+  }
 };
 
 export const updatePlatformAnnouncement = async (

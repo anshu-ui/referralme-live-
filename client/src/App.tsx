@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
+import { useCampusAuth } from "./hooks/useCampusAuth";
 import { useEffect, useMemo, useState } from "react";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
@@ -24,11 +25,25 @@ import JobPostingPage from "./pages/job-posting-page";
 import PaymentSetup from "./pages/payment-setup";
 import PrivacyPolicy from "./pages/privacy-policy";
 import TermsOfService from "./pages/terms-of-service";
+import CampusAmbassadorLanding from "./pages/campus-ambassador";
+import CampusAmbassadorApplyPage from "./pages/campus-ambassador-apply";
+import CampusAmbassadorAdminPage from "./pages/campus-ambassador-admin";
+import CampusAmbassadorDashboard from "./pages/campus-ambassador-dashboard";
+import { isCampusFirebaseConfigured } from "./lib/campus-firebase";
 
+const CAMPUS_ADMIN_EMAIL = "amit@referralme.in";
 
 function Router() {
   const { user, firebaseUser, isLoading, refreshUser, signInWithGoogle, logout } = useFirebaseAuth();
+  const {
+    campusUser,
+    isLoading: campusAuthLoading,
+    isConfigured: campusConfigured,
+    signInWithGoogle: signInToCampus,
+    logout: logoutCampus,
+  } = useCampusAuth();
   const adminAccess = isAdminUser(user, firebaseUser);
+  const campusAdminAccess = (campusUser?.email || "").toLowerCase() === CAMPUS_ADMIN_EMAIL;
   const [announcements, setAnnouncements] = useState<PlatformAnnouncement[]>([]);
   
   // Track page views when routes change
@@ -296,6 +311,54 @@ function Router() {
 
         return <AdminDashboard />;
       }} />
+
+      <Route path="/campus-ambassador/admin" component={() => {
+        if (!campusConfigured || !isCampusFirebaseConfigured) {
+          return (
+            <AdminAccessScreen
+              currentEmail={null}
+              footerNote="Campus admin uses a separate Firebase project. Add VITE_CAMPUS_FIREBASE_* variables before using this route."
+            />
+          );
+        }
+
+        if (campusAuthLoading) {
+          return (
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading campus admin access...</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (!campusUser) {
+          return <AdminAccessScreen onSignIn={signInToCampus} footerNote="This campus admin route uses a separate campus Firebase login." />;
+        }
+
+        if (!campusAdminAccess) {
+          return <AdminAccessScreen currentEmail={campusUser.email} onSwitchAccount={async () => {
+            await logoutCampus();
+            await signInToCampus();
+          }} />;
+        }
+
+        return <CampusAmbassadorAdminPage />;
+      }} />
+
+      <Route path="/campus-ambassador/dashboard" component={() => {
+        if (!campusConfigured || !isCampusFirebaseConfigured) {
+          return (
+            <AdminAccessScreen
+              currentEmail={null}
+              footerNote="Campus dashboard uses a separate Firebase project. Add VITE_CAMPUS_FIREBASE_* variables before using this route."
+            />
+          );
+        }
+
+        return <CampusAmbassadorDashboard />;
+      }} />
       
       {/* Other protected routes */}
       <Route path="/post-job" component={JobPostingPage} />
@@ -304,6 +367,8 @@ function Router() {
       <Route path="/payment-setup" component={PaymentSetup} />
       
       {/* PUBLIC ROUTES - No authentication required */}
+      <Route path="/campus-ambassador" component={CampusAmbassadorLanding} />
+      <Route path="/campus-ambassador/apply" component={CampusAmbassadorApplyPage} />
       <Route path="/job/:id" component={({ params }) => <JobDetails jobId={params.id} />} />
       <Route path="/referrer/:id" component={({ params }) => <PublicReferrerProfile referrerId={params.id} />} />
       
@@ -379,10 +444,12 @@ function AdminAccessScreen({
   currentEmail,
   onSignIn,
   onSwitchAccount,
+  footerNote,
 }: {
   currentEmail?: string | null;
   onSignIn?: () => Promise<void>;
   onSwitchAccount?: () => Promise<void>;
+  footerNote?: string;
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
@@ -420,7 +487,7 @@ function AdminAccessScreen({
         </div>
 
         <p className="mt-4 text-xs text-slate-500">
-          If this should be your admin account, make sure the exact login email is included in `VITE_ADMIN_EMAILS` or assign your Firestore role as `admin`.
+          {footerNote || "If this should be your admin account, make sure the exact login email is included in `VITE_ADMIN_EMAILS` or assign your Firestore role as `admin`."}
         </p>
       </div>
     </div>

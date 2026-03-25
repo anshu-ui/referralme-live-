@@ -4,26 +4,36 @@ import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
 import { Card, CardContent } from "./ui/card";
 import { Upload, File, X, Check, AlertCircle } from "lucide-react";
-import { getAuth } from "firebase/auth";
+import { type Auth, getAuth } from "firebase/auth";
 import { storage } from "../lib/firebase";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, type FirebaseStorage, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 interface FirebaseFileUploadProps {
   onFileUploaded: (fileUrl: string, fileName: string) => void;
+  onUploadError?: (message: string) => void;
   acceptedTypes?: string;
   maxSizeMB?: number;
   label?: string;
   description?: string;
   currentFile?: string;
+  storageOverride?: FirebaseStorage | null;
+  authOverride?: Auth | null;
+  pathPrefix?: string;
+  allowBase64Fallback?: boolean;
 }
 
 export default function FirebaseFileUpload({
   onFileUploaded,
+  onUploadError,
   acceptedTypes = ".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx",
   maxSizeMB = 10,
   label = "Upload File",
   description = "Drag and drop a file here, or click to select",
   currentFile,
+  storageOverride,
+  authOverride,
+  pathPrefix = "profile-images",
+  allowBase64Fallback = true,
 }: FirebaseFileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -66,7 +76,7 @@ export default function FirebaseFileUpload({
         const img = new Image();
 
         img.onload = () => {
-          const maxSize = 150;
+          const maxSize = 1600;
           let { width, height } = img;
 
           if (width > height) {
@@ -82,7 +92,7 @@ export default function FirebaseFileUpload({
           canvas.width = width;
           canvas.height = height;
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.7));
+          resolve(canvas.toDataURL("image/jpeg", 0.92));
         };
 
         const reader = new FileReader();
@@ -130,14 +140,24 @@ export default function FirebaseFileUpload({
     setUploadProgress(0);
 
     try {
-      const auth = getAuth();
+      const hasAuthOverride = authOverride !== undefined;
+      const hasStorageOverride = storageOverride !== undefined;
+      const auth = hasAuthOverride ? authOverride : getAuth();
+      if (!auth) {
+        throw new Error('Upload auth is not configured');
+      }
       const user = auth.currentUser;
       
       if (!user) {
         throw new Error('You must be logged in to upload files');
       }
 
-      if (!storage) {
+      const activeStorage = hasStorageOverride ? storageOverride : storage;
+
+      if (!activeStorage) {
+        if (!allowBase64Fallback) {
+          throw new Error("Storage upload is unavailable. Add a public image URL or fix Firebase Storage permissions.");
+        }
         await fallbackUploadWithoutStorage(file, user);
         return;
       }
@@ -148,7 +168,7 @@ export default function FirebaseFileUpload({
       const fileName = `${user.uid}_${timestamp}.${fileExtension}`;
       
       // Create Firebase Storage reference - use profile-images folder
-      const storageRef = ref(storage, `profile-images/${fileName}`);
+      const storageRef = ref(activeStorage, `${pathPrefix}/${fileName}`);
       
       // Skip storage verification - proceed with upload attempt
       console.log('🔄 Attempting Firebase Storage upload...');
@@ -167,6 +187,14 @@ export default function FirebaseFileUpload({
           
           // Handle Firebase Storage configuration issues by using base64 encoding
           if (error.code === 'storage/unknown' || error.code === 'storage/unauthorized' || error.code === 'storage/invalid-url') {
+            if (!allowBase64Fallback) {
+              const message = "Storage permission denied. Add a public image URL or update Firebase Storage rules.";
+              console.error(message);
+              onUploadError?.(message);
+              setUploadProgress(0);
+              setUploading(false);
+              return;
+            }
             console.warn('⚠️ Firebase Storage not configured. Converting image to base64 for local storage.');
             
             fallbackUploadWithoutStorage(file, user);
@@ -201,6 +229,7 @@ export default function FirebaseFileUpload({
       
       // Upload error - show console log instead of toast
       console.error("File upload failed:", errorMessage);
+      onUploadError?.(errorMessage);
       setUploadProgress(0);
     } finally {
       setUploading(false);

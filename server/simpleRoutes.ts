@@ -19,7 +19,9 @@
     generateApplicationDeclinedEmail,
     generateApplicationStatusUpdateEmail,
     generateJobPostingConfirmationEmail,
-    generatePlatformAnnouncementEmail
+    generatePlatformAnnouncementEmail,
+    generateCampusAmbassadorAcceptedEmail,
+    generateCampusAmbassadorShortlistedEmail,
   } from "./emailService";
 
   // Initialize Firebase Admin (only if credentials are available)
@@ -630,6 +632,40 @@
         }
       } catch (error) {
         console.error('Job posting confirmation email error:', error);
+        res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/email/campus-ambassador-status', async (req: Request, res: Response) => {
+      try {
+        const { name, email, status, dashboardUrl } = req.body;
+
+        if (!name || !email || !status) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        let emailContent;
+        if (status === 'shortlisted') {
+          emailContent = generateCampusAmbassadorShortlistedEmail(name);
+        } else if (status === 'accepted') {
+          emailContent = generateCampusAmbassadorAcceptedEmail(name, dashboardUrl);
+        } else {
+          return res.status(400).json({ error: 'Invalid status. Must be shortlisted or accepted' });
+        }
+
+        const emailSent = await sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html
+        });
+
+        if (emailSent) {
+          res.json({ success: true });
+        } else {
+          res.status(500).json({ error: 'Failed to send email' });
+        }
+      } catch (error) {
+        console.error('Campus ambassador status email error:', error);
         res.status(500).json({ error: 'Email service error' });
       }
     });
