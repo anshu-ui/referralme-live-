@@ -5,6 +5,7 @@ import {
   createCampusTaskSubmission,
   getCampusAmbassadorByEmail,
   getCampusAmbassadorMembers,
+  subscribeToCampusAmbassadorByEmail,
   subscribeToCampusAnnouncements,
   subscribeToCampusAmbassadorTasks,
   subscribeToCampusTaskSubmissions,
@@ -74,8 +75,6 @@ export default function CampusAmbassadorDashboard() {
   });
 
   useEffect(() => {
-    let cancelled = false;
-
     if (!campusUser?.email) {
       setMember(null);
       setLoadingMember(false);
@@ -83,16 +82,13 @@ export default function CampusAmbassadorDashboard() {
     }
 
     setLoadingMember(true);
-    getCampusAmbassadorByEmail(campusUser.email)
-      .then((result) => {
-        if (!cancelled) setMember(result);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingMember(false);
-      });
+    const unsubscribe = subscribeToCampusAmbassadorByEmail(campusUser.email, (nextMember) => {
+      setMember(nextMember);
+      setLoadingMember(false);
+    });
 
     return () => {
-      cancelled = true;
+      unsubscribe();
     };
   }, [campusUser?.email]);
 

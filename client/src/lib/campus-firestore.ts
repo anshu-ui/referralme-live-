@@ -332,6 +332,30 @@ export const getCampusAmbassadorByEmail = async (email: string): Promise<CampusA
   }
 };
 
+export const subscribeToCampusAmbassadorByEmail = (
+  email: string,
+  onData: (member: CampusAmbassadorMember | null) => void,
+) => {
+  const db = ensureCampusDb();
+  return onSnapshot(
+    doc(db, "campusAmbassadors", normalizeEmail(email)),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onData(null);
+        return;
+      }
+      onData({ id: snapshot.id, ...snapshot.data() } as CampusAmbassadorMember);
+    },
+    (error) => {
+      if (isOfflineFirestoreError(error)) {
+        onData(null);
+        return;
+      }
+      throw error;
+    },
+  );
+};
+
 export const upsertCampusAmbassadorMember = async (
   email: string,
   data: Omit<CampusAmbassadorMember, "id" | "createdAt" | "updatedAt" | "email">,
@@ -564,20 +588,51 @@ export const getCampusTaskSubmissionsForAmbassador = async (email: string): Prom
 export const deleteCampusTaskSubmissionsForAmbassador = async (email: string) => {
   const db = ensureCampusDb();
   const submissions = await getCampusTaskSubmissionsForAmbassador(email);
+  const approvedPoints = submissions
+    .filter((entry) => entry.status === "approved")
+    .reduce((sum, entry) => sum + Number(entry.pointsAwarded || 0), 0);
+
   await Promise.all(
     submissions
       .filter((entry) => entry.id)
       .map((entry) => deleteDoc(doc(db, "campusTaskSubmissions", entry.id as string))),
   );
+
+  if (approvedPoints > 0) {
+    await updateDoc(doc(db, "campusAmbassadors", normalizeEmail(email)), {
+      points: increment(-approvedPoints),
+      updatedAt: serverTimestamp(),
+    });
+  }
 };
 
 export const deleteCampusTaskSubmissionsForTask = async (taskId: string) => {
   const db = ensureCampusDb();
   const submissions = await getCampusTaskSubmissions();
+  const taskSubmissions = submissions.filter((entry) => entry.taskId === taskId);
+  const pointsByAmbassador = taskSubmissions.reduce<Record<string, number>>((acc, entry) => {
+    if (entry.status === "approved") {
+      const key = normalizeEmail(entry.ambassadorEmail || "");
+      acc[key] = (acc[key] || 0) + Number(entry.pointsAwarded || 0);
+    }
+    return acc;
+  }, {});
+
   await Promise.all(
-    submissions
-      .filter((entry) => entry.taskId === taskId && entry.id)
+    taskSubmissions
+      .filter((entry) => entry.id)
       .map((entry) => deleteDoc(doc(db, "campusTaskSubmissions", entry.id as string))),
+  );
+
+  await Promise.all(
+    Object.entries(pointsByAmbassador)
+      .filter(([, points]) => points > 0)
+      .map(([email, points]) =>
+        updateDoc(doc(db, "campusAmbassadors", email), {
+          points: increment(-points),
+          updatedAt: serverTimestamp(),
+        }),
+      ),
   );
 };
 
