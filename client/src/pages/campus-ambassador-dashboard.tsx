@@ -53,6 +53,7 @@ export default function CampusAmbassadorDashboard() {
   const { campusUser, isLoading, signInWithGoogle, logout } = useCampusAuth();
   const [member, setMember] = useState<CampusAmbassadorMember | null>(null);
   const [loadingMember, setLoadingMember] = useState(true);
+  const [allTasks, setAllTasks] = useState<CampusAmbassadorTask[]>([]);
   const [tasks, setTasks] = useState<CampusAmbassadorTask[]>([]);
   const [submissions, setSubmissions] = useState<CampusTaskSubmission[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState("");
@@ -94,12 +95,14 @@ export default function CampusAmbassadorDashboard() {
 
   useEffect(() => {
     if (!member?.email) {
+      setAllTasks([]);
       setTasks([]);
       setSubmissions([]);
       setAnnouncements([]);
       return;
     }
     const unsubTasks = subscribeToCampusAmbassadorTasks((allTasks) => {
+      setAllTasks(allTasks);
       const visibleTasks = allTasks.filter((task) => {
         if (task.status !== "active") return false;
         if (task.audience === "all") return true;
@@ -150,14 +153,19 @@ export default function CampusAmbassadorDashboard() {
     });
   }, [member]);
 
-  const availableTasks = tasks.filter((task) => !submissions.some((submission) => submission.taskId === task.id));
-  const pendingCount = submissions.filter((submission) => submission.status === "pending").length;
-  const approvedCount = submissions.filter((submission) => submission.status === "approved").length;
-  const totalEarnedPoints = submissions
+  const validTaskIds = useMemo(() => new Set(allTasks.map((task) => task.id).filter(Boolean)), [allTasks]);
+  const visibleSubmissions = useMemo(
+    () => submissions.filter((submission) => submission.taskId && validTaskIds.has(submission.taskId)),
+    [submissions, validTaskIds],
+  );
+  const availableTasks = tasks.filter((task) => !visibleSubmissions.some((submission) => submission.taskId === task.id));
+  const pendingCount = visibleSubmissions.filter((submission) => submission.status === "pending").length;
+  const approvedCount = visibleSubmissions.filter((submission) => submission.status === "approved").length;
+  const totalEarnedPoints = visibleSubmissions
     .filter((submission) => submission.status === "approved")
     .reduce((sum, submission) => sum + (submission.pointsAwarded || 0), 0);
   const earnedPointsDisplay = Math.max(totalEarnedPoints, member?.points || 0);
-  const completionRate = submissions.length ? Math.round((approvedCount / submissions.length) * 100) : 0;
+  const completionRate = visibleSubmissions.length ? Math.round((approvedCount / visibleSubmissions.length) * 100) : 0;
   const nextDueTask = useMemo(
     () =>
       [...tasks]
@@ -184,6 +192,7 @@ export default function CampusAmbassadorDashboard() {
   const streakCount = useMemo(() => {
     const approvedWeeks = new Set(
       submissions
+        .filter((entry) => entry.taskId && validTaskIds.has(entry.taskId))
         .filter((entry) => entry.status === "approved" && entry.submittedAt?.toDate)
         .map((entry) => {
           const date = entry.submittedAt.toDate();
@@ -196,15 +205,15 @@ export default function CampusAmbassadorDashboard() {
         }),
     );
     return approvedWeeks.size;
-  }, [submissions]);
+  }, [visibleSubmissions, validTaskIds]);
   const nextReward = rewardMilestones.find((reward) => reward.points > currentPoints) || null;
   const spotlightCopy = nextReward
     ? `${Math.max(nextReward.points - currentPoints, 0)} more points to unlock ${nextReward.title}.`
     : "You have unlocked every active reward tier. Keep pushing for leaderboard visibility.";
   const filteredSubmissions = useMemo(() => {
-    if (activityStatusFilter === "all") return submissions;
-    return submissions.filter((entry) => entry.status === activityStatusFilter);
-  }, [submissions, activityStatusFilter]);
+    if (activityStatusFilter === "all") return visibleSubmissions;
+    return visibleSubmissions.filter((entry) => entry.status === activityStatusFilter);
+  }, [visibleSubmissions, activityStatusFilter]);
   const notifications = useMemo(() => {
     const next: Array<{ title: string; body: string; tone: "info" | "success" | "warning" }> = [];
     if (pendingCount > 0) {
