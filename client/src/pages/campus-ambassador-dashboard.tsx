@@ -160,6 +160,7 @@ export default function CampusAmbassadorDashboard() {
   const totalEarnedPoints = submissions
     .filter((submission) => submission.status === "approved")
     .reduce((sum, submission) => sum + (submission.pointsAwarded || 0), 0);
+  const earnedPointsDisplay = Math.max(totalEarnedPoints, member?.points || 0);
   const completionRate = submissions.length ? Math.round((approvedCount / submissions.length) * 100) : 0;
   const nextDueTask = useMemo(
     () =>
@@ -276,6 +277,15 @@ export default function CampusAmbassadorDashboard() {
 
     const task = tasks.find((entry) => entry.id === selectedTaskId);
     if (!task) return;
+
+    if (submissions.some((submission) => submission.taskId === selectedTaskId)) {
+      toast({
+        title: "Already submitted",
+        description: "This task already has a proof submission and cannot be submitted again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!proofText.trim() && !proofLink.trim() && !proofImageUrl.trim()) {
       toast({
@@ -525,7 +535,7 @@ export default function CampusAmbassadorDashboard() {
                     Campus Dashboard
                   </div>
                 </div>
-                <h1 className="campus-display mt-6 max-w-5xl text-5xl sm:text-7xl lg:text-[6.35rem]">
+                <h1 className="campus-display mt-6 max-w-5xl text-4xl sm:text-6xl lg:text-[5.4rem]">
                   Welcome back,
                   <span className="mt-2 block text-[#1e3a8a]">{displayName}</span>
                 </h1>
@@ -576,9 +586,11 @@ export default function CampusAmbassadorDashboard() {
                     <p className="mt-4 text-5xl font-normal tracking-[-0.1em] text-[#1e3a8a]">{currentPoints}</p>
                     <p className="mt-2 text-sm text-[#0a2222]/58">current points</p>
                   </div>
-                  <div className="campus-float flex h-12 w-12 items-center justify-center rounded-2xl border border-[#0a2222]/10 bg-[#1d4ed8] text-white">
-                    <Crown className="h-6 w-6 text-white" />
-                  </div>
+                  <ProfileAvatar
+                    imageUrl={member.profileImageUrl}
+                    name={member.fullName || campusUser.displayName || "Ambassador"}
+                    className="campus-float h-14 w-14"
+                  />
                 </div>
                 <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#0a2222]/10 bg-white px-4 py-4">
                   <div>
@@ -627,9 +639,9 @@ export default function CampusAmbassadorDashboard() {
                   Your momentum
                 </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <QuickMetric label="Pending review" value={String(pendingCount)} />
+                <QuickMetric label="Under review" value={String(pendingCount)} />
                 <QuickMetric label="Approved tasks" value={String(approvedCount)} />
-                <QuickMetric label="Points earned" value={String(totalEarnedPoints)} />
+                <QuickMetric label="Points earned" value={String(earnedPointsDisplay)} />
               </div>
             </CardContent>
           </Card>
@@ -833,9 +845,14 @@ export default function CampusAmbassadorDashboard() {
                             <Button
                               variant={alreadySubmitted ? "outline" : "default"}
                               className={alreadySubmitted ? "border-[#0a2222]/10 bg-white text-[#0a2222]" : "bg-[#1d4ed8] text-white hover:bg-[#1e40af]"}
-                              onClick={() => setSelectedTaskId(task.id || "")}
+                              onClick={() => {
+                                if (alreadySubmitted) return;
+                                setSelectedTaskId(task.id || "");
+                                setActiveTab("submit");
+                              }}
+                              disabled={alreadySubmitted}
                             >
-                              {alreadySubmitted ? "Update proof" : "Submit proof"}
+                              {alreadySubmitted ? "Already submitted" : "Submit proof"}
                             </Button>
                           </div>
                         </div>
@@ -867,7 +884,7 @@ export default function CampusAmbassadorDashboard() {
                       className="w-full rounded-2xl border border-[#0a2222]/10 bg-[#fbfaf6] px-4 py-3 text-sm text-[#0a2222] outline-none transition focus:border-[#7fa7ff] focus:ring-4 focus:ring-[#7fa7ff]/20"
                     >
                       <option value="">Select a task</option>
-                      {tasks.map((task) => (
+                      {availableTasks.map((task) => (
                         <option key={task.id} value={task.id}>
                           {task.title}
                         </option>
@@ -1222,6 +1239,37 @@ function HeroMiniStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-[22px] border border-[#0a2222]/10 bg-white p-4 backdrop-blur">
       <p className="campus-kicker text-[#0a2222]/45">{label}</p>
       <p className="mt-2 text-2xl font-normal tracking-[-0.06em] text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function ProfileAvatar({
+  imageUrl,
+  name,
+  className = "h-12 w-12",
+}: {
+  imageUrl?: string;
+  name: string;
+  className?: string;
+}) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "CA";
+
+  if (imageUrl) {
+    return (
+      <div className={`overflow-hidden rounded-2xl border border-[#0a2222]/10 bg-white shadow-lg ${className}`}>
+        <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center justify-center rounded-2xl border border-[#0a2222]/10 bg-[#1d4ed8] text-sm font-bold text-white shadow-lg ${className}`}>
+      {initials}
     </div>
   );
 }
