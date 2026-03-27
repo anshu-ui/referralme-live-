@@ -289,6 +289,7 @@ export default function FirebaseFileUpload({
                 </div>
               </div>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={removeFile}
@@ -331,9 +332,14 @@ export default function FirebaseFileUpload({
                 <p className="text-lg font-medium mb-2">
                   Drop your file here, or{" "}
                   <Button
+                    type="button"
                     variant="link"
                     className="p-0 h-auto text-blue-600 hover:text-blue-700"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                   >
                     browse
                   </Button>

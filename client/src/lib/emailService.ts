@@ -181,3 +181,102 @@ export async function sendCampusAmbassadorStatusEmail(payload: {
     payload,
   });
 }
+
+export async function sendCampusApplicationReceivedEmail(payload: {
+  name: string;
+  email: string;
+}): Promise<boolean> {
+  if (!payload.name || !payload.email) {
+    console.error("Missing required fields for campus application received email", payload);
+    return false;
+  }
+
+  return postEmailRequest({
+    endpoint: "/api/email/campus-application-received",
+    payload,
+  });
+}
+
+export async function sendCampusProofReviewedEmail(payload: {
+  name: string;
+  email: string;
+  taskTitle: string;
+  status: "approved" | "rejected";
+  pointsAwarded: number;
+  reviewNote?: string;
+  dashboardUrl?: string;
+}): Promise<boolean> {
+  if (!payload.name || !payload.email || !payload.taskTitle || !payload.status) {
+    console.error("Missing required fields for campus proof reviewed email", payload);
+    return false;
+  }
+
+  return postEmailRequest({
+    endpoint: "/api/email/campus-proof-reviewed",
+    payload,
+  });
+}
+
+export async function sendCampusRewardUnlockedEmail(payload: {
+  name: string;
+  email: string;
+  rewardTitle: string;
+  rewardDescription?: string;
+  currentPoints: number;
+  dashboardUrl?: string;
+}): Promise<boolean> {
+  if (!payload.name || !payload.email || !payload.rewardTitle) {
+    console.error("Missing required fields for campus reward unlocked email", payload);
+    return false;
+  }
+
+  return postEmailRequest({
+    endpoint: "/api/email/campus-reward-unlocked",
+    payload,
+  });
+}
+
+export async function sendCampusWeeklyDigestEmail(payload: {
+  recipients: Array<{ name: string; email: string; currentPoints: number }>;
+  activeTasks: Array<{ title: string; points: number; dueDate?: string }>;
+  activeAnnouncements: Array<{ title: string; message: string }>;
+  dashboardUrl?: string;
+}): Promise<{ success: boolean; sent: number; failed: number }> {
+  try {
+    const response = await fetch("/api/email/campus-weekly-digest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Campus weekly digest failed:", errorText);
+      return { success: false, sent: 0, failed: payload.recipients.length };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Campus weekly digest error:", error);
+    return { success: false, sent: 0, failed: payload.recipients.length };
+  }
+}
+
+export async function sendJobAlertToSeekers(payload: {
+  seekerName: string;
+  seekerEmail: string;
+  job: unknown;
+  referrerName: string;
+}): Promise<boolean> {
+  if (!payload.seekerName || !payload.seekerEmail || !payload.job || !payload.referrerName) {
+    console.error("Missing required fields for job alert email", payload);
+    return false;
+  }
+
+  return postEmailRequest({
+    endpoint: "/api/email/job-alert",
+    payload,
+  });
+}

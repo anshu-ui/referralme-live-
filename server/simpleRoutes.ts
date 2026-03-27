@@ -20,8 +20,12 @@
     generateApplicationStatusUpdateEmail,
     generateJobPostingConfirmationEmail,
     generatePlatformAnnouncementEmail,
+    generateCampusAmbassadorApplicationReceivedEmail,
     generateCampusAmbassadorAcceptedEmail,
     generateCampusAmbassadorShortlistedEmail,
+    generateCampusProofReviewedEmail,
+    generateCampusRewardUnlockedEmail,
+    generateCampusWeeklyDigestEmail,
   } from "./emailService";
 
   // Initialize Firebase Admin (only if credentials are available)
@@ -487,6 +491,142 @@
       } catch (error) {
         console.error('Status update email error:', error);
         res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/email/campus-application-received', async (req: Request, res: Response) => {
+      try {
+        const { name, email } = req.body;
+
+        if (!name || !email) {
+          return res.status(400).json({ error: 'Missing required fields: name, email' });
+        }
+
+        const emailContent = generateCampusAmbassadorApplicationReceivedEmail(name);
+        const success = await sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        });
+
+        if (success) {
+          return res.json({ success: true, message: 'Campus application received email sent successfully' });
+        }
+
+        return res.status(500).json({ error: 'Failed to send campus application received email' });
+      } catch (error) {
+        console.error('Campus application received email error:', error);
+        return res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/email/campus-proof-reviewed', async (req: Request, res: Response) => {
+      try {
+        const { name, email, taskTitle, status, pointsAwarded, reviewNote, dashboardUrl } = req.body;
+
+        if (!name || !email || !taskTitle || !status) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        if (status !== 'approved' && status !== 'rejected') {
+          return res.status(400).json({ error: 'Invalid status. Must be approved or rejected' });
+        }
+
+        const emailContent = generateCampusProofReviewedEmail({
+          name,
+          taskTitle,
+          status,
+          pointsAwarded: Number(pointsAwarded || 0),
+          reviewNote,
+          dashboardUrl,
+        });
+
+        const success = await sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        });
+
+        if (success) {
+          return res.json({ success: true, message: 'Campus proof review email sent successfully' });
+        }
+
+        return res.status(500).json({ error: 'Failed to send campus proof review email' });
+      } catch (error) {
+        console.error('Campus proof review email error:', error);
+        return res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/email/campus-reward-unlocked', async (req: Request, res: Response) => {
+      try {
+        const { name, email, rewardTitle, rewardDescription, currentPoints, dashboardUrl } = req.body;
+
+        if (!name || !email || !rewardTitle) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const emailContent = generateCampusRewardUnlockedEmail({
+          name,
+          rewardTitle,
+          rewardDescription,
+          currentPoints: Number(currentPoints || 0),
+          dashboardUrl,
+        });
+
+        const success = await sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        });
+
+        if (success) {
+          return res.json({ success: true, message: 'Campus reward unlocked email sent successfully' });
+        }
+
+        return res.status(500).json({ error: 'Failed to send campus reward unlocked email' });
+      } catch (error) {
+        console.error('Campus reward unlocked email error:', error);
+        return res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    app.post('/api/email/campus-weekly-digest', async (req: Request, res: Response) => {
+      try {
+        const { recipients, activeTasks = [], activeAnnouncements = [], dashboardUrl } = req.body;
+
+        if (!Array.isArray(recipients) || recipients.length === 0) {
+          return res.status(400).json({ error: 'Missing recipients' });
+        }
+
+        const results = await Promise.all(
+          recipients.map(async (recipient: any) => {
+            if (!recipient?.name || !recipient?.email) {
+              return false;
+            }
+
+            const emailContent = generateCampusWeeklyDigestEmail({
+              name: recipient.name,
+              currentPoints: Number(recipient.currentPoints || 0),
+              activeTasks,
+              activeAnnouncements,
+              dashboardUrl,
+            });
+
+            return sendEmail({
+              to: recipient.email,
+              subject: emailContent.subject,
+              html: emailContent.html,
+            });
+          }),
+        );
+
+        const sent = results.filter(Boolean).length;
+        const failed = results.length - sent;
+        return res.json({ success: failed === 0, sent, failed });
+      } catch (error) {
+        console.error('Campus weekly digest email error:', error);
+        return res.status(500).json({ error: 'Email service error' });
       }
     });
 

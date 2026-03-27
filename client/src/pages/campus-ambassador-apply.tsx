@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ArrowLeft, GraduationCap } from "lucide-react";
 import { Button } from "../components/ui/button";
 import CampusAmbassadorApplicationForm from "../components/campus-ambassador-application-form";
+import SeoHead from "../components/seo-head";
 
 export default function CampusAmbassadorApplyPage() {
   useEffect(() => {
@@ -26,6 +27,20 @@ export default function CampusAmbassadorApplyPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fbff] text-slate-950">
+      <SeoHead
+        title="Apply for ReferralMe Campus Ambassador | Student Ambassador Application"
+        description="Apply for the ReferralMe Campus Ambassador Program. Submit your profile, campus experience, and availability to join the student ambassador network."
+        canonicalPath="/campus-ambassador/apply"
+        image="https://referralme.in/logo.png"
+        keywords="ReferralMe campus ambassador apply, campus ambassador application, student ambassador application, ReferralMe ambassador form"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "Apply for ReferralMe Campus Ambassador",
+          url: "https://referralme.in/campus-ambassador/apply",
+          description: "Apply for the ReferralMe Campus Ambassador Program.",
+        }}
+      />
       <style>{`
         @keyframes campusFadeUp {
           from {

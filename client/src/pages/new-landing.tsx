@@ -7,6 +7,7 @@ import { getUserProfile, getJobPostings, JobPosting } from "../lib/firestore";
 import LiveAnimatedStats from "../components/live-animated-stats";
 import LiveJobsSection from "../components/live-jobs-section";
 import { Link } from "wouter";
+import SeoHead from "../components/seo-head";
 import {
   SiGoogle, SiNetflix, SiAmazon, SiMeta, SiSlack,
   SiSpotify, SiUber, SiAirbnb, SiFigma, SiStripe,
@@ -113,6 +114,7 @@ export default function NewLanding() {
   const allJobsReveal = useScrollReveal();
   const testimonialsReveal = useScrollReveal();
   const calloutReveal = useScrollReveal();
+  const campusReveal = useScrollReveal();
 
   const roles = ["Software Engineer", "Product Manager", "Data Analyst", "UX Designer", "DevOps Engineer"];
   const typedRole = useTypewriter(roles);
@@ -128,7 +130,7 @@ export default function NewLanding() {
       setScrolled(window.scrollY > 30);
       const total = document.body.scrollHeight - window.innerHeight;
       setScrollProgress(total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0);
-      const sections = ["hero", "resume-scan", "features", "how-it-works", "live-jobs"];
+      const sections = ["hero", "resume-scan", "features", "campus-program", "how-it-works", "live-jobs"];
       const pos = window.scrollY + 120;
       for (const s of sections) {
         const el = document.getElementById(s);
@@ -254,8 +256,33 @@ export default function NewLanding() {
     { name: "Stripe", Icon: SiStripe, color: "#635BFF" },
   ];
 
+  const websiteStructuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: "ReferralMe",
+        url: "https://referralme.in",
+        logo: "https://referralme.in/logo.png",
+      },
+      {
+        "@type": "WebSite",
+        name: "ReferralMe",
+        url: "https://referralme.in",
+      },
+    ],
+  };
+
   return (
     <div className="lp-root">
+      <SeoHead
+        title="ReferralMe | Job Referrals, ATS Resume Scan, and Career Growth"
+        description="ReferralMe helps job seekers get real employee referrals, improve resumes with a free ATS scan, and discover live opportunities faster."
+        canonicalPath="/"
+        image="https://referralme.in/logo.png"
+        keywords="ReferralMe, job referrals, employee referrals, ATS resume scan, referral platform India, careers, jobs"
+        structuredData={websiteStructuredData}
+      />
       <style>{`
         :root {
           --blue: #2563eb;
@@ -984,6 +1011,235 @@ export default function NewLanding() {
         .lp-activity-text { font-size: 0.88rem; font-weight: 600; color: var(--dark); }
         .lp-activity-time { font-size: 0.75rem; color: var(--gray); padding-left: 0.75rem; border-left: 1px solid #e2e8f0; }
 
+        .lp-campus {
+          padding: 5rem 1.5rem;
+          background:
+            radial-gradient(circle at top right, rgba(37,99,235,0.08), transparent 28%),
+            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+        .lp-campus-wrap {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 2rem;
+          align-items: center;
+          opacity: 0;
+          transform: translateY(28px);
+          transition: all 0.7s ease;
+        }
+        .lp-campus-wrap.revealed { opacity: 1; transform: translateY(0); }
+        @media (min-width: 960px) {
+          .lp-campus-wrap { grid-template-columns: 1fr 1fr; }
+        }
+        .lp-campus-copy { text-align: left; }
+        .lp-campus-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          margin: 1.5rem 0 2rem;
+        }
+        .lp-campus-pills span {
+          padding: 0.7rem 1rem;
+          border-radius: 999px;
+          border: 1px solid #dbeafe;
+          background: white;
+          color: #1e3a8a;
+          font-size: 0.85rem;
+          font-weight: 700;
+          box-shadow: 0 10px 24px rgba(37,99,235,0.08);
+        }
+        .lp-campus-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.9rem;
+        }
+        .lp-campus-card {
+          border: 1px solid #dbeafe;
+          background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(239,246,255,0.94) 100%);
+          border-radius: 28px;
+          padding: 1.5rem;
+          box-shadow: 0 24px 60px rgba(37,99,235,0.10);
+        }
+        .lp-campus-card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .lp-campus-badge,
+        .lp-campus-count {
+          border-radius: 999px;
+          padding: 0.55rem 0.9rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .lp-campus-badge {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          color: #1d4ed8;
+        }
+        .lp-campus-count {
+          background: white;
+          border: 1px solid #e2e8f0;
+          color: #334155;
+        }
+        .lp-campus-visual {
+          border-radius: 24px;
+          background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 48%, #60a5fa 100%);
+          padding: 1.5rem;
+          color: white;
+        }
+        .lp-campus-visual img {
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
+          background: rgba(255,255,255,0.96);
+          padding: 0.45rem;
+          margin-bottom: 1.25rem;
+        }
+        .lp-campus-visual-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+        .lp-campus-visual-grid div {
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(255,255,255,0.08);
+          border-radius: 18px;
+          padding: 1rem;
+          backdrop-filter: blur(10px);
+        }
+        .lp-campus-visual-grid strong {
+          display: block;
+          font-size: 0.92rem;
+          margin-bottom: 0.35rem;
+        }
+        .lp-campus-visual-grid span {
+          display: block;
+          font-size: 0.82rem;
+          line-height: 1.6;
+          color: rgba(255,255,255,0.84);
+        }
+        .lp-campus-strip {
+          padding: 0 0 4rem;
+          background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+          overflow: hidden;
+        }
+        .lp-campus-strip-head {
+          max-width: 1200px;
+          margin: 0 auto 1.25rem;
+          padding: 0 1.5rem;
+        }
+        .lp-campus-strip-track {
+          display: flex;
+          gap: 1rem;
+          width: max-content;
+          animation: lpTickerLeft 24s linear infinite;
+          padding: 0.4rem 0;
+        }
+        .lp-campus-strip-track:hover { animation-play-state: paused; }
+        .lp-campus-pill {
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem 1.15rem;
+          border-radius: 999px;
+          border: 1px solid #dbeafe;
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 14px 36px rgba(37,99,235,0.08);
+          backdrop-filter: blur(16px);
+        }
+        .lp-campus-pill-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #2563eb, #60a5fa);
+          box-shadow: 0 0 0 6px rgba(37,99,235,0.08);
+        }
+        .lp-campus-pill strong {
+          font-size: 0.9rem;
+          color: var(--dark);
+        }
+        .lp-campus-pill span {
+          font-size: 0.78rem;
+          color: var(--gray);
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          font-weight: 700;
+        }
+        .lp-campus-cta {
+          padding: 0 1.5rem 6rem;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+        .lp-campus-cta-box {
+          max-width: 1200px;
+          margin: 0 auto;
+          border-radius: 36px;
+          padding: 2.1rem;
+          border: 1px solid rgba(37,99,235,0.14);
+          background:
+            radial-gradient(circle at top left, rgba(37,99,235,0.12), transparent 26%),
+            radial-gradient(circle at 85% 20%, rgba(96,165,250,0.16), transparent 24%),
+            linear-gradient(135deg, #ffffff 0%, #f8fbff 52%, #eef4ff 100%);
+          box-shadow: 0 30px 80px rgba(37,99,235,0.10);
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.75rem;
+          align-items: center;
+          position: relative;
+          overflow: hidden;
+        }
+        @media (min-width: 960px) {
+          .lp-campus-cta-box {
+            grid-template-columns: 1.1fr 0.9fr;
+            padding: 2.6rem 2.8rem;
+          }
+        }
+        .lp-campus-cta-copy p {
+          max-width: 640px;
+        }
+        .lp-campus-cta-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.9rem;
+          margin-top: 1.5rem;
+        }
+        .lp-campus-cta-mini {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+        .lp-campus-cta-mini div {
+          border-radius: 24px;
+          border: 1px solid rgba(37,99,235,0.12);
+          background: rgba(255,255,255,0.92);
+          padding: 1.1rem;
+          box-shadow: 0 16px 40px rgba(37,99,235,0.06);
+          transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        }
+        .lp-campus-cta-mini div:hover {
+          transform: translateY(-4px);
+          border-color: rgba(37,99,235,0.24);
+          box-shadow: 0 20px 46px rgba(37,99,235,0.10);
+        }
+        .lp-campus-cta-mini strong {
+          display: block;
+          font-size: 1.1rem;
+          color: var(--dark);
+          margin-bottom: 0.3rem;
+        }
+        .lp-campus-cta-mini span {
+          display: block;
+          font-size: 0.82rem;
+          color: var(--gray);
+          line-height: 1.6;
+        }
+
         /* ── ALL REFERRALS TICKER ─────────── */
         .lp-all-refs {
           padding: 2rem 0 4rem; background: white; overflow: hidden;
@@ -1203,7 +1459,7 @@ export default function NewLanding() {
 
         /* ── FOOTER (WHITE) ───────────────── */
         .lp-footer {
-          background: white;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
           border-top: 1px solid #e2e8f0;
           color: var(--gray);
           padding: 4rem 1.5rem 2rem;
@@ -1219,8 +1475,16 @@ export default function NewLanding() {
         .lp-footer-desc { color: #94a3b8; font-size: 0.875rem; line-height: 1.7; }
         .lp-footer-col h4 { color: var(--dark); font-weight: 700; font-size: 0.9rem; margin-bottom: 1rem; }
         .lp-footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
-        .lp-footer-col a { color: #94a3b8; text-decoration: none; font-size: 0.875rem; transition: color 0.2s; }
-        .lp-footer-col a:hover { color: var(--blue); }
+        .lp-footer-col a {
+          color: #64748b;
+          text-decoration: none;
+          font-size: 0.875rem;
+          transition: color 0.2s, transform 0.2s;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+        }
+        .lp-footer-col a:hover { color: var(--blue); transform: translateX(3px); }
         .lp-footer-bottom {
           max-width: 1100px; margin: 3rem auto 0;
           padding-top: 2rem; border-top: 1px solid #f1f5f9;
@@ -1286,6 +1550,7 @@ export default function NewLanding() {
             <li><a href="#features" className={activeSection === "features" ? "active" : ""}>Features</a></li>
             <li><a href="#how-it-works" className={activeSection === "how-it-works" ? "active" : ""}>How It Works</a></li>
             <li><a href="#live-jobs" className={activeSection === "live-jobs" ? "active" : ""}>Live Jobs</a></li>
+            <li><a href="/campus-ambassador">Campus Program</a></li>
           </ul>
           <div className="lp-nav-right">
             <button className="lp-nav-btn" onClick={handleGetStarted} disabled={isSigningIn}>
@@ -1305,6 +1570,7 @@ export default function NewLanding() {
         <a href="#features" onClick={() => setIsMenuOpen(false)}>⚡ Features</a>
         <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>🔢 How It Works</a>
         <a href="#live-jobs" onClick={() => setIsMenuOpen(false)}>💼 Live Jobs</a>
+        <a href="/campus-ambassador" onClick={() => setIsMenuOpen(false)}>🎓 Campus Program</a>
         <button className="lp-mobile-menu-btn" onClick={() => { setIsMenuOpen(false); handleGetStarted(); }}>
           {isSigningIn ? "Signing in…" : "Get Started Free →"}
         </button>
@@ -1575,6 +1841,89 @@ export default function NewLanding() {
         </div>
       </section>
 
+      <section id="campus-program" className="lp-campus">
+        <div ref={campusReveal.ref} className={`lp-campus-wrap ${campusReveal.visible ? "revealed" : ""}`}>
+          <div className="lp-campus-copy">
+            <div className="lp-section-tag">Campus Program</div>
+            <h2 className="lp-section-title">Build ReferralMe inside your <span>college</span></h2>
+            <p className="lp-section-sub">
+              The ReferralMe Campus Ambassador Program is live for students who want to lead growth, run campus visibility, complete weekly missions, and earn real recognition.
+            </p>
+            <div className="lp-campus-pills">
+              <span>Weekly missions</span>
+              <span>Certificates & rewards</span>
+              <span>Campus leadership</span>
+              <span>Public recognition</span>
+            </div>
+            <div className="lp-campus-actions">
+              <a href="/campus-ambassador" className="lp-btn-primary">Explore Campus Program</a>
+              <a href="/campus-ambassador/apply" className="lp-btn-secondary">Apply as Ambassador</a>
+            </div>
+          </div>
+          <div className="lp-campus-card">
+            <div className="lp-campus-card-top">
+              <div className="lp-campus-badge">ReferralMe Campus Ambassador</div>
+              <div className="lp-campus-count">Now live</div>
+            </div>
+            <div className="lp-campus-visual">
+              <img src="/logo.png" alt="ReferralMe Campus Program" />
+              <div className="lp-campus-visual-grid">
+                <div>
+                  <strong>Program</strong>
+                  <span>Student ambassadors across colleges</span>
+                </div>
+                <div>
+                  <strong>Focus</strong>
+                  <span>Visibility, growth, and community momentum</span>
+                </div>
+                <div>
+                  <strong>Rewards</strong>
+                  <span>Certificate, merch, and top performer recognition</span>
+                </div>
+                <div>
+                  <strong>Flow</strong>
+                  <span>Landing page, apply form, dashboard, and admin review</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-campus-strip">
+        <div className="lp-campus-strip-head">
+          <div className="lp-section-tag">Now Active in Colleges</div>
+        </div>
+        <div className="lp-ticker-wrap">
+          <div className="lp-campus-strip-track">
+            {[
+              { name: "DTU", label: "Campus momentum" },
+              { name: "VIT", label: "Student growth" },
+              { name: "SRCC", label: "Leadership" },
+              { name: "NMIMS", label: "Referral awareness" },
+              { name: "Dronacharya", label: "Ambassador activity" },
+              { name: "Amity", label: "Campus visibility" },
+              { name: "Manipal", label: "Weekly missions" },
+              { name: "Christ", label: "Program expansion" },
+              { name: "DTU", label: "Campus momentum" },
+              { name: "VIT", label: "Student growth" },
+              { name: "SRCC", label: "Leadership" },
+              { name: "NMIMS", label: "Referral awareness" },
+            ].map((college, index) => (
+              <div key={`${college.name}-${index}`} className="lp-campus-pill">
+                <span className="lp-campus-pill-dot"></span>
+                <div>
+                  <strong>{college.name}</strong>
+                  <span>{college.label}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="lp-ticker-fade-l"></div>
+          <div className="lp-ticker-fade-r" style={{ background: "linear-gradient(270deg, #ffffff, transparent)" }}></div>
+        </div>
+      </section>
+
       {/* ALL REAL REFERRALS — SCROLLING TICKER */}
       <section id="all-referrals" className="lp-all-refs">
         <div ref={allJobsReveal.ref} className={`lp-section-header lp-all-refs-header ${allJobsReveal.visible ? "revealed" : ""}`}>
@@ -1661,6 +2010,42 @@ export default function NewLanding() {
         </div>
       </section>
 
+      <section className="lp-campus-cta">
+        <div className="lp-campus-cta-box">
+          <div className="lp-campus-cta-copy">
+            <div className="lp-section-tag">Students Also Join ReferralMe</div>
+            <h2 className="lp-section-title">Students can use ReferralMe for <span>careers</span> too</h2>
+            <p className="lp-section-sub">
+              The campus ambassador program is only one side. Students can also join ReferralMe directly to access referrals, scan their resumes, and discover live opportunities from verified professionals.
+            </p>
+            <div className="lp-campus-cta-actions">
+              <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn}>
+                {isSigningIn ? "Signing in…" : "Join ReferralMe"}
+              </button>
+              <a href="/campus-ambassador" className="lp-btn-secondary">Explore Campus Program</a>
+            </div>
+          </div>
+          <div className="lp-campus-cta-mini">
+            <div>
+              <strong>Free ATS Scan</strong>
+              <span>Students can test and improve resume quality before applying.</span>
+            </div>
+            <div>
+              <strong>Real Referrals</strong>
+              <span>Access verified professionals and live opportunities on one platform.</span>
+            </div>
+            <div>
+              <strong>Campus Growth</strong>
+              <span>Ambassadors can represent ReferralMe and build college visibility.</span>
+            </div>
+            <div>
+              <strong>Career Momentum</strong>
+              <span>One platform for referrals, jobs, visibility, and student growth.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* TESTIMONIALS */}
       <section className="lp-testimonials">
         <div ref={testimonialsReveal.ref} className={`lp-section-header ${testimonialsReveal.visible ? "revealed" : ""}`}>
@@ -1706,14 +2091,15 @@ export default function NewLanding() {
               <li><a href="#features">Features</a></li>
               <li><a href="#how-it-works">How It Works</a></li>
               <li><a href="#live-jobs">Live Jobs</a></li>
+              <li><a href="/campus-ambassador">Campus Program</a></li>
             </ul>
           </div>
           <div className="lp-footer-col">
             <h4>Company</h4>
             <ul>
-              <li><a href="#">About Us</a></li>
-              <li><a href="#">Blog</a></li>
-              <li><a href="#">Contact</a></li>
+              <li><a href="/">Home</a></li>
+              <li><a href="/campus-ambassador">Campus Ambassador</a></li>
+              <li><a href="mailto:info@referralme.in">Contact</a></li>
             </ul>
           </div>
           <div className="lp-footer-col">
@@ -1721,7 +2107,7 @@ export default function NewLanding() {
             <ul>
               <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
               <li><a href="/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
-              <li><a href="#">Security</a></li>
+              <li><a href="mailto:info@referralme.in">Support</a></li>
             </ul>
           </div>
         </div>

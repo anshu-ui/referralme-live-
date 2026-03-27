@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { useToast } from "../hooks/use-toast";
 import { createCampusAmbassadorApplication } from "../lib/campus-firestore";
+import { sendCampusApplicationReceivedEmail } from "../lib/emailService";
 
 type ApplicationForm = {
   fullName: string;
@@ -80,6 +81,11 @@ export default function CampusAmbassadorApplicationForm({
         utmSource: params.get("utm_source") || undefined,
         utmMedium: params.get("utm_medium") || undefined,
         utmCampaign: params.get("utm_campaign") || undefined,
+      });
+
+      void sendCampusApplicationReceivedEmail({
+        name: form.fullName,
+        email: form.email,
       });
 
       setForm(defaultForm);

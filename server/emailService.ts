@@ -275,6 +275,200 @@ export function generateCampusAmbassadorAcceptedEmail(name: string, dashboardUrl
   };
 }
 
+export function generateCampusAmbassadorApplicationReceivedEmail(name: string) {
+  return {
+    subject: "Application received. You’re on our campus radar now",
+    html: wrapEmail({
+      preheader: "Your ReferralMe Campus Ambassador application has been received and is now under review.",
+      eyebrow: "Campus Ambassador Application",
+      title: `Application received, ${name}`,
+      intro: "Your ReferralMe Campus Ambassador application is now in review.",
+      body: `
+        <p style="margin:0 0 14px;">We’ve saved your submission and the campus team can now review your college fit, campus reach, and program readiness.</p>
+        <div style="padding:16px;border:1px solid #dbe3f0;border-radius:14px;background:#f8fbff;margin:0 0 16px;">
+          <p style="margin:0 0 8px;"><strong>What happens next</strong></p>
+          <p style="margin:0 0 8px;">1. We review your application details and campus context.</p>
+          <p style="margin:0 0 8px;">2. Shortlisted applicants hear from us first.</p>
+          <p style="margin:0;">3. Accepted ambassadors get dashboard access and weekly missions.</p>
+        </div>
+        <p style="margin:0 0 14px;">You do not need to submit the form again. If we move your profile forward, we’ll email you with the next step directly.</p>
+      `,
+      ctaLabel: "View Campus Program",
+      ctaHref: `${APP_URL}/campus-ambassador`,
+      secondaryLinkLabel: "Open Campus Ambassador Page",
+      secondaryLinkHref: `${APP_URL}/campus-ambassador`,
+      footerNote: "Use the same email address for any future campus sign-in. That keeps your application and dashboard access aligned.",
+    }),
+  };
+}
+
+export function generateCampusProofReviewedEmail({
+  name,
+  taskTitle,
+  status,
+  pointsAwarded,
+  reviewNote,
+  dashboardUrl = CAMPUS_DASHBOARD_URL,
+}: {
+  name: string;
+  taskTitle: string;
+  status: "approved" | "rejected";
+  pointsAwarded: number;
+  reviewNote?: string;
+  dashboardUrl?: string;
+}) {
+  const approved = status === "approved";
+
+  return {
+    subject: approved
+      ? `Approved: ${taskTitle} is now counted`
+      : `Update needed: ${taskTitle} needs a revision`,
+    html: wrapEmail({
+      preheader: approved
+        ? `Your proof for ${taskTitle} has been approved.`
+        : `Your proof for ${taskTitle} was reviewed and needs an update.`,
+      eyebrow: approved ? "Proof Approved" : "Proof Needs Update",
+      title: approved ? `Nice work, ${name}` : `Update needed, ${name}`,
+      intro: approved
+        ? "Your latest campus proof has been reviewed and approved."
+        : "Your latest campus proof has been reviewed, but it is not approved yet.",
+      body: `
+        <div style="padding:16px;border:1px solid #dbe3f0;border-radius:14px;background:#f8fbff;margin:0 0 16px;">
+          <p style="margin:0 0 8px;"><strong>Task</strong>: ${taskTitle}</p>
+          <p style="margin:0 0 8px;"><strong>Status</strong>: ${approved ? "Approved" : "Needs revision"}</p>
+          <p style="margin:0;"><strong>${approved ? "Points awarded" : "Points impacted"}</strong>: ${approved ? `${pointsAwarded} pts` : "0 pts"}</p>
+        </div>
+        ${
+          reviewNote
+            ? `<div style="padding:16px;border:1px solid #e2e8f0;border-radius:14px;background:#ffffff;margin:0 0 16px;">
+                <p style="margin:0 0 8px;"><strong>Reviewer note</strong></p>
+                <p style="margin:0;">${reviewNote}</p>
+              </div>`
+            : ""
+        }
+        <p style="margin:0 0 14px;">${
+          approved
+            ? "Your leaderboard progress and reward journey will update with this approval."
+            : "Open your dashboard, review the note, and submit a stronger version if the task is still active."
+        }</p>
+      `,
+      ctaLabel: approved ? "View My Dashboard" : "Fix And Resubmit",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open Ambassador Dashboard",
+      secondaryLinkHref: dashboardUrl,
+      footerNote: approved
+        ? "Consistent approved submissions are the fastest way to climb the leaderboard."
+        : "Clear proof, direct links, and concise summaries usually speed up approval.",
+    }),
+  };
+}
+
+export function generateCampusRewardUnlockedEmail({
+  name,
+  rewardTitle,
+  rewardDescription,
+  currentPoints,
+  dashboardUrl = CAMPUS_DASHBOARD_URL,
+}: {
+  name: string;
+  rewardTitle: string;
+  rewardDescription?: string;
+  currentPoints: number;
+  dashboardUrl?: string;
+}) {
+  return {
+    subject: `Reward unlocked: ${rewardTitle}`,
+    html: wrapEmail({
+      preheader: `You just unlocked ${rewardTitle} in the ReferralMe Campus Ambassador program.`,
+      eyebrow: "Reward Unlocked",
+      title: `You unlocked ${rewardTitle}`,
+      intro: `Strong work, ${name}. Your recent momentum just unlocked a new reward tier.`,
+      body: `
+        <div style="padding:16px;border:1px solid #dbe3f0;border-radius:14px;background:#f8fbff;margin:0 0 16px;">
+          <p style="margin:0 0 8px;"><strong>Unlocked reward</strong>: ${rewardTitle}</p>
+          <p style="margin:0 0 8px;"><strong>Current points</strong>: ${currentPoints} pts</p>
+          <p style="margin:0;"><strong>Program status</strong>: Active and progressing</p>
+        </div>
+        ${rewardDescription ? `<p style="margin:0 0 14px;">${rewardDescription}</p>` : ""}
+        <p style="margin:0 0 14px;">Open your dashboard to view the unlocked reward preview and keep moving toward the next milestone.</p>
+      `,
+      ctaLabel: "Open Reward Ladder",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "View Campus Dashboard",
+      secondaryLinkHref: dashboardUrl,
+      footerNote: "Visible consistency compounds fast in this program. Keep stacking approved wins.",
+    }),
+  };
+}
+
+export function generateCampusWeeklyDigestEmail({
+  name,
+  currentPoints,
+  activeTasks,
+  activeAnnouncements,
+  dashboardUrl = CAMPUS_DASHBOARD_URL,
+}: {
+  name: string;
+  currentPoints: number;
+  activeTasks: Array<{ title: string; points: number; dueDate?: string }>;
+  activeAnnouncements: Array<{ title: string; message: string }>;
+  dashboardUrl?: string;
+}) {
+  const taskMarkup = activeTasks.length
+    ? activeTasks
+        .slice(0, 4)
+        .map(
+          (task) => `
+            <div style="padding:14px 16px;border:1px solid #dbe3f0;border-radius:14px;background:#ffffff;margin:0 0 12px;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0f172a;">${task.title}</p>
+              <p style="margin:0 0 4px;color:#475569;">${task.points} pts${task.dueDate ? ` • Due ${task.dueDate}` : ""}</p>
+            </div>
+          `,
+        )
+        .join("")
+    : `<p style="margin:0 0 14px;">No live missions right now. Keep an eye on the dashboard for the next push.</p>`;
+
+  const announcementMarkup = activeAnnouncements.length
+    ? activeAnnouncements
+        .slice(0, 2)
+        .map(
+          (item) => `
+            <div style="padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;margin:0 0 12px;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0f172a;">${item.title}</p>
+              <p style="margin:0;color:#475569;">${item.message}</p>
+            </div>
+          `,
+        )
+        .join("")
+    : `<p style="margin:0 0 14px;">No new admin notices this week.</p>`;
+
+  return {
+    subject: "Your weekly ReferralMe campus mission digest",
+    html: wrapEmail({
+      preheader: "This week’s live campus missions, updates, and your current progress.",
+      eyebrow: "Weekly Mission Digest",
+      title: `Your weekly campus brief, ${name}`,
+      intro: "Here is the clean weekly snapshot of what is live, what matters, and where your momentum stands.",
+      body: `
+        <div style="padding:16px;border:1px solid #dbe3f0;border-radius:14px;background:#eff6ff;margin:0 0 18px;">
+          <p style="margin:0 0 8px;"><strong>Current points</strong>: ${currentPoints} pts</p>
+          <p style="margin:0;"><strong>Live missions</strong>: ${activeTasks.length}</p>
+        </div>
+        <p style="margin:0 0 10px;font-weight:700;color:#0f172a;">Live missions</p>
+        ${taskMarkup}
+        <p style="margin:16px 0 10px;font-weight:700;color:#0f172a;">Admin updates</p>
+        ${announcementMarkup}
+        <p style="margin:8px 0 14px;">Open your dashboard to submit proof, track reviews, and move closer to the next reward tier.</p>
+      `,
+      ctaLabel: "Open My Campus Dashboard",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "View Ambassador Dashboard",
+      secondaryLinkHref: dashboardUrl,
+      footerNote: "The ambassadors who stay active weekly usually climb faster than the ambassadors who batch everything late.",
+    }),
+  };
+}
+
 export function generateJobPostingConfirmationEmail(
   referrerName: string,
   job: any

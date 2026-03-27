@@ -213,7 +213,7 @@ export const getCampusAmbassadorApplications = async (): Promise<CampusAmbassado
     const snapshot = await getDocs(query(collection(db, "campusAmbassadorApplications"), orderBy("createdAt", "desc")));
     return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorApplication[];
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return [];
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return [];
     throw error;
   }
 };
@@ -244,7 +244,7 @@ export const getCampusAmbassadorShowcaseItems = async (): Promise<CampusAmbassad
     const snapshot = await getDocs(query(collection(db, "campusAmbassadorShowcase"), orderBy("order", "asc")));
     return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorShowcaseItem[];
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return [];
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return [];
     throw error;
   }
 };
@@ -292,7 +292,7 @@ export const getCampusAmbassadorPageSettings = async (): Promise<CampusAmbassado
     if (!snapshot.exists()) return null;
     return { id: snapshot.id, ...snapshot.data() } as CampusAmbassadorPageSettings;
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return null;
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return null;
     throw error;
   }
 };
@@ -327,7 +327,7 @@ export const getCampusAmbassadorByEmail = async (email: string): Promise<CampusA
     if (!snapshot.exists()) return null;
     return { id: snapshot.id, ...snapshot.data() } as CampusAmbassadorMember;
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return null;
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return null;
     throw error;
   }
 };
@@ -347,7 +347,7 @@ export const subscribeToCampusAmbassadorByEmail = (
       onData({ id: snapshot.id, ...snapshot.data() } as CampusAmbassadorMember);
     },
     (error) => {
-      if (isOfflineFirestoreError(error)) {
+      if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) {
         onData(null);
         return;
       }
@@ -383,7 +383,7 @@ export const getCampusAmbassadorMembers = async (): Promise<CampusAmbassadorMemb
     const snapshot = await getDocs(query(collection(db, "campusAmbassadors"), orderBy("createdAt", "desc")));
     return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorMember[];
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return [];
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return [];
     throw error;
   }
 };
@@ -396,7 +396,7 @@ export const subscribeToCampusAmbassadorMembers = (onData: (members: CampusAmbas
       onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorMember[]);
     },
     (error) => {
-      if (isOfflineFirestoreError(error)) {
+      if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) {
         onData([]);
         return;
       }
@@ -431,7 +431,7 @@ export const getCampusAmbassadorTasks = async (): Promise<CampusAmbassadorTask[]
     const snapshot = await getDocs(query(collection(db, "campusAmbassadorTasks"), orderBy("createdAt", "desc")));
     return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorTask[];
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return [];
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return [];
     throw error;
   }
 };
@@ -444,7 +444,7 @@ export const subscribeToCampusAmbassadorTasks = (onData: (tasks: CampusAmbassado
       onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusAmbassadorTask[]);
     },
     (error) => {
-      if (isOfflineFirestoreError(error)) {
+      if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) {
         onData([]);
         return;
       }
@@ -557,7 +557,7 @@ export const getCampusTaskSubmissions = async (): Promise<CampusTaskSubmission[]
     const snapshot = await getDocs(query(collection(db, "campusTaskSubmissions"), orderBy("submittedAt", "desc")));
     return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusTaskSubmission[];
   } catch (error) {
-    if (isOfflineFirestoreError(error)) return [];
+    if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) return [];
     throw error;
   }
 };
@@ -570,7 +570,7 @@ export const subscribeToCampusTaskSubmissions = (onData: (submissions: CampusTas
       onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as CampusTaskSubmission[]);
     },
     (error) => {
-      if (isOfflineFirestoreError(error)) {
+      if (isOfflineFirestoreError(error) || isPermissionFirestoreError(error)) {
         onData([]);
         return;
       }

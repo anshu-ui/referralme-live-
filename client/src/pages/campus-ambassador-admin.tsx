@@ -49,7 +49,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useToast } from "../hooks/use-toast";
 import FirebaseFileUpload from "../components/firebase-file-upload";
 import { campusAuth, campusStorage } from "../lib/campus-firebase";
-import { sendCampusAmbassadorStatusEmail } from "../lib/emailService";
+import {
+  sendCampusAmbassadorStatusEmail,
+  sendCampusProofReviewedEmail,
+  sendCampusRewardUnlockedEmail,
+  sendCampusWeeklyDigestEmail,
+} from "../lib/emailService";
 
 type CampusSection = CampusAmbassadorShowcaseItem["section"];
 
@@ -339,6 +344,7 @@ export default function CampusAmbassadorAdminPage() {
   const [submissionCollegeFilter, setSubmissionCollegeFilter] = useState("all");
   const [submissionTaskFilter, setSubmissionTaskFilter] = useState("all");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [isSendingWeeklyDigest, setIsSendingWeeklyDigest] = useState(false);
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     message: "",
@@ -919,7 +925,50 @@ export default function CampusAmbassadorAdminPage() {
   ) => {
     if (!submission.id) return;
     try {
+      const currentMember = syncedMembers.find(
+        (entry) => entry.email.trim().toLowerCase() === submission.ambassadorEmail.trim().toLowerCase(),
+      );
+      const rewardTiers = showcaseItems
+        .filter((item) => item.section === "reward_tier" && item.isActive)
+        .map((item) => ({
+          title: item.title,
+          description: item.description || item.subtitle || "",
+          points: Number.parseInt(String(item.metric || item.badge || "0").replace(/[^\d]/g, ""), 10) || 0,
+        }))
+        .filter((item) => item.points > 0)
+        .sort((a, b) => a.points - b.points);
+      const pointsBefore = Number(currentMember?.points || 0);
+      const pointsAfter =
+        nextStatus === "approved" && submission.status !== "approved"
+          ? pointsBefore + Number(submission.pointsAwarded || 0)
+          : nextStatus === "rejected" && submission.status === "approved"
+            ? Math.max(0, pointsBefore - Number(submission.pointsAwarded || 0))
+            : pointsBefore;
+
       await reviewCampusTaskSubmission(submission, nextStatus, reviewNotes[submission.id] || undefined);
+
+      void sendCampusProofReviewedEmail({
+        name: submission.ambassadorName,
+        email: submission.ambassadorEmail,
+        taskTitle: submission.taskTitle,
+        status: nextStatus,
+        pointsAwarded: Number(submission.pointsAwarded || 0),
+        reviewNote: reviewNotes[submission.id] || undefined,
+      });
+
+      if (nextStatus === "approved") {
+        const unlockedReward = rewardTiers.find((reward) => pointsBefore < reward.points && pointsAfter >= reward.points);
+        if (unlockedReward) {
+          void sendCampusRewardUnlockedEmail({
+            name: submission.ambassadorName,
+            email: submission.ambassadorEmail,
+            rewardTitle: unlockedReward.title,
+            rewardDescription: unlockedReward.description,
+            currentPoints: pointsAfter,
+          });
+        }
+      }
+
       setReviewNotes((current) => ({ ...current, [submission.id as string]: "" }));
       toast({ title: `Submission ${nextStatus}` });
       await loadCampusAdminData();
@@ -930,6 +979,63 @@ export default function CampusAmbassadorAdminPage() {
         description: "The task submission could not be updated.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSendWeeklyDigest = async () => {
+    const recipients = syncedMembers
+      .filter((member) => member.status === "accepted" || member.status === "active")
+      .map((member) => ({
+        name: member.fullName,
+        email: member.email,
+        currentPoints: Number(member.points || 0),
+      }));
+
+    if (recipients.length === 0) {
+      toast({
+        title: "No ambassadors to email",
+        description: "Accept at least one ambassador before sending the weekly digest.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingWeeklyDigest(true);
+    try {
+      const result = await sendCampusWeeklyDigestEmail({
+        recipients,
+        activeTasks: tasks
+          .filter((task) => task.status === "active")
+          .map((task) => ({
+            title: task.title,
+            points: Number(task.points || 0),
+            dueDate: task.dueDate,
+          })),
+        activeAnnouncements: announcements
+          .filter((announcement) => announcement.isActive)
+          .map((announcement) => ({
+            title: announcement.title,
+            message: announcement.message,
+          })),
+      });
+
+      if (!result.success && result.sent === 0) {
+        throw new Error("No weekly digest emails were sent.");
+      }
+
+      toast({
+        title: "Weekly digest sent",
+        description: `${result.sent} email${result.sent === 1 ? "" : "s"} delivered${result.failed ? `, ${result.failed} failed` : ""}.`,
+      });
+    } catch (error) {
+      console.error("Error sending campus weekly digest:", error);
+      toast({
+        title: "Weekly digest failed",
+        description: "The digest could not be sent right now.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingWeeklyDigest(false);
     }
   };
 
@@ -1688,9 +1794,31 @@ export default function CampusAmbassadorAdminPage() {
               <Card className={PANEL}>
                 <CardHeader>
                   <CardTitle>{editingAnnouncementId ? "Edit Announcement" : "Announcement Composer"}</CardTitle>
-                  <p className="text-sm text-slate-500">Publish updates directly to the ambassador dashboard.</p>
+                  <p className="text-sm text-slate-500">Publish updates directly to the ambassador dashboard and push a polished weekly digest when the program needs a fresh nudge.</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="rounded-[22px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4 shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">Weekly Mission Digest</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Send the current live missions and active notices to every accepted ambassador in one polished email.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <Badge variant="outline" className="rounded-full border-blue-100 bg-white text-blue-700">
+                        {syncedMembers.filter((member) => member.status === "accepted" || member.status === "active").length} ambassadors
+                      </Badge>
+                      <Badge variant="outline" className="rounded-full border-blue-100 bg-white text-blue-700">
+                        {tasks.filter((task) => task.status === "active").length} live missions
+                      </Badge>
+                      <Button
+                        type="button"
+                        onClick={handleSendWeeklyDigest}
+                        disabled={isSendingWeeklyDigest}
+                        className="rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        {isSendingWeeklyDigest ? "Sending digest..." : "Send Weekly Digest"}
+                      </Button>
+                    </div>
+                  </div>
                   <Field label="Title">
                     <Input value={announcementForm.title} onChange={(event) => setAnnouncementForm((current) => ({ ...current, title: event.target.value }))} />
                   </Field>

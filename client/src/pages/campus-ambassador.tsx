@@ -16,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import SeoHead from "../components/seo-head";
 import {
   getCampusAmbassadorPageSettings,
   getCampusAmbassadorShowcaseItems,
@@ -471,9 +472,34 @@ export default function CampusAmbassadorLanding() {
     pageSettings?.footerDescription ||
     "ReferralMe is building an ambassador program around weekly execution, real accountability, and student energy that actually compounds.";
   const footerTagline = pageSettings?.footerTagline || "Built with ❤️ in India by ReferralMe";
+  const campusStructuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        name: "ReferralMe Campus Ambassador Program",
+        url: "https://referralme.in/campus-ambassador",
+        description: heroDescription,
+      },
+      {
+        "@type": "Organization",
+        name: "ReferralMe",
+        url: "https://referralme.in",
+        logo: "https://referralme.in/logo.png",
+      },
+    ],
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fbff] text-[#0a2222]">
+      <SeoHead
+        title="ReferralMe Campus Ambassador Program | Student Leadership and Rewards"
+        description="Join the ReferralMe Campus Ambassador Program to build visibility on campus, complete weekly missions, and unlock recognition, rewards, and leadership experience."
+        canonicalPath="/campus-ambassador"
+        image="https://referralme.in/logo.png"
+        keywords="ReferralMe campus ambassador, campus ambassador program, student ambassador, ReferralMe ambassador, college ambassador program"
+        structuredData={campusStructuredData}
+      />
       <style>{`
         @keyframes campusFloatIn {
           from {
