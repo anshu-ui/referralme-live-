@@ -2396,8 +2396,8 @@ function AdminShellStyles() {
   return (
     <style>{`
       [data-admin-reveal] {
-        opacity: 0;
-        transform: translate3d(0, 24px, 0) scale(0.985);
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
         transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
       }
 

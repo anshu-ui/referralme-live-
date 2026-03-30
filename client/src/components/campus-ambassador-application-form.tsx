@@ -14,8 +14,12 @@ type ApplicationForm = {
   collegeName: string;
   course: string;
   graduationYear: string;
+  city: string;
   linkedinUrl: string;
+  instagramHandle: string;
   societies: string;
+  communityReach: string;
+  heardFrom: string;
   whyJoin: string;
   availabilityHours: string;
 };
@@ -27,8 +31,12 @@ const defaultForm: ApplicationForm = {
   collegeName: "",
   course: "",
   graduationYear: "",
+  city: "",
   linkedinUrl: "",
+  instagramHandle: "",
   societies: "",
+  communityReach: "",
+  heardFrom: "",
   whyJoin: "",
   availabilityHours: "",
 };
@@ -157,11 +165,23 @@ export default function CampusAmbassadorApplicationForm({
             <Field label="Weekly availability *">
               <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.availabilityHours} onChange={(event) => updateField("availabilityHours", event.target.value)} placeholder="4-6 hours / week" />
             </Field>
+            <Field label="City">
+              <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.city} onChange={(event) => updateField("city", event.target.value)} placeholder="Delhi, Gurgaon, Noida..." />
+            </Field>
             <Field label="LinkedIn URL">
               <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.linkedinUrl} onChange={(event) => updateField("linkedinUrl", event.target.value)} placeholder="https://linkedin.com/in/..." />
             </Field>
+            <Field label="Instagram handle">
+              <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.instagramHandle} onChange={(event) => updateField("instagramHandle", event.target.value)} placeholder="@yourhandle" />
+            </Field>
             <Field label="Club / campus role">
               <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.societies} onChange={(event) => updateField("societies", event.target.value)} placeholder="Coding club, placement cell, fest team..." />
+            </Field>
+            <Field label="Community reach">
+              <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.communityReach} onChange={(event) => updateField("communityReach", event.target.value)} placeholder="Clubs, WhatsApp groups, societies, followers..." />
+            </Field>
+            <Field label="How did you hear about us?">
+              <Input className="h-12 rounded-2xl border-[#0a2222]/10 bg-[#f8fbff] text-[#0a2222] placeholder:text-[#0a2222]/35" value={form.heardFrom} onChange={(event) => updateField("heardFrom", event.target.value)} placeholder="Friend, LinkedIn, campus group, Instagram..." />
             </Field>
           </div>
 
