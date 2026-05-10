@@ -174,7 +174,10 @@ export default function AiMentorChat({
         },
       ]);
     } catch (e: any) {
-      toast({ title: "AI mentor unavailable", description: e?.message || "Please try again." });
+      toast({
+        title: "AI mentor unavailable",
+        description: e?.message || "Please try again.",
+      });
     } finally {
       setPlanLoading(false);
     }

@@ -811,8 +811,12 @@
 
         const text = response.text || "";
         return res.json({ text });
-      } catch (error) {
+      } catch (error: any) {
         console.error("AI mentor error:", error);
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
+          return res.status(429).json({ message: "AI is busy (quota/rate limit). Please try again in a few minutes." });
+        }
         return res.status(500).json({ message: "AI mentor request failed" });
       }
     });
