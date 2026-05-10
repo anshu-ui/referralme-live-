@@ -196,6 +196,8 @@ export interface MentorshipSession {
   status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
   meetingUrl?: string;
   paymentStatus: "pending" | "paid" | "refunded";
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
   stripePaymentIntentId?: string;
   notes?: string;
   rating?: number; // 1-5 stars

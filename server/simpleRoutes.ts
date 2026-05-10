@@ -4,6 +4,7 @@
   import path from "path";
   import fs from "fs";
   import crypto from "crypto";
+  import Razorpay from "razorpay";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -30,6 +31,12 @@
 
   // Initialize Firebase Admin (only if credentials are available)
   let db: FirebaseFirestore.Firestore | null = null;
+  const getRazorpayClient = () => {
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return null;
+    return new Razorpay({ key_id: keyId, key_secret: keySecret });
+  };
 
   try {
     if (process.env.VITE_FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
@@ -651,6 +658,12 @@
     });
 
     // Razorpay payment routes - Marketplace model
+    app.get('/api/razorpay/key-id', async (_req: Request, res: Response) => {
+      const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+      if (!keyId) return res.status(500).json({ message: 'Razorpay key not configured' });
+      return res.json({ keyId });
+    });
+
     app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
       try {
         const { amount, currency = 'INR', receipt, mentorId } = req.body;
@@ -659,24 +672,22 @@
           return res.status(400).json({ message: 'Amount is required' });
         }
 
-        // mentorId is optional for direct payments
+        const razorpay = getRazorpayClient();
+        if (!razorpay) {
+          return res.status(500).json({ message: 'Razorpay not configured on server' });
+        }
 
-        // Create simple direct payment order (no marketplace)
-        const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        const order = {
-          id: orderId,
-          amount: amount * 100, // Amount in paise
+        const created = await razorpay.orders.create({
+          amount: Math.round(Number(amount) * 100), // paise
           currency,
           receipt: receipt || `receipt_${Date.now()}`,
-          status: 'created',
           notes: {
             mentor_id: mentorId || 'unknown',
-            payment_type: 'direct'
-          }
-        };
+            payment_type: 'direct_platform_collects_all',
+          },
+        });
 
-        res.json(order);
+        return res.json(created);
       } catch (error) {
         console.error('Order creation error:', error);
         res.status(500).json({ message: 'Failed to create payment order' });
@@ -691,14 +702,17 @@
           return res.status(400).json({ message: 'Missing payment verification data' });
         }
 
-        // For real implementation, verify the signature using Razorpay secret
-        // const expectedSignature = crypto
-        //   .createHmac('sha256', RAZORPAY_SECRET)
-        //   .update(razorpay_order_id + '|' + razorpay_payment_id)
-        //   .digest('hex');
-        
-        // For now, accept all payments as verified (frontend will handle with real keys)
-        const isVerified = true;
+        const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
+        if (!keySecret) {
+          return res.status(500).json({ message: 'Razorpay secret not configured on server' });
+        }
+
+        const expectedSignature = crypto
+          .createHmac('sha256', keySecret)
+          .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+          .digest('hex');
+
+        const isVerified = expectedSignature === razorpay_signature;
 
         if (isVerified) {
           res.json({ 

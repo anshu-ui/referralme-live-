@@ -13,6 +13,7 @@ import { Calendar, Clock, IndianRupee, Search, Users } from "lucide-react";
 import type { FirestoreUser, MentorshipService, MentorshipSession } from "../lib/firestore";
 import { createMentorshipSession, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
+import { createMentorshipPayment, initiatePayment } from "../lib/razorpay";
 
 function fmtInr(amount: number) {
   const safe = Number.isFinite(amount) ? amount : 0;
@@ -80,7 +81,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     return sessions.filter((s) => ["completed", "cancelled"].includes(s.status));
   }, [sessions]);
 
-  const handleRequest = async () => {
+  const handlePayAndRequest = async () => {
     if (!selected) return;
     const ts = toTimestampFromLocalInput(scheduledAt);
     if (!ts) {
@@ -90,6 +91,56 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
 
     setSubmitting(true);
     try {
+      // 1) Create Razorpay order on server
+      const orderResp = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: selected.service.price,
+          currency: "INR",
+          receipt: `mentorship_${Date.now()}`,
+          mentorId: selected.mentor.uid,
+        }),
+      });
+      if (!orderResp.ok) {
+        const msg = (await orderResp.json().catch(() => null))?.message || "Failed to create payment order.";
+        throw new Error(msg);
+      }
+      const order = await orderResp.json();
+
+      // 2) Open Razorpay checkout
+      const paymentOptions = createMentorshipPayment(
+        user,
+        selected.mentor.displayName || "Mentor",
+        selected.service.title,
+        selected.service.price,
+        order.id,
+      );
+
+      const paymentResult: any = await new Promise((resolve, reject) => {
+        initiatePayment(
+          paymentOptions,
+          (resp) => resolve(resp),
+          (err) => reject(err),
+        );
+      });
+
+      // 3) Verify payment signature server-side
+      const verifyResp = await fetch("/api/razorpay/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          razorpay_order_id: paymentResult.razorpay_order_id,
+          razorpay_payment_id: paymentResult.razorpay_payment_id,
+          razorpay_signature: paymentResult.razorpay_signature,
+        }),
+      });
+      const verify = await verifyResp.json().catch(() => null);
+      if (!verifyResp.ok || !verify?.verified) {
+        throw new Error(verify?.message || "Payment verification failed.");
+      }
+
+      // 4) Create the session as paid + pending mentor confirmation
       await createMentorshipSession({
         mentorId: selected.mentor.uid,
         mentorName: selected.mentor.displayName || "Mentor",
@@ -100,11 +151,12 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         title: selected.service.title,
         description: selected.service.description,
         duration: selected.service.duration,
-        // Keep the schema as-is; UI and pricing are INR for now.
         price: selected.service.price,
         scheduledAt: ts,
         status: "pending",
-        paymentStatus: "pending",
+        paymentStatus: "paid",
+        razorpayOrderId: paymentResult.razorpay_order_id,
+        razorpayPaymentId: paymentResult.razorpay_payment_id,
         notes: notes.trim() || undefined,
       } as any);
 
@@ -281,8 +333,8 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                       <Button variant="outline" onClick={() => setSelected(null)} disabled={submitting}>
                                         Cancel
                                       </Button>
-                                      <Button onClick={handleRequest} disabled={submitting}>
-                                        {submitting ? "Sending..." : "Send Request"}
+                                      <Button onClick={handlePayAndRequest} disabled={submitting}>
+                                        {submitting ? "Processing..." : "Pay & Send Request"}
                                       </Button>
                                     </div>
                                   </div>

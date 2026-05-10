@@ -43,11 +43,25 @@ export const initiatePayment = async (
   onSuccess: (response: any) => void,
   onFailure: (error: any) => void
 ) => {
-  // Check if API keys are configured
-  const razorpayKeyId = localStorage.getItem('razorpay_key_id');
+  // Prefer build-time public key, else fall back to localStorage (legacy), else ask server.
+  let razorpayKeyId =
+    (import.meta as any)?.env?.VITE_RAZORPAY_KEY_ID ||
+    localStorage.getItem('razorpay_key_id');
+
+  if (!razorpayKeyId) {
+    try {
+      const resp = await fetch("/api/razorpay/key-id");
+      if (resp.ok) {
+        const data = await resp.json();
+        razorpayKeyId = data?.keyId;
+      }
+    } catch {
+      // ignore, handled below
+    }
+  }
   
   if (!razorpayKeyId) {
-    onFailure(new Error('Razorpay Key ID not configured. Please set up your Razorpay credentials first.'));
+    onFailure(new Error('Razorpay Key ID not configured on client or server.'));
     return;
   }
 
