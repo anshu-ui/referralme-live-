@@ -750,7 +750,7 @@
           return res.status(500).json({ message: "GEMINI_API_KEY not configured on server" });
         }
 
-        const { messages, profile } = req.body || {};
+        const { mode, messages, profile, intake } = req.body || {};
         const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
           ? messages
               .map((m: any) => ({
@@ -777,11 +777,32 @@
           .filter(Boolean)
           .join("\n");
 
-        const prompt = [
-          `SYSTEM:\n${system}\n\n`,
-          ...safeMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`),
-          "\nASSISTANT:",
-        ].join("\n");
+        const intakeLine =
+          intake && typeof intake === "object"
+            ? `Intake (user provided): ${JSON.stringify(intake).slice(0, 3000)}`
+            : "";
+
+        const prompt =
+          mode === "plan"
+            ? [
+                `SYSTEM:\n${system}\n\n`,
+                intakeLine,
+                "",
+                "USER: Generate a premium, practical 7-day career plan.",
+                "Constraints:",
+                "- Output in Markdown.",
+                "- Include sections: Goal, Current Snapshot, 7-Day Plan (Day 1..Day 7 with 3-6 tasks each), Resume/ATS fixes (top 8), Referral outreach plan (message templates + who to contact), Interview prep plan, Checkpoints (what to measure).",
+                "- Keep it specific to the intake. Avoid generic filler.",
+                "- End with: 'If you want human help, book a mentor session in the Mentorship tab.'",
+                "",
+                "ASSISTANT:",
+              ].join("\n")
+            : [
+                `SYSTEM:\n${system}\n\n`,
+                intakeLine,
+                ...safeMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`),
+                "\nASSISTANT:",
+              ].join("\n");
 
         const response = await genAI.models.generateContent({
           model: GEMINI_MENTOR_MODEL,

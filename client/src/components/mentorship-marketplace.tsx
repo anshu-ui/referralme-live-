@@ -54,6 +54,20 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     };
   }, [user.uid]);
 
+  useEffect(() => {
+    // Optional handoff from AI Mentor tab.
+    const k = `referralme:mentorshipSearch:${user.uid}`;
+    try {
+      const v = localStorage.getItem(k);
+      if (v && v.trim()) {
+        setSearch(v);
+        localStorage.removeItem(k);
+      }
+    } catch {
+      // ignore
+    }
+  }, [user.uid]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return mentors;

@@ -1473,7 +1473,21 @@ export default function CleanSeekerDashboard() {
 
           {/* AI Mentor Tab */}
           <TabsContent value="ai-mentor" className="space-y-6">
-            {user ? <AiMentorChat user={user as any} /> : null}
+            {user ? (
+              <AiMentorChat
+                user={user as any}
+                onBookMentor={(prefill) => {
+                  try {
+                    if (prefill?.search) {
+                      localStorage.setItem(`referralme:mentorshipSearch:${(user as any).uid}`, prefill.search);
+                    }
+                  } catch {
+                    // ignore
+                  }
+                  setActiveTab("mentorship");
+                }}
+              />
+            ) : null}
           </TabsContent>
 
           {/* Analytics Tab */}

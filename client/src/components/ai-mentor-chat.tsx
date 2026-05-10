@@ -4,7 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Label } from "./ui/label";
+import { Separator } from "./ui/separator";
+import { Textarea } from "./ui/textarea";
+import { Loader2, Send, Sparkles, ArrowRight, Wand2 } from "lucide-react";
 import type { FirestoreUser } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 
@@ -21,8 +24,27 @@ function keyFor(uid: string) {
   return `referralme:ai-mentor:${uid}`;
 }
 
-export default function AiMentorChat({ user }: { user: FirestoreUser }) {
+export default function AiMentorChat({
+  user,
+  onBookMentor,
+}: {
+  user: FirestoreUser;
+  onBookMentor?: (prefill?: { search?: string }) => void;
+}) {
   const { toast } = useToast();
+  const [mode, setMode] = useState<"intake" | "chat">("intake");
+  const [step, setStep] = useState(1);
+  const [planText, setPlanText] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [intake, setIntake] = useState({
+    targetRole: "",
+    dreamCompanies: "",
+    experience: user.experience || "",
+    location: user.location || "",
+    currentStatus: "",
+    biggestBlocker: "",
+    resumeText: "",
+  });
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
@@ -47,12 +69,36 @@ export default function AiMentorChat({ user }: { user: FirestoreUser }) {
   }, [user.uid]);
 
   useEffect(() => {
+    const k = `${keyFor(user.uid)}:intake`;
+    const kp = `${keyFor(user.uid)}:plan`;
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") setIntake((prev) => ({ ...prev, ...parsed }));
+      }
+      const rawPlan = localStorage.getItem(kp);
+      if (rawPlan) setPlanText(rawPlan);
+    } catch {
+      // ignore
+    }
+  }, [user.uid]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(keyFor(user.uid), JSON.stringify(messages.slice(-50)));
     } catch {
       // ignore
     }
   }, [messages, user.uid]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${keyFor(user.uid)}:intake`, JSON.stringify(intake));
+    } catch {
+      // ignore
+    }
+  }, [intake, user.uid]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,6 +118,92 @@ export default function AiMentorChat({ user }: { user: FirestoreUser }) {
       linkedinUrl: user.linkedinUrl,
     };
   }, [user]);
+
+  const intakeComplete =
+    intake.targetRole.trim().length > 1 &&
+    intake.experience.trim().length > 0 &&
+    intake.currentStatus.trim().length > 3 &&
+    (intake.resumeText.trim().length > 50 || (user.linkedinUrl || "").trim().length > 5);
+
+  const intakeSummary = useMemo(() => {
+    return [
+      `Target role: ${intake.targetRole || "-"}`,
+      `Dream companies/type: ${intake.dreamCompanies || "-"}`,
+      `Experience: ${intake.experience || "-"}`,
+      `Location: ${intake.location || "-"}`,
+      `Current status: ${intake.currentStatus || "-"}`,
+      `Biggest blocker: ${intake.biggestBlocker || "-"}`,
+      `Resume: ${intake.resumeText ? `${Math.min(intake.resumeText.length, 4000)} chars provided` : user.linkedinUrl ? `LinkedIn: ${user.linkedinUrl}` : "-"}`,
+    ].join("\n");
+  }, [intake, user.linkedinUrl]);
+
+  const generatePlan = async () => {
+    if (!intakeComplete) {
+      toast({ title: "Complete the intake", description: "Fill the role, status, and add resume text (or LinkedIn link) first." });
+      return;
+    }
+    setPlanLoading(true);
+    try {
+      const resp = await fetch("/api/ai/mentor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "plan",
+          intake,
+          profile,
+        }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error(data?.message || "Plan generation failed");
+
+      const text = String(data?.text || "").trim();
+      if (!text) throw new Error("Empty plan response");
+      setPlanText(text);
+      try {
+        localStorage.setItem(`${keyFor(user.uid)}:plan`, text);
+      } catch {
+        // ignore
+      }
+      setMode("chat");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Here’s your 7-day plan based on your intake.\n\n${text}`,
+          ts: Date.now(),
+        },
+      ]);
+    } catch (e: any) {
+      toast({ title: "AI mentor unavailable", description: e?.message || "Please try again." });
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
+  const handoffSearch = useMemo(() => {
+    const parts = [intake.targetRole, intake.dreamCompanies].map((v) => v.trim()).filter(Boolean);
+    return parts.join(" ").trim();
+  }, [intake.dreamCompanies, intake.targetRole]);
+
+  const bookMentor = () => {
+    onBookMentor?.({ search: handoffSearch });
+  };
+
+  const startChatFromIntake = async () => {
+    if (!intakeComplete) {
+      toast({ title: "Complete the intake", description: "Fill the role, status, and add resume text (or LinkedIn link) first." });
+      return;
+    }
+    setMode("chat");
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: `Context for mentoring:\n${intakeSummary}\n\nPlease ask me 3 clarifying questions first, then give me a plan.`,
+        ts: Date.now(),
+      },
+    ]);
+  };
 
   const send = async () => {
     if (!canSend) return;
@@ -129,9 +261,167 @@ export default function AiMentorChat({ user }: { user: FirestoreUser }) {
               Ask questions and get a practical plan for resume, referrals etiquette, and interviews.
             </CardDescription>
           </div>
+          <div className="flex items-center gap-2">
+            {mode === "chat" ? (
+              <Button variant="outline" onClick={() => setMode("intake")}>
+                Edit intake
+              </Button>
+            ) : null}
+            <Button onClick={bookMentor} disabled={!onBookMentor || !intakeComplete}>
+              Book a mentor
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {mode === "intake" ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-slate-50 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm font-medium text-slate-900">Career Intake</div>
+                <Badge variant={intakeComplete ? "default" : "secondary"}>{intakeComplete ? "Ready" : "In progress"}</Badge>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">
+                Answer these once. Then the AI will generate a 7-day plan and you can chat.
+              </p>
+            </div>
+
+            <Card className="border-slate-200/80">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Step {step} of 4</CardTitle>
+                <CardDescription>Short answers are fine. This improves recommendations.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {step === 1 ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Target role</Label>
+                      <Input
+                        value={intake.targetRole}
+                        onChange={(e) => setIntake((p) => ({ ...p, targetRole: e.target.value }))}
+                        placeholder="SDE-1, Data Analyst, Product Intern..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Dream companies or company type</Label>
+                      <Input
+                        value={intake.dreamCompanies}
+                        onChange={(e) => setIntake((p) => ({ ...p, dreamCompanies: e.target.value }))}
+                        placeholder="Razorpay, Swiggy, GCCs, startups..."
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {step === 2 ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Experience (your current level)</Label>
+                      <Input
+                        value={intake.experience}
+                        onChange={(e) => setIntake((p) => ({ ...p, experience: e.target.value }))}
+                        placeholder="Student / Fresher / 2 yrs / 5 yrs..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Location preference</Label>
+                      <Input
+                        value={intake.location}
+                        onChange={(e) => setIntake((p) => ({ ...p, location: e.target.value }))}
+                        placeholder="Bangalore / Remote / Any..."
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {step === 3 ? (
+                  <div className="space-y-2">
+                    <Label>Current status</Label>
+                    <Textarea
+                      value={intake.currentStatus}
+                      onChange={(e) => setIntake((p) => ({ ...p, currentStatus: e.target.value }))}
+                      placeholder="Example: Final-year student. Projects in React + Firebase. No interviews yet. Applying for frontend roles."
+                      className="min-h-[110px]"
+                    />
+                    <div className="text-xs text-slate-500">
+                      Tip: include interview stage, gaps, and what you’ve already tried.
+                    </div>
+                  </div>
+                ) : null}
+
+                {step === 4 ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Biggest blocker (optional)</Label>
+                      <Input
+                        value={intake.biggestBlocker}
+                        onChange={(e) => setIntake((p) => ({ ...p, biggestBlocker: e.target.value }))}
+                        placeholder="Resume not shortlisted / Interview fear / No referrals..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Resume text (paste) or keep empty if your LinkedIn is updated</Label>
+                      <Textarea
+                        value={intake.resumeText}
+                        onChange={(e) => setIntake((p) => ({ ...p, resumeText: e.target.value }))}
+                        placeholder="Paste your resume text (recommended)."
+                        className="min-h-[160px]"
+                      />
+                      <div className="text-xs text-slate-500">
+                        We use this to suggest keyword improvements and a weekly plan. (You can paste only the important sections.)
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                <Separator />
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Button variant="outline" onClick={() => setStep((s) => Math.max(1, s - 1))} disabled={step === 1}>
+                    Back
+                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {step < 4 ? (
+                      <Button onClick={() => setStep((s) => Math.min(4, s + 1))} className="gap-2">
+                        Next <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" onClick={startChatFromIntake} disabled={!intakeComplete}>
+                          Start chat
+                        </Button>
+                        <Button onClick={generatePlan} disabled={!intakeComplete || planLoading} className="gap-2">
+                          {planLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                          Generate 7-day plan
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {planText ? (
+              <Card className="border-slate-200/80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Saved plan</CardTitle>
+                  <CardDescription>We keep this on your device so you can come back later.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="whitespace-pre-wrap text-sm text-slate-800 leading-relaxed">{planText}</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => setMode("chat")}>
+                      Continue in chat
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mode === "chat" ? (
+          <>
         <div className="h-[420px] overflow-auto rounded-xl border bg-white p-3">
           <div className="space-y-3">
             {messages.map((m, idx) => (
@@ -183,8 +473,9 @@ export default function AiMentorChat({ user }: { user: FirestoreUser }) {
             Send
           </Button>
         </div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
-
