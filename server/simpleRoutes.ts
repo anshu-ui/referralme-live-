@@ -50,6 +50,65 @@
     process.env.VITE_GEMINI_MODEL ||
     "gemini-2.0-flash";
 
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const OPENAI_MODEL_CANDIDATES = [
+    process.env.OPENAI_MODEL,
+    "gpt-4.1-mini",
+    "gpt-4.1",
+  ].filter(Boolean) as string[];
+
+  const createOpenAIResponse = async (args: {
+    instructions: string;
+    input: string;
+  }) => {
+    if (!OPENAI_API_KEY) return null;
+
+    let lastErr: any = null;
+    for (const model of OPENAI_MODEL_CANDIDATES) {
+      try {
+        const resp = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            instructions: args.instructions,
+            input: args.input,
+          }),
+        });
+
+        const data: any = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          const msg = data?.error?.message || data?.message || `OpenAI error (${resp.status})`;
+          const code = data?.error?.code || resp.status;
+          const err: any = new Error(msg);
+          err.status = resp.status;
+          err.code = code;
+          throw err;
+        }
+
+        // Common fields: output_text (convenience) or output items.
+        const text =
+          data?.output_text ||
+          data?.output?.map?.((o: any) => o?.content?.map?.((c: any) => c?.text || "").join("") || "").join("\n") ||
+          "";
+        return String(text || "").trim();
+      } catch (e: any) {
+        lastErr = e;
+        const msg = e?.message ? String(e.message) : String(e);
+        // If model doesn't exist / not allowed, try next.
+        if (msg.toLowerCase().includes("model") && (msg.includes("not found") || msg.includes("does not exist"))) {
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (lastErr) throw lastErr;
+    return null;
+  };
+
   try {
     if (process.env.VITE_FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
       const app = initializeApp({
@@ -745,20 +804,15 @@
     // AI Mentor (text) - server-side Gemini
     app.post("/api/ai/mentor", async (req: Request, res: Response) => {
       try {
-        const genAI = getGeminiClient();
-        if (!genAI) {
-          return res.status(500).json({ message: "GEMINI_API_KEY not configured on server" });
-        }
-
         const { mode, messages, profile, intake } = req.body || {};
         const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
-          ? messages
+          ? (messages
               .map((m: any) => ({
-                role: m?.role === "assistant" ? "assistant" : "user",
+                role: (m?.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
                 content: String(m?.content || "").slice(0, 8000),
               }))
-              .filter((m) => m.content.trim())
-              .slice(-20)
+              .filter((m: { role: "user" | "assistant"; content: string }) => m.content.trim())
+              .slice(-20) as Array<{ role: "user" | "assistant"; content: string }>)
           : [];
 
         const profileLine =
@@ -804,6 +858,17 @@
                 "\nASSISTANT:",
               ].join("\n");
 
+        // 1) Prefer OpenAI if configured, else fall back to Gemini.
+        const openaiText = await createOpenAIResponse({ instructions: system, input: prompt }).catch((e) => {
+          throw e;
+        });
+        if (openaiText) return res.json({ text: openaiText });
+
+        const genAI = getGeminiClient();
+        if (!genAI) {
+          return res.status(500).json({ message: "No AI provider configured. Set OPENAI_API_KEY or GEMINI_API_KEY." });
+        }
+
         const response = await genAI.models.generateContent({
           model: GEMINI_MENTOR_MODEL,
           contents: prompt,
@@ -814,6 +879,9 @@
       } catch (error: any) {
         console.error("AI mentor error:", error);
         const msg = error instanceof Error ? error.message : String(error);
+        if (String((error as any)?.status) === "429" || msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
+          return res.status(429).json({ message: "AI is busy (rate limit). Please try again in a few minutes." });
+        }
         if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
           return res.status(429).json({ message: "AI is busy (quota/rate limit). Please try again in a few minutes." });
         }
