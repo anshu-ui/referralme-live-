@@ -22,6 +22,7 @@ import ApplicationTrendsChart from "../components/application-trends-chart";
 import CommunityPosts from "../components/community-posts";
 import AIJobMatcher from "../components/ai-job-matcher";
 import MentorshipMarketplace from "../components/mentorship-marketplace";
+import AiMentorChat from "../components/ai-mentor-chat";
 
 import ReferralSystem from "../components/referral-system";
 import ComingSoonBadge from "../components/coming-soon-badge";
@@ -331,6 +332,13 @@ export default function CleanSeekerDashboard() {
                     <div className="professional-tab-content">
                       <Users className="h-4 w-4 professional-tab-icon" />
                       <span>Mentor</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="ai-mentor" className="professional-tab">
+                    <div className="professional-tab-content">
+                      <Brain className="h-4 w-4 professional-tab-icon" />
+                      <span className="hidden sm:inline">AI Mentor</span>
+                      <span className="sm:hidden">Mentor</span>
                     </div>
                   </TabsTrigger>
 
@@ -1461,6 +1469,11 @@ export default function CleanSeekerDashboard() {
           {/* Mentorship Tab */}
           <TabsContent value="mentorship" className="space-y-6">
             {user ? <MentorshipMarketplace user={user as any} /> : null}
+          </TabsContent>
+
+          {/* AI Mentor Tab */}
+          <TabsContent value="ai-mentor" className="space-y-6">
+            {user ? <AiMentorChat user={user as any} /> : null}
           </TabsContent>
 
           {/* Analytics Tab */}

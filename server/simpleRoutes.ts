@@ -5,6 +5,7 @@
   import fs from "fs";
   import crypto from "crypto";
   import Razorpay from "razorpay";
+  import { GoogleGenAI } from "@google/genai";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -37,6 +38,17 @@
     if (!keyId || !keySecret) return null;
     return new Razorpay({ key_id: keyId, key_secret: keySecret });
   };
+
+  const getGeminiClient = () => {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) return null;
+    return new GoogleGenAI({ apiKey });
+  };
+
+  const GEMINI_MENTOR_MODEL =
+    process.env.GEMINI_MODEL ||
+    process.env.VITE_GEMINI_MODEL ||
+    "gemini-2.0-flash";
 
   try {
     if (process.env.VITE_FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
@@ -727,6 +739,60 @@
       } catch (error) {
         console.error('Payment verification error:', error);
         res.status(500).json({ message: 'Failed to verify payment' });
+      }
+    });
+
+    // AI Mentor (text) - server-side Gemini
+    app.post("/api/ai/mentor", async (req: Request, res: Response) => {
+      try {
+        const genAI = getGeminiClient();
+        if (!genAI) {
+          return res.status(500).json({ message: "GEMINI_API_KEY not configured on server" });
+        }
+
+        const { messages, profile } = req.body || {};
+        const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
+          ? messages
+              .map((m: any) => ({
+                role: m?.role === "assistant" ? "assistant" : "user",
+                content: String(m?.content || "").slice(0, 8000),
+              }))
+              .filter((m) => m.content.trim())
+              .slice(-20)
+          : [];
+
+        const profileLine =
+          profile && typeof profile === "object"
+            ? `User profile: ${JSON.stringify(profile).slice(0, 1500)}`
+            : "";
+
+        const system = [
+          "You are ReferralMe AI Mentor.",
+          "You help Indian job seekers with practical next steps: resume strategy, interview prep, company targeting, networking/referrals etiquette, and weekly plans.",
+          "Be concise, structured, and action-oriented. Use bullet points and short checklists. Avoid generic advice.",
+          "If the user asks for referrals, guide them on ethical outreach and how to ask, not selling referrals.",
+          "Do not claim you can contact companies or guarantee outcomes.",
+          profileLine,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        const prompt = [
+          `SYSTEM:\n${system}\n\n`,
+          ...safeMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`),
+          "\nASSISTANT:",
+        ].join("\n");
+
+        const response = await genAI.models.generateContent({
+          model: GEMINI_MENTOR_MODEL,
+          contents: prompt,
+        });
+
+        const text = response.text || "";
+        return res.json({ text });
+      } catch (error) {
+        console.error("AI mentor error:", error);
+        return res.status(500).json({ message: "AI mentor request failed" });
       }
     });
 
