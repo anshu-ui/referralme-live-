@@ -33,6 +33,8 @@ import ComingSoonBadge from "../components/coming-soon-badge";
 import RealTimeGamification from "../components/real-time-gamification";
 import DashboardFooter from "../components/dashboard-footer";
 import AutoAchievementSystem from "../components/auto-achievement-system";
+import MentorshipSettingsPanel from "../components/mentorship-settings-panel";
+import MentorshipSessionsPanel from "../components/mentorship-sessions-panel";
 import { 
   trackEvent, 
   trackTabSwitch, 
@@ -55,6 +57,7 @@ import {
   updateReferralRequestStatus,
   deleteJobPosting,
 } from "../lib/firestore";
+import type { FirestoreUser } from "../lib/firestore";
 // import MentorAccountSetup from "../components/mentor-account-setup";
 // import DualPaymentSetup from "../components/dual-payment-setup";
 import {
@@ -755,51 +758,22 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
           {/* Mentorship Tab */}
           <TabsContent value="mentorship" className="space-y-6">
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mentorship Platform</h2>
-                <ComingSoonBadge feature="Coming Soon" variant="sparkle" size="lg" />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mentorship</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Turn on mentorship to appear to seekers. Add services, pricing, and confirm session requests with a meeting link.
+                  </p>
+                </div>
               </div>
 
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <div className="max-w-md mx-auto space-y-4">
-                    <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
-                      <Users className="h-12 w-12 text-purple-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold">Mentorship Feature Coming Soon!</h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Offer paid mentorship sessions with video calls, payment integration, and scheduling. 
-                      Earn extra income by sharing your expertise!
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                        <Video className="h-4 w-4" />
-                        <span>Video Call Integration</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                        <CreditCard className="h-4 w-4" />
-                        <span>Payment Processing</span>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                        <Calendar className="h-4 w-4" />
-                        <span>Session Scheduling</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full">
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notify Me When Available
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {user ? (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <MentorshipSettingsPanel user={user as unknown as FirestoreUser} onUpdated={refreshUser} />
+                  <MentorshipSessionsPanel user={user as unknown as FirestoreUser} role="mentor" />
+                </div>
+              ) : null}
             </div>
-            {/* <MentorshipSection 
-              user={user} 
-              isMentorAccountSetupOpen={isMentorAccountSetupOpen}
-              setIsMentorAccountSetupOpen={setIsMentorAccountSetupOpen}
-              isDualPaymentSetupOpen={isDualPaymentSetupOpen}
-              setIsDualPaymentSetupOpen={setIsDualPaymentSetupOpen}
-            /> */}
           </TabsContent>
         </Tabs>
 

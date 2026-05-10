@@ -191,7 +191,7 @@ export interface MentorshipSession {
   title: string;
   description?: string;
   duration: number; // minutes
-  price: number; // in USD
+  price: number; // in INR (pricing is currently INR across the product)
   scheduledAt: Timestamp;
   status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
   meetingUrl?: string;

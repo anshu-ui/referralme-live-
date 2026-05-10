@@ -21,6 +21,7 @@ import ATSAnalyzer from "../components/ats-analyzer";
 import ApplicationTrendsChart from "../components/application-trends-chart";
 import CommunityPosts from "../components/community-posts";
 import AIJobMatcher from "../components/ai-job-matcher";
+import MentorshipMarketplace from "../components/mentorship-marketplace";
 
 import ReferralSystem from "../components/referral-system";
 import ComingSoonBadge from "../components/coming-soon-badge";
@@ -1459,72 +1460,7 @@ export default function CleanSeekerDashboard() {
 
           {/* Mentorship Tab */}
           <TabsContent value="mentorship" className="space-y-6">
-            <div className="space-y-6">
-              {/* Coming Soon Section */}
-              <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-purple-600" />
-                        Professional Mentorship
-                      </CardTitle>
-                      <CardDescription>Get personalized career guidance from industry experts</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Sparkles className="h-16 w-16 text-purple-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Mentorship Marketplace Coming Soon!</h3>
-                    <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-                      Connect with industry experts for personalized career guidance, interview preparation, 
-                      and skill development. Our mentorship platform will launch with video calls, 
-                      scheduling, and secure payments.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="p-4 bg-white rounded-lg border">
-                        <Video className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">1-on-1 Video Sessions</h4>
-                        <p className="text-sm text-gray-600">Personal coaching calls</p>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg border">
-                        <Calendar className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">Easy Scheduling</h4>
-                        <p className="text-sm text-gray-600">Book sessions that fit your schedule</p>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg border">
-                        <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">Secure Payments</h4>
-                        <p className="text-sm text-gray-600">Safe transactions with mentors</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full max-w-md">
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notify Me When Available
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* My Mentorship Sessions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-blue-600" />
-                    My Mentorship Sessions
-                  </CardTitle>
-                  <CardDescription>Track your upcoming and past mentorship sessions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions booked yet</h3>
-                    <p className="text-gray-500">Book your first mentorship session to get started</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {user ? <MentorshipMarketplace user={user as any} /> : null}
           </TabsContent>
 
           {/* Analytics Tab */}
