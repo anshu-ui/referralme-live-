@@ -154,7 +154,29 @@ export default function AiMentorChat({
         }),
       });
       const data = await resp.json().catch(() => null);
-      if (!resp.ok) throw new Error(data?.message || "Plan generation failed");
+      if (!resp.ok) {
+        // If AI provider is rate-limited, use deterministic fallback.
+        const fallback = data?.fallbackText ? String(data.fallbackText) : "";
+        if (resp.status === 429 && fallback.trim()) {
+          setPlanText(fallback);
+          try {
+            localStorage.setItem(`${keyFor(user.uid)}:plan`, fallback);
+          } catch {
+            // ignore
+          }
+          setMode("chat");
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `AI is busy right now, so here is a solid starter plan (offline mode).\n\n${fallback}`,
+              ts: Date.now(),
+            },
+          ]);
+          return;
+        }
+        throw new Error(data?.message || "Plan generation failed");
+      }
 
       const text = String(data?.text || "").trim();
       if (!text) throw new Error("Empty plan response");

@@ -6,6 +6,7 @@
   import crypto from "crypto";
   import Razorpay from "razorpay";
   import { GoogleGenAI } from "@google/genai";
+  import { generateLitePlan } from "./mentorLite";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -805,6 +806,9 @@
     app.post("/api/ai/mentor", async (req: Request, res: Response) => {
       try {
         const { mode, messages, profile, intake } = req.body || {};
+        if (mode === "lite-plan") {
+          return res.json({ text: generateLitePlan(intake || {}) });
+        }
         const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
           ? (messages
               .map((m: any) => ({
@@ -880,10 +884,16 @@
         console.error("AI mentor error:", error);
         const msg = error instanceof Error ? error.message : String(error);
         if (String((error as any)?.status) === "429" || msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
-          return res.status(429).json({ message: "AI is busy (rate limit). Please try again in a few minutes." });
+          return res.status(429).json({
+            message: "AI is busy (rate limit). Please try again in a few minutes.",
+            fallbackText: generateLitePlan(intake || {}),
+          });
         }
         if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
-          return res.status(429).json({ message: "AI is busy (quota/rate limit). Please try again in a few minutes." });
+          return res.status(429).json({
+            message: "AI is busy (quota/rate limit). Please try again in a few minutes.",
+            fallbackText: generateLitePlan(intake || {}),
+          });
         }
         return res.status(500).json({ message: "AI mentor request failed" });
       }
