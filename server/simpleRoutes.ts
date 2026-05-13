@@ -41,14 +41,13 @@
   };
 
   const getGeminiClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
     return new GoogleGenAI({ apiKey });
   };
 
   const GEMINI_MENTOR_MODEL =
     process.env.GEMINI_MODEL ||
-    process.env.VITE_GEMINI_MODEL ||
     "gemini-2.0-flash";
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -804,8 +803,11 @@
 
     // AI Mentor (text) - server-side Gemini
     app.post("/api/ai/mentor", async (req: Request, res: Response) => {
+      let intake: any = null;
       try {
-        const { mode, messages, profile, intake } = req.body || {};
+        const body = req.body || {};
+        intake = body.intake;
+        const { mode, messages, profile } = body;
         if (mode === "lite-plan") {
           return res.json({ text: generateLitePlan(intake || {}) });
         }
@@ -896,6 +898,62 @@
           });
         }
         return res.status(500).json({ message: "AI mentor request failed" });
+      }
+    });
+
+    // Gemini proxy for client-side features (ATS/job extraction). Keeps API key on server only.
+    app.post("/api/ai/gemini", async (req: Request, res: Response) => {
+      try {
+        const genAI = getGeminiClient();
+        if (!genAI) {
+          return res.status(500).json({ message: "GEMINI_API_KEY not configured on server" });
+        }
+
+        const prompt = String(req.body?.prompt || "").slice(0, 24000);
+        const options = req.body?.options || {};
+
+        const allowFallbackModels = Boolean(options.allowFallbackModels);
+        const responseMimeType = options.responseMimeType ? String(options.responseMimeType) : undefined;
+        const responseSchema = options.responseSchema && typeof options.responseSchema === "object" ? options.responseSchema : undefined;
+
+        const modelCandidates = [
+          options.model ? String(options.model) : null,
+          process.env.GEMINI_MODEL || null,
+          "gemini-2.0-flash",
+          "gemini-1.5-flash-latest",
+          "gemini-1.5-flash-8b",
+        ]
+          .filter(Boolean)
+          // if allowFallbackModels is false, keep just the first candidate
+          .filter((_, idx, arr) => (allowFallbackModels ? true : idx === 0 || (idx === 1 && !arr[0])));
+
+        let lastErr: any = null;
+        for (const model of modelCandidates) {
+          try {
+            const response = await genAI.models.generateContent({
+              model: String(model),
+              contents: prompt,
+              config: {
+                responseMimeType,
+                responseSchema,
+              },
+            });
+            return res.json({ text: response.text || "" });
+          } catch (e: any) {
+            lastErr = e;
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes('"code":403') || msg.includes('"code":404')) break;
+          }
+        }
+
+        const msg = lastErr instanceof Error ? lastErr.message : "Gemini request failed";
+        if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
+          return res.status(429).json({ message: "Gemini rate limit/quota exceeded. Try later." });
+        }
+        return res.status(500).json({ message: "Gemini request failed" });
+      } catch (error) {
+        console.error("Gemini proxy error:", error);
+        return res.status(500).json({ message: "Gemini proxy failed" });
       }
     });
 

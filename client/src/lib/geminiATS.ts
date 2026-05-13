@@ -1,21 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize Gemini AI - Use server-side API key for security
-const getGeminiAI = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
-const GEMINI_MODEL_CANDIDATES = [
-  import.meta.env.VITE_GEMINI_MODEL,
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash-8b",
-  "gemini-1.5-flash",
-].filter(Boolean) as string[];
+// Gemini calls are proxied through the server so API keys are never shipped to the browser.
 
 const ATS_STOPWORDS = new Set([
   "the", "and", "for", "with", "you", "your", "from", "that", "this", "have", "will", "into",
@@ -126,42 +109,26 @@ const generateGeminiText = async (
     allowFallbackModels?: boolean;
   } = {},
 ) => {
-  const genAI = getGeminiAI();
-  if (!genAI) {
-    throw new Error("Gemini API key not configured");
+  const resp = await fetch("/api/ai/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt,
+      options: {
+        model: options.model,
+        responseMimeType: options.responseMimeType,
+        responseSchema: options.responseSchema,
+        allowFallbackModels: options.allowFallbackModels,
+      },
+    }),
+  });
+
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok) {
+    const msg = data?.message || `Gemini proxy error (${resp.status})`;
+    throw new Error(msg);
   }
-  let lastError: unknown;
-
-  const candidateModels = options.model
-    ? [options.model]
-    : options.allowFallbackModels
-      ? GEMINI_MODEL_CANDIDATES
-      : GEMINI_MODEL_CANDIDATES.slice(0, 1);
-
-  for (const model of candidateModels) {
-    try {
-      const response = await genAI.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: options.responseMimeType,
-          responseSchema: options.responseSchema,
-        },
-      });
-
-      return response.text || "";
-    } catch (error) {
-      lastError = error;
-      console.warn(`Gemini model failed: ${model}`, error);
-
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('"code":403') || message.includes('"code":404')) {
-        break;
-      }
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("Gemini request failed");
+  return String(data?.text || "");
 };
 
 export interface ATSAnalysis {
