@@ -242,6 +242,8 @@ export default function AiMentorChat({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: "chat",
+          intake,
           messages: [...messages, userMsg].slice(-20).map((m) => ({ role: m.role, content: m.content })),
           profile,
         }),
@@ -249,6 +251,18 @@ export default function AiMentorChat({
 
       const data = await resp.json().catch(() => null);
       if (!resp.ok) {
+        const fallback = data?.fallbackText ? String(data.fallbackText) : "";
+        if (resp.status === 429 && fallback.trim()) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: fallback,
+              ts: Date.now(),
+            },
+          ]);
+          return;
+        }
         throw new Error(data?.message || "AI mentor failed");
       }
 

@@ -195,3 +195,91 @@ export function generateLitePlan(input: Intake) {
   return output;
 }
 
+export function generateLiteChat(args: {
+  intake?: Intake;
+  lastUserMessage?: string;
+}) {
+  const intake = args.intake || {};
+  const msg = norm(args.lastUserMessage);
+  const targetRole = norm(intake.targetRole) || "your target role";
+  const track = guessTrack(targetRole);
+
+  const intent = (() => {
+    const m = msg.toLowerCase();
+    if (/(resume|cv|ats|keyword)/.test(m)) return "resume";
+    if (/(referral|refer|dm|linkedin|message)/.test(m)) return "referral";
+    if (/(interview|mock|hr|round|dsa|system design)/.test(m)) return "interview";
+    if (/(job|apply|application|shortlist)/.test(m)) return "jobs";
+    if (/(roadmap|learn|course|skill|project)/.test(m)) return "learning";
+    return "general";
+  })();
+
+  const base = [
+    "AI is rate-limited right now, but I can still help in offline mode.",
+    `Target: **${targetRole}** • Track: **${track}**`,
+    "",
+  ];
+
+  const blocks: Record<string, string[]> = {
+    resume: [
+      "### Resume quick fixes (high impact)",
+      "- Put a 2-line headline + 3 impact bullets at the top (role, stack, outcomes).",
+      "- Convert responsibilities into outcomes: `did X` -> `did X resulting in Y` (numbers).",
+      "- Add a Skills section with keywords from 10 target JDs (no stuffing).",
+      "- Put best project first with link + 2 bullets (problem, solution, result).",
+      "",
+      "Reply with: your role, 1 project link, and 1 experience bullet. I’ll rewrite it.",
+    ],
+    referral: [
+      "### Referral strategy (ethical + works)",
+      "- Start warm: alumni, seniors, mutual connections, same college/company.",
+      "- Ask for 1 role at a time with a job link.",
+      "- Send 2 fit bullets + resume link (make it easy to say yes).",
+      "",
+      "Template:",
+      "```",
+      "Hi {Name} — I’m {YourName}. I’m targeting {Role}.",
+      "Would you be open to referring me for this role? {JobLink}",
+      "Quick fit:",
+      "- {Impact + stack}",
+      "- {Impact + stack}",
+      "Resume: {Link}  |  Thanks!",
+      "```",
+      "",
+      "Reply with the job link + your 2 fit bullets and I’ll customize the message.",
+    ],
+    interview: [
+      "### Interview plan (next 7 days)",
+      "- Day 1-2: fundamentals + 20 common questions for your role.",
+      "- Day 3-5: 1 mock/day (record yourself) + fix mistakes doc.",
+      "- Day 6: 2 full mocks (timed).",
+      "- Day 7: revision + storytelling (STAR) + weak topics.",
+      "",
+      "Tell me: which round you’re facing (HR/Tech/Manager) and I’ll give a prep checklist.",
+    ],
+    jobs: [
+      "### Application strategy (smart)",
+      "- Apply to max 8/day but tailor top 1/3 of resume for each role type.",
+      "- For each application, send 1 referral request to a relevant person with the job link.",
+      "- Track response rate and iterate your message.",
+      "",
+      "Tell me your current response rate (replies/applications) and I’ll suggest adjustments.",
+    ],
+    learning: [
+      "### Skill roadmap (practical)",
+      "- Pick 1 portfolio project aligned with the target role and ship in 7-10 days.",
+      "- Learn by building: feature list, weekly milestones, deployment.",
+      "- Document everything: README + screenshots + metrics.",
+      "",
+      "Tell me your current stack and I’ll propose 1 project with milestones.",
+    ],
+    general: [
+      "### Quick next steps",
+      "- Share your current status: experience, 2 skills, 1 project, and what’s blocking you.",
+      "- I’ll give you a 7-day plan + message template + interview checklist.",
+    ],
+  };
+
+  const out = [...base, ...(blocks[intent] || blocks.general)].join("\n");
+  return out;
+}

@@ -6,7 +6,7 @@
   import crypto from "crypto";
   import Razorpay from "razorpay";
   import { GoogleGenAI } from "@google/genai";
-  import { generateLitePlan } from "./mentorLite";
+  import { generateLiteChat, generateLitePlan } from "./mentorLite";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -802,6 +802,9 @@
     });
 
     // AI Mentor (text) - server-side Gemini
+    // Simple in-memory cooldown to avoid hammering upstream when quota is exhausted.
+    let aiCooldownUntil = 0;
+
     app.post("/api/ai/mentor", async (req: Request, res: Response) => {
       let intake: any = null;
       try {
@@ -810,6 +813,23 @@
         const { mode, messages, profile } = body;
         if (mode === "lite-plan") {
           return res.json({ text: generateLitePlan(intake || {}) });
+        }
+        if (mode === "lite-chat") {
+          const lastUser = Array.isArray(messages) ? messages.slice(-1)[0]?.content : "";
+          return res.json({ text: generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser }) });
+        }
+
+        // If we recently hit rate limit, skip upstream calls and return fallback immediately.
+        if (Date.now() < aiCooldownUntil && !process.env.OPENAI_API_KEY) {
+          const lastUser = Array.isArray(messages) ? messages.slice(-1)[0]?.content : "";
+          const fallbackText =
+            mode === "plan"
+              ? generateLitePlan(intake || {})
+              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
+          return res.status(429).json({
+            message: "AI is temporarily limited. Using offline mode.",
+            fallbackText,
+          });
         }
         const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
           ? (messages
@@ -886,15 +906,27 @@
         console.error("AI mentor error:", error);
         const msg = error instanceof Error ? error.message : String(error);
         if (String((error as any)?.status) === "429" || msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
+          aiCooldownUntil = Date.now() + 60_000; // 60s cooldown
+          const lastUser = Array.isArray((req as any)?.body?.messages) ? (req as any).body.messages.slice(-1)[0]?.content : "";
+          const fallbackText =
+            (req as any)?.body?.mode === "plan"
+              ? generateLitePlan(intake || {})
+              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.status(429).json({
             message: "AI is busy (rate limit). Please try again in a few minutes.",
-            fallbackText: generateLitePlan(intake || {}),
+            fallbackText,
           });
         }
         if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
+          aiCooldownUntil = Date.now() + 5 * 60_000; // 5 min cooldown
+          const lastUser = Array.isArray((req as any)?.body?.messages) ? (req as any).body.messages.slice(-1)[0]?.content : "";
+          const fallbackText =
+            (req as any)?.body?.mode === "plan"
+              ? generateLitePlan(intake || {})
+              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.status(429).json({
             message: "AI is busy (quota/rate limit). Please try again in a few minutes.",
-            fallbackText: generateLitePlan(intake || {}),
+            fallbackText,
           });
         }
         return res.status(500).json({ message: "AI mentor request failed" });
