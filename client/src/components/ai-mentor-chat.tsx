@@ -154,29 +154,7 @@ export default function AiMentorChat({
         }),
       });
       const data = await resp.json().catch(() => null);
-      if (!resp.ok) {
-        // If AI provider is rate-limited, use deterministic fallback.
-        const fallback = data?.fallbackText ? String(data.fallbackText) : "";
-        if (resp.status === 429 && fallback.trim()) {
-          setPlanText(fallback);
-          try {
-            localStorage.setItem(`${keyFor(user.uid)}:plan`, fallback);
-          } catch {
-            // ignore
-          }
-          setMode("chat");
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: `AI is busy right now, so here is a solid starter plan (offline mode).\n\n${fallback}`,
-              ts: Date.now(),
-            },
-          ]);
-          return;
-        }
-        throw new Error(data?.message || "Plan generation failed");
-      }
+      if (!resp.ok) throw new Error(data?.message || "Plan generation failed");
 
       const text = String(data?.text || "").trim();
       if (!text) throw new Error("Empty plan response");
@@ -191,7 +169,7 @@ export default function AiMentorChat({
         ...prev,
         {
           role: "assistant",
-          content: `Here’s your 7-day plan based on your intake.\n\n${text}`,
+          content: `${data?.offline ? "OFFLINE MODE (AI limited):\n\n" : ""}Here’s your 7-day plan based on your intake.\n\n${text}`,
           ts: Date.now(),
         },
       ]);
@@ -251,24 +229,15 @@ export default function AiMentorChat({
 
       const data = await resp.json().catch(() => null);
       if (!resp.ok) {
-        const fallback = data?.fallbackText ? String(data.fallbackText) : "";
-        if (resp.status === 429 && fallback.trim()) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: fallback,
-              ts: Date.now(),
-            },
-          ]);
-          return;
-        }
         throw new Error(data?.message || "AI mentor failed");
       }
 
       const text = String(data?.text || "").trim();
       if (!text) throw new Error("AI mentor returned empty response");
-      setMessages((prev) => [...prev, { role: "assistant", content: text, ts: Date.now() }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `${data?.offline ? "OFFLINE MODE (AI limited):\n\n" : ""}${text}`, ts: Date.now() },
+      ]);
     } catch (e: any) {
       toast({ title: "AI mentor unavailable", description: e?.message || "Please try again." });
       setMessages((prev) => [

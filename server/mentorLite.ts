@@ -134,65 +134,87 @@ export function generateLitePlan(input: Intake) {
   ];
 
   const outreachTemplate = [
-    "Hi {Name} — I’m {YourName}. I’m targeting {Role} roles.",
-    "I noticed you’re at {Company}/work in {Domain}.",
+    "Hi {Name}, I’m {YourName}. I’m targeting {Role}.",
     "Would you be open to referring me for this role? {JobLink}",
     "Quick fit:",
-    "- {Bullet 1: impact + stack}",
-    "- {Bullet 2: impact + stack}",
-    "Resume: {Link}  |  Thanks!",
+    "• {Bullet 1: impact + stack}",
+    "• {Bullet 2: impact + stack}",
+    "Resume: {Link}",
+    "Thanks!",
   ].join("\n");
 
-  const output = [
-    "# Goal",
-    `Target role: **${targetRole}**`,
-    dream ? `Targets: **${dream}**` : "",
-    exp ? `Experience: **${exp}**` : "",
-    loc ? `Location: **${loc}**` : "",
-    "",
-    "# Current Snapshot",
-    status ? limitedText(status, 900) : "Not provided.",
-    blocker ? `Biggest blocker: ${limitedText(blocker, 240)}` : "",
-    resumeNote,
-    "",
-    "# 7-Day Plan",
-    ...week.map((d) => [`## ${d.day}`, ...d.tasks.map((t) => `- ${t}`), ""].join("\n")),
-    "# Resume / ATS Fixes (Top 8)",
-    "- Ensure each role has 3-5 bullets with impact + tools.",
-    "- Add numbers: users, latency, revenue, cost saved, time saved.",
-    "- Add a Skills section with the exact keywords from your target roles.",
-    "- Keep resume 1 page (0-3 YoE) / 2 pages (3+ YoE) and readable.",
-    "- Remove vague lines like 'hardworking' and replace with proof.",
-    "- Put your best project first; include links.",
-    "- Make titles consistent: Company, Role, Dates, Location.",
-    "- Tailor the top 1/3 of resume per role type.",
-    "",
-    "# Referral Outreach Plan",
-    "- Start with warm nodes: alumni, seniors, college groups, mutuals.",
-    "- Ask for 1 role at a time with a job link and 2 fit bullets.",
-    "- Follow up once after 48 hours (short, polite).",
-    "",
-    "### Outreach Template",
-    "```",
-    outreachTemplate,
-    "```",
-    "",
-    "# Interview Prep Plan",
-    `- Focus area: **${track}** basics + role-specific questions.`,
-    "- Do 1 mock/day (self-recorded).",
-    "- Keep a 'mistakes doc' and revise weekly.",
-    "",
-    "# Checkpoints",
-    "- Response rate (replies / messages sent)",
-    "- Interview rate (interviews / applications)",
-    "- Weak topics list (top 5) and improvement per week",
-    "",
-    "If you want human help, book a mentor session in the Mentorship tab.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const bulletLines = (lines: string[]) => lines.map((l) => `• ${l}`);
 
-  return output;
+  const outputLines: string[] = [];
+  outputLines.push("GOAL");
+  outputLines.push(
+    ...bulletLines([
+      `Target role: ${targetRole}`,
+      `Targets: ${dream || "(not specified)"}`,
+      `Experience: ${exp || "(not specified)"}`,
+      `Location: ${loc || "(not specified)"}`,
+    ]),
+  );
+  outputLines.push("");
+
+  outputLines.push("CURRENT SNAPSHOT");
+  outputLines.push(status ? limitedText(status, 900) : "(not provided)");
+  if (blocker) outputLines.push(`Biggest blocker: ${limitedText(blocker, 240)}`);
+  outputLines.push(resumeNote, "");
+
+  outputLines.push("7-DAY PLAN");
+  for (const d of week) {
+    outputLines.push(d.day.toUpperCase());
+    outputLines.push(...bulletLines(d.tasks));
+    outputLines.push("");
+  }
+
+  outputLines.push("RESUME / ATS FIXES (TOP 8)");
+  outputLines.push(
+    ...bulletLines([
+      "Ensure each role has 3–5 bullets with impact and tools (not responsibilities).",
+      "Add numbers: users, latency, revenue, cost saved, time saved.",
+      "Add a Skills section with keywords from your target roles.",
+      "Keep resume 1 page (0–3 YoE) / 2 pages (3+ YoE) and readable.",
+      "Replace vague claims (hardworking) with proof and outcomes.",
+      "Put your best project first; include links.",
+      "Make titles consistent: Company, Role, Dates, Location.",
+      "Tailor the top third of the resume per role type.",
+    ]),
+  );
+  outputLines.push("");
+
+  outputLines.push("REFERRAL OUTREACH PLAN");
+  outputLines.push(
+    ...bulletLines([
+      "Start warm: alumni, seniors, mutual connections, college communities.",
+      "Ask for one role at a time with a job link and two fit bullets.",
+      "Follow up once after 48 hours (short and polite).",
+    ]),
+  );
+  outputLines.push("", "OUTREACH TEMPLATE", outreachTemplate, "");
+
+  outputLines.push("INTERVIEW PREP PLAN");
+  outputLines.push(
+    ...bulletLines([
+      `Focus area: ${track} fundamentals plus role-specific questions.`,
+      "Do 1 mock per day (record yourself).",
+      "Maintain a mistakes doc and revise weekly.",
+    ]),
+  );
+  outputLines.push("");
+
+  outputLines.push("CHECKPOINTS");
+  outputLines.push(
+    ...bulletLines([
+      "Response rate (replies / messages sent)",
+      "Interview rate (interviews / applications)",
+      "Top 5 weak topics and improvement week over week",
+    ]),
+  );
+  outputLines.push("", "If you want human help, book a mentor session in the Mentorship tab.");
+
+  return outputLines.join("\n");
 }
 
 export function generateLiteChat(args: {
@@ -216,7 +238,7 @@ export function generateLiteChat(args: {
 
   const base = [
     "AI is rate-limited right now, but I can still help in offline mode.",
-    `Target: **${targetRole}** • Track: **${track}**`,
+    `Target: ${targetRole} • Track: ${track}`,
     "",
   ];
 

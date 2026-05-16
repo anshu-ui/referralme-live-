@@ -826,9 +826,10 @@
             mode === "plan"
               ? generateLitePlan(intake || {})
               : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
-          return res.status(429).json({
-            message: "AI is temporarily limited. Using offline mode.",
-            fallbackText,
+          return res.json({
+            text: fallbackText,
+            offline: true,
+            message: "AI temporarily limited. Returned offline guidance.",
           });
         }
         const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(messages)
@@ -912,9 +913,10 @@
             (req as any)?.body?.mode === "plan"
               ? generateLitePlan(intake || {})
               : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
-          return res.status(429).json({
-            message: "AI is busy (rate limit). Please try again in a few minutes.",
-            fallbackText,
+          return res.json({
+            text: fallbackText,
+            offline: true,
+            message: "AI rate limited. Returned offline guidance.",
           });
         }
         if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
@@ -924,9 +926,10 @@
             (req as any)?.body?.mode === "plan"
               ? generateLitePlan(intake || {})
               : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
-          return res.status(429).json({
-            message: "AI is busy (quota/rate limit). Please try again in a few minutes.",
-            fallbackText,
+          return res.json({
+            text: fallbackText,
+            offline: true,
+            message: "AI quota limited. Returned offline guidance.",
           });
         }
         return res.status(500).json({ message: "AI mentor request failed" });
