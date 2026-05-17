@@ -7,9 +7,10 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
 import { Textarea } from "./ui/textarea";
-import { Loader2, Send, Sparkles, ArrowRight, Wand2 } from "lucide-react";
+import { Loader2, Send, Sparkles, ArrowRight, Wand2, Target, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { FirestoreUser } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
+import { analyzeResumeWithGemini } from "../lib/gemini-ats";
 
 type ChatMsg = { role: "user" | "assistant"; content: string; ts: number };
 
@@ -45,6 +46,13 @@ export default function AiMentorChat({
     biggestBlocker: "",
     resumeText: "",
   });
+  const [resumeCoach, setResumeCoach] = useState({
+    resumeText: "",
+    jobDescription: "",
+  });
+  const [atsResult, setAtsResult] = useState<any>(null);
+  const [atsLoading, setAtsLoading] = useState(false);
+  const [atsError, setAtsError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
@@ -83,6 +91,15 @@ export default function AiMentorChat({
       // ignore
     }
   }, [user.uid]);
+
+  useEffect(() => {
+    // Keep resume coach prefilled from intake.
+    setResumeCoach((p) => ({
+      ...p,
+      resumeText: intake.resumeText || p.resumeText,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intake.resumeText]);
 
   useEffect(() => {
     try {
@@ -180,6 +197,26 @@ export default function AiMentorChat({
       });
     } finally {
       setPlanLoading(false);
+    }
+  };
+
+  const runAts = async () => {
+    const resumeText = resumeCoach.resumeText.trim();
+    if (resumeText.length < 120) {
+      setAtsError("Paste at least a few sections of your resume (120+ characters) for an accurate scan.");
+      return;
+    }
+    setAtsError(null);
+    setAtsLoading(true);
+    try {
+      const result = await analyzeResumeWithGemini(resumeText, resumeCoach.jobDescription || "", {
+        jobTitle: intake.targetRole || undefined,
+      });
+      setAtsResult(result);
+    } catch (e: any) {
+      setAtsError(e?.message || "Could not analyze resume right now.");
+    } finally {
+      setAtsLoading(false);
     }
   };
 
@@ -430,6 +467,119 @@ export default function AiMentorChat({
 
         {mode === "chat" ? (
           <>
+        <Card className="border-slate-200/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-600" />
+              Resume Coach (ATS + Tailoring)
+            </CardTitle>
+            <CardDescription>
+              Paste resume text and optionally a job description. Get concrete fixes you can apply today.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Resume text</Label>
+                <Textarea
+                  value={resumeCoach.resumeText}
+                  onChange={(e) => setResumeCoach((p) => ({ ...p, resumeText: e.target.value }))}
+                  placeholder="Paste your resume sections: Summary, Experience, Projects, Skills."
+                  className="min-h-[140px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Target job description (optional)</Label>
+                <Textarea
+                  value={resumeCoach.jobDescription}
+                  onChange={(e) => setResumeCoach((p) => ({ ...p, jobDescription: e.target.value }))}
+                  placeholder="Paste the JD (Responsibilities + Requirements) for keyword matching."
+                  className="min-h-[140px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {atsError ? (
+                <div className="text-sm text-red-600 inline-flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {atsError}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500">
+                  Tip: add a JD to get better missing-keywords suggestions.
+                </div>
+              )}
+              <Button onClick={runAts} disabled={atsLoading} className="gap-2">
+                {atsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Analyze
+              </Button>
+            </div>
+
+            {atsResult ? (
+              <div className="rounded-xl border bg-white p-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {[
+                    ["Overall", atsResult.overallScore],
+                    ["Skills", atsResult.skillsScore],
+                    ["Keywords", atsResult.keywordsScore],
+                    ["Format", atsResult.formatScore],
+                  ].map(([label, value]: any) => (
+                    <div key={label} className="rounded-lg border bg-slate-50 p-3">
+                      <div className="text-xs text-slate-600">{label}</div>
+                      <div className="text-2xl font-semibold text-slate-900">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-slate-900">Top fixes</div>
+                    <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                      {(atsResult.suggestions || []).slice(0, 6).map((s: string, i: number) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-slate-900">Strong points</div>
+                    <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                      {(atsResult.strongPoints || []).slice(0, 6).map((s: string, i: number) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {(atsResult.missingKeywords || []).length ? (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-slate-900">Missing keywords (add naturally)</div>
+                    <div className="flex flex-wrap gap-2">
+                      {(atsResult.missingKeywords || []).slice(0, 16).map((k: string) => (
+                        <span
+                          key={k}
+                          className="rounded-full border bg-slate-50 px-3 py-1 text-xs text-slate-700"
+                        >
+                          {k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIntake((p) => ({ ...p, resumeText: resumeCoach.resumeText }))}
+                  >
+                    Use this resume for plan
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
         <div className="h-[420px] overflow-auto rounded-xl border bg-white p-3">
           <div className="space-y-3">
             {messages.map((m, idx) => (
