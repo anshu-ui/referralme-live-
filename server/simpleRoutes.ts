@@ -6,7 +6,7 @@
   import crypto from "crypto";
   import Razorpay from "razorpay";
   import { GoogleGenAI } from "@google/genai";
-  import { generateLiteChat, generateLitePlan } from "./mentorLite";
+  import { generateLiteChat, generateLiteInterviewPack, generateLitePlan, generateLiteReferralDm, generateLiteResumeRewrite } from "./mentorLite";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -819,13 +819,24 @@
           return res.json({ text: generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser }) });
         }
 
+        const lastUser = Array.isArray(messages) ? messages.slice(-1)[0]?.content : "";
+        const offlineForMode = () => {
+          if (mode === "plan") return generateLitePlan(intake || {});
+          if (mode === "resume-rewrite") return generateLiteResumeRewrite({ intake: intake || {}, resumeText: body.resumeText || "" });
+          if (mode === "referral-dm")
+            return generateLiteReferralDm({
+              intake: intake || {},
+              jobLink: body.jobLink || "",
+              fitBullets: Array.isArray(body.fitBullets) ? body.fitBullets : [],
+              channel: body.channel || "linkedin",
+            });
+          if (mode === "interview-pack") return generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" });
+          return generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
+        };
+
         // If we recently hit rate limit, skip upstream calls and return fallback immediately.
         if (Date.now() < aiCooldownUntil && !process.env.OPENAI_API_KEY) {
-          const lastUser = Array.isArray(messages) ? messages.slice(-1)[0]?.content : "";
-          const fallbackText =
-            mode === "plan"
-              ? generateLitePlan(intake || {})
-              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
+          const fallbackText = offlineForMode();
           return res.json({
             text: fallbackText,
             offline: true,
@@ -908,11 +919,24 @@
         const msg = error instanceof Error ? error.message : String(error);
         if (String((error as any)?.status) === "429" || msg.includes("429") || msg.toLowerCase().includes("rate limit")) {
           aiCooldownUntil = Date.now() + 60_000; // 60s cooldown
-          const lastUser = Array.isArray((req as any)?.body?.messages) ? (req as any).body.messages.slice(-1)[0]?.content : "";
+          const body = (req as any)?.body || {};
+          const lastUser = Array.isArray(body?.messages) ? body.messages.slice(-1)[0]?.content : "";
+          const m = body?.mode;
           const fallbackText =
-            (req as any)?.body?.mode === "plan"
+            m === "plan"
               ? generateLitePlan(intake || {})
-              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
+              : m === "resume-rewrite"
+                ? generateLiteResumeRewrite({ intake: intake || {}, resumeText: body.resumeText || "" })
+                : m === "referral-dm"
+                  ? generateLiteReferralDm({
+                      intake: intake || {},
+                      jobLink: body.jobLink || "",
+                      fitBullets: Array.isArray(body.fitBullets) ? body.fitBullets : [],
+                      channel: body.channel || "linkedin",
+                    })
+                  : m === "interview-pack"
+                    ? generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" })
+                    : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.json({
             text: fallbackText,
             offline: true,
@@ -921,11 +945,24 @@
         }
         if (msg.includes('"code":429') || msg.includes("429") || msg.toLowerCase().includes("quota")) {
           aiCooldownUntil = Date.now() + 5 * 60_000; // 5 min cooldown
-          const lastUser = Array.isArray((req as any)?.body?.messages) ? (req as any).body.messages.slice(-1)[0]?.content : "";
+          const body = (req as any)?.body || {};
+          const lastUser = Array.isArray(body?.messages) ? body.messages.slice(-1)[0]?.content : "";
+          const m = body?.mode;
           const fallbackText =
-            (req as any)?.body?.mode === "plan"
+            m === "plan"
               ? generateLitePlan(intake || {})
-              : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
+              : m === "resume-rewrite"
+                ? generateLiteResumeRewrite({ intake: intake || {}, resumeText: body.resumeText || "" })
+                : m === "referral-dm"
+                  ? generateLiteReferralDm({
+                      intake: intake || {},
+                      jobLink: body.jobLink || "",
+                      fitBullets: Array.isArray(body.fitBullets) ? body.fitBullets : [],
+                      channel: body.channel || "linkedin",
+                    })
+                  : m === "interview-pack"
+                    ? generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" })
+                    : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.json({
             text: fallbackText,
             offline: true,

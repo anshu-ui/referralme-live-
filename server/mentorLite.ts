@@ -242,66 +242,201 @@ export function generateLiteChat(args: {
     "",
   ];
 
+  const bullets = (items: string[]) => items.map((i) => `• ${i}`);
+
   const blocks: Record<string, string[]> = {
     resume: [
-      "### Resume quick fixes (high impact)",
-      "- Put a 2-line headline + 3 impact bullets at the top (role, stack, outcomes).",
-      "- Convert responsibilities into outcomes: `did X` -> `did X resulting in Y` (numbers).",
-      "- Add a Skills section with keywords from 10 target JDs (no stuffing).",
-      "- Put best project first with link + 2 bullets (problem, solution, result).",
+      "RESUME QUICK FIXES (HIGH IMPACT)",
+      ...bullets([
+        "Write a 2-line headline and 3 impact bullets at the top (role, stack, outcomes).",
+        "Convert responsibilities into outcomes with numbers (did X resulting in Y).",
+        "Add a Skills section with keywords from 10 target job descriptions (no stuffing).",
+        "Put your best project first with link and 2 bullets (problem, solution, result).",
+      ]),
       "",
       "Reply with: your role, 1 project link, and 1 experience bullet. I’ll rewrite it.",
     ],
     referral: [
-      "### Referral strategy (ethical + works)",
-      "- Start warm: alumni, seniors, mutual connections, same college/company.",
-      "- Ask for 1 role at a time with a job link.",
-      "- Send 2 fit bullets + resume link (make it easy to say yes).",
+      "REFERRAL STRATEGY (ETHICAL + WORKS)",
+      ...bullets([
+        "Start warm: alumni, seniors, mutual connections, same college/company.",
+        "Ask for one role at a time and include the job link.",
+        "Send two fit bullets and a resume link to make it easy to say yes.",
+      ]),
       "",
-      "Template:",
-      "```",
-      "Hi {Name} — I’m {YourName}. I’m targeting {Role}.",
+      "MESSAGE TEMPLATE",
+      "Hi {Name}, I’m {YourName}. I’m targeting {Role}.",
       "Would you be open to referring me for this role? {JobLink}",
       "Quick fit:",
-      "- {Impact + stack}",
-      "- {Impact + stack}",
-      "Resume: {Link}  |  Thanks!",
-      "```",
+      "• {Impact + stack}",
+      "• {Impact + stack}",
+      "Resume: {Link}",
+      "Thanks!",
       "",
-      "Reply with the job link + your 2 fit bullets and I’ll customize the message.",
+      "Share the job link and your two fit bullets and I’ll customize it.",
     ],
     interview: [
-      "### Interview plan (next 7 days)",
-      "- Day 1-2: fundamentals + 20 common questions for your role.",
-      "- Day 3-5: 1 mock/day (record yourself) + fix mistakes doc.",
-      "- Day 6: 2 full mocks (timed).",
-      "- Day 7: revision + storytelling (STAR) + weak topics.",
+      "INTERVIEW PLAN (NEXT 7 DAYS)",
+      ...bullets([
+        "Day 1-2: fundamentals plus 20 common questions for your role.",
+        "Day 3-5: 1 mock per day (record yourself) and maintain a mistakes doc.",
+        "Day 6: 2 timed mocks end-to-end.",
+        "Day 7: revision + storytelling (STAR) + weak topics review.",
+      ]),
       "",
-      "Tell me: which round you’re facing (HR/Tech/Manager) and I’ll give a prep checklist.",
+      "Tell me which round (HR/Tech/Manager) and I’ll generate a checklist.",
     ],
     jobs: [
-      "### Application strategy (smart)",
-      "- Apply to max 8/day but tailor top 1/3 of resume for each role type.",
-      "- For each application, send 1 referral request to a relevant person with the job link.",
-      "- Track response rate and iterate your message.",
+      "APPLICATION STRATEGY (SMART)",
+      ...bullets([
+        "Apply to max 8 roles per day, but tailor the top third of your resume each time.",
+        "For each application, send one referral request to a relevant person with the job link.",
+        "Track response rate and iterate your message and targeting weekly.",
+      ]),
       "",
-      "Tell me your current response rate (replies/applications) and I’ll suggest adjustments.",
+      "Tell me your current response rate and I’ll adjust your plan.",
     ],
     learning: [
-      "### Skill roadmap (practical)",
-      "- Pick 1 portfolio project aligned with the target role and ship in 7-10 days.",
-      "- Learn by building: feature list, weekly milestones, deployment.",
-      "- Document everything: README + screenshots + metrics.",
+      "SKILL ROADMAP (PRACTICAL)",
+      ...bullets([
+        "Pick one portfolio project aligned with the target role and ship in 7-10 days.",
+        "Learn by building: define milestones, deploy, and document results.",
+        "Write a clean README with screenshots and what you learned.",
+      ]),
       "",
-      "Tell me your current stack and I’ll propose 1 project with milestones.",
+      "Tell me your stack and I’ll propose one project with milestones.",
     ],
     general: [
-      "### Quick next steps",
-      "- Share your current status: experience, 2 skills, 1 project, and what’s blocking you.",
-      "- I’ll give you a 7-day plan + message template + interview checklist.",
+      "NEXT STEPS",
+      ...bullets([
+        "Share your experience level, 2 skills, 1 project link, and what’s blocking you.",
+        "I’ll give you a 7-day plan, referral message, and interview checklist.",
+      ]),
     ],
   };
 
   const out = [...base, ...(blocks[intent] || blocks.general)].join("\n");
   return out;
+}
+
+export function generateLiteReferralDm(args: {
+  intake?: Intake;
+  jobLink?: string;
+  fitBullets?: string[];
+  channel?: "linkedin" | "whatsapp" | "email";
+}) {
+  const intake = args.intake || {};
+  const role = norm(intake.targetRole) || "your target role";
+  const jobLink = norm(args.jobLink) || "{JobLink}";
+  const bullets = (args.fitBullets || []).map((b) => norm(b)).filter(Boolean).slice(0, 2);
+  const b1 = bullets[0] || "{Fit bullet 1 (impact + stack)}";
+  const b2 = bullets[1] || "{Fit bullet 2 (impact + stack)}";
+  const channel = args.channel || "linkedin";
+
+  const header = "REFERRAL MESSAGE (OFFLINE MODE)";
+  const lines: string[] = [header, ""];
+  if (channel === "whatsapp") {
+    lines.push(
+      `Hi {Name}, I’m {YourName}. I’m applying for ${role}.`,
+      `Can you refer me for this role? ${jobLink}`,
+      "Quick fit:",
+      `• ${b1}`,
+      `• ${b2}`,
+      "Resume: {Link}",
+      "Thanks!",
+    );
+  } else if (channel === "email") {
+    lines.push(
+      `Subject: Referral request for ${role}`,
+      "",
+      "Hi {Name},",
+      "",
+      `I’m {YourName} and I’m applying for ${role}. I’d be grateful if you could refer me for this role:`,
+      jobLink,
+      "",
+      "Quick fit:",
+      `• ${b1}`,
+      `• ${b2}`,
+      "",
+      "Resume: {Link}",
+      "Thank you,",
+      "{YourName}",
+    );
+  } else {
+    lines.push(
+      `Hi {Name}, I’m {YourName}. I’m targeting ${role}.`,
+      `Would you be open to referring me for this role? ${jobLink}`,
+      "Quick fit:",
+      `• ${b1}`,
+      `• ${b2}`,
+      "Resume: {Link}",
+      "Thanks!",
+    );
+  }
+  return lines.join("\n");
+}
+
+export function generateLiteInterviewPack(args: { intake?: Intake; roundType?: string }) {
+  const intake = args.intake || {};
+  const role = norm(intake.targetRole) || "your target role";
+  const round = norm(args.roundType) || "Tech";
+  const track = guessTrack(role);
+
+  const lines: string[] = [];
+  lines.push("INTERVIEW PREP PACK (OFFLINE MODE)", `Role: ${role}`, `Round: ${round}`, "");
+  lines.push("WHAT TO PREP TODAY");
+  lines.push(
+    `• Review fundamentals for ${track} and write short notes (30-45 min).`,
+    "• Prepare 6 STAR stories (impact, conflict, leadership, failure, learning, ownership).",
+    "• Do 2 timed practice questions and write improvements.",
+    "",
+  );
+  lines.push("COMMON QUESTIONS");
+  lines.push(
+    "• Walk me through your most impactful project.",
+    "• What tradeoffs did you make and why?",
+    "• Explain a difficult bug you fixed.",
+    "• How do you handle unclear requirements?",
+    "• What would you improve in your resume/project if you had 1 week?",
+    "",
+  );
+  lines.push("NEXT 7 DAYS (1 HOUR/DAY)");
+  lines.push(
+    "• Day 1-2: fundamentals + 20 role questions.",
+    "• Day 3-5: 1 mock/day (record) + mistakes doc.",
+    "• Day 6: 2 full mocks timed.",
+    "• Day 7: revision + weak topics + HR story practice.",
+  );
+  return lines.join("\n");
+}
+
+export function generateLiteResumeRewrite(args: { intake?: Intake; resumeText?: string }) {
+  const intake = args.intake || {};
+  const role = norm(intake.targetRole) || "your target role";
+  const resume = norm(args.resumeText) || "";
+
+  const lines: string[] = [];
+  lines.push("RESUME REWRITE STARTER (OFFLINE MODE)", `Target role: ${role}`, "");
+  lines.push("HEADLINE (COPY/EDIT)");
+  lines.push(`• ${role} | {Top skill 1}, {Top skill 2} | Built {Outcome with numbers}`);
+  lines.push("");
+  lines.push("SUMMARY (2-3 LINES)");
+  lines.push(
+    "• {Years/level} building {domain}. Strong in {stack}.",
+    "• Shipped {project/system} impacting {metric}. Seeking {role} roles.",
+  );
+  lines.push("");
+  lines.push("BULLET UPGRADE FORMULA");
+  lines.push("• Action + Scope + Tools + Outcome (numbers) + Why it matters");
+  lines.push("");
+  lines.push("EXAMPLE REWRITES");
+  lines.push(
+    "• Built {feature} using {stack}, reducing {metric} by {X}% and improving {impact}.",
+    "• Owned {module} end-to-end, shipping {N} improvements and cutting {time/cost} by {X}.",
+  );
+  if (resume.length > 0) {
+    lines.push("", "WHAT I NEED FROM YOU");
+    lines.push("• Paste 1 experience bullet and 1 project bullet. I’ll rewrite them in impact format.");
+  }
+  return lines.join("\n");
 }
