@@ -226,6 +226,12 @@ export function generateLiteChat(args: {
   const targetRole = norm(intake.targetRole) || "your target role";
   const track = guessTrack(targetRole);
 
+  const mLower = msg.toLowerCase();
+  const isGreeting =
+    mLower.length <= 8 &&
+    /(hi|hello|hey|hii|hlo|yo|sup|good morning|good evening|good afternoon)/.test(mLower);
+  const isAck = mLower.length <= 10 && /(ok|okay|kk|cool|thanks|thank you|thx|nice|great|done)/.test(mLower);
+
   const intent = (() => {
     const m = msg.toLowerCase();
     if (/(resume|cv|ats|keyword)/.test(m)) return "resume";
@@ -236,13 +242,39 @@ export function generateLiteChat(args: {
     return "general";
   })();
 
-  const base = [
-    "AI is rate-limited right now, but I can still help in offline mode.",
-    `Target: ${targetRole} • Track: ${track}`,
-    "",
-  ];
-
   const bullets = (items: string[]) => items.map((i) => `• ${i}`);
+
+  // A more conversational, non-repetitive offline reply for short messages.
+  if (isGreeting) {
+    const lines: string[] = [];
+    lines.push(`Hi! I can help you with a clear job plan for ${targetRole}.`);
+    lines.push("");
+    lines.push("While you reply, do this now (5 minutes):");
+    lines.push(...bullets([
+      "Open your resume and check: do you have numbers in at least 3 bullets?",
+      "Pick one job description for your target role and note the top 8 repeated keywords.",
+    ]));
+    lines.push("");
+    lines.push("Quick question (answer 1 line):");
+    lines.push(...bullets([
+      "Your experience level (fresher / 1-2 / 3-5 / 5+ years) and what’s blocking you right now.",
+    ]));
+    lines.push("");
+    lines.push("If you paste 3 resume bullets (or 1 project), I’ll rewrite them in impact format.");
+    return lines.join("\n");
+  }
+
+  if (isAck) {
+    const lines: string[] = [];
+    lines.push("Perfect. To make this practical, answer these 2 lines:");
+    lines.push(...bullets([
+      `Target role: ${targetRole}`,
+      "Current status: (apps/interviews/projects in last 2 weeks)",
+    ]));
+    lines.push("");
+    lines.push("Then I’ll give you a tight 7-day plan plus an interview checklist.");
+    return lines.join("\n");
+  }
 
   const blocks: Record<string, string[]> = {
     resume: [
@@ -309,14 +341,15 @@ export function generateLiteChat(args: {
     general: [
       "NEXT STEPS",
       ...bullets([
-        "Share your experience level, 2 skills, 1 project link, and what’s blocking you.",
-        "I’ll give you a 7-day plan, referral message, and interview checklist.",
+        `Confirm your target role: ${targetRole} (or tell me the right one).`,
+        "Share: experience level + 2 skills + 1 project + what’s blocking you right now.",
+        "I’ll respond with: a 7-day plan + resume fixes + interview checklist.",
       ]),
     ],
   };
 
-  const out = [...base, ...(blocks[intent] || blocks.general)].join("\n");
-  return out;
+  const header = [`Target: ${targetRole} • Track: ${track}`, ""];
+  return [...header, ...(blocks[intent] || blocks.general)].join("\n");
 }
 
 export function generateLiteReferralDm(args: {
@@ -333,7 +366,7 @@ export function generateLiteReferralDm(args: {
   const b2 = bullets[1] || "{Fit bullet 2 (impact + stack)}";
   const channel = args.channel || "linkedin";
 
-  const header = "REFERRAL MESSAGE (OFFLINE MODE)";
+  const header = "REFERRAL MESSAGE";
   const lines: string[] = [header, ""];
   if (channel === "whatsapp") {
     lines.push(
@@ -379,34 +412,125 @@ export function generateLiteReferralDm(args: {
 export function generateLiteInterviewPack(args: { intake?: Intake; roundType?: string }) {
   const intake = args.intake || {};
   const role = norm(intake.targetRole) || "your target role";
-  const round = norm(args.roundType) || "Tech";
+  const round = norm(args.roundType) || "technical";
   const track = guessTrack(role);
 
+  const r = round.toLowerCase();
   const lines: string[] = [];
-  lines.push("INTERVIEW PREP PACK (OFFLINE MODE)", `Role: ${role}`, `Round: ${round}`, "");
-  lines.push("WHAT TO PREP TODAY");
-  lines.push(
-    `• Review fundamentals for ${track} and write short notes (30-45 min).`,
-    "• Prepare 6 STAR stories (impact, conflict, leadership, failure, learning, ownership).",
-    "• Do 2 timed practice questions and write improvements.",
-    "",
-  );
-  lines.push("COMMON QUESTIONS");
-  lines.push(
-    "• Walk me through your most impactful project.",
-    "• What tradeoffs did you make and why?",
-    "• Explain a difficult bug you fixed.",
-    "• How do you handle unclear requirements?",
-    "• What would you improve in your resume/project if you had 1 week?",
-    "",
-  );
-  lines.push("NEXT 7 DAYS (1 HOUR/DAY)");
-  lines.push(
-    "• Day 1-2: fundamentals + 20 role questions.",
-    "• Day 3-5: 1 mock/day (record) + mistakes doc.",
-    "• Day 6: 2 full mocks timed.",
-    "• Day 7: revision + weak topics + HR story practice.",
-  );
+  lines.push("INTERVIEW PREP PACK", `Role: ${role}`, `Round: ${round}`, "");
+
+  const bullets = (items: string[]) => items.map((i) => `• ${i}`);
+
+  if (r.includes("hr")) {
+    lines.push("FOCUS");
+    lines.push(...bullets([
+      "Your story (2 minutes): who you are, what you built, what you want next.",
+      "STAR stories for: ownership, conflict, failure, learning, leadership, impact.",
+      "Clarity: why this company, why this role, why now.",
+    ]));
+    lines.push("", "COMMON QUESTIONS");
+    lines.push(...bullets([
+      "Tell me about yourself (2 minutes).",
+      "Why do you want to switch?",
+      "Strengths and weaknesses (with examples).",
+      "A conflict you handled and what you learned.",
+      "Salary expectations and notice period.",
+    ]));
+    lines.push("", "YOUR SCRIPT (COPY/EDIT)");
+    lines.push(
+      "I’m a {level} targeting {role}. Recently I built {project} using {stack}, which resulted in {metric}.",
+      "I’m now looking for {role} roles where I can drive {impact}.",
+    );
+    return lines.join("\n");
+  }
+
+  if (r.includes("manager")) {
+    lines.push("FOCUS");
+    lines.push(...bullets([
+      "Execution: how you plan, break down work, and ship reliably.",
+      "Ownership: decisions you made, tradeoffs, and how you handled risk.",
+      "Communication: how you align with stakeholders and handle ambiguity.",
+    ]));
+    lines.push("", "COMMON QUESTIONS");
+    lines.push(...bullets([
+      "Describe a project you owned end-to-end.",
+      "How do you handle unclear requirements?",
+      "A time you disagreed with a teammate and how you resolved it.",
+      "How do you prioritize when everything is urgent?",
+      "What would you improve in a system you built?",
+    ]));
+    lines.push("", "WHAT TO PREP TODAY");
+    lines.push(...bullets([
+      "Write 6 STAR stories with numbers (impact, scope, tools).",
+      "Prepare one 'architecture walkthrough' of your best project (5 minutes).",
+      "List 3 tradeoffs you made and why they were right.",
+    ]));
+    return lines.join("\n");
+  }
+
+  if (r.includes("system")) {
+    lines.push("FOCUS");
+    lines.push(...bullets([
+      "Clarify requirements (users, scale, latency, consistency).",
+      "Design: API, data model, high-level components, and request flow.",
+      "Scale: caching, queues, pagination, indexes, and failure handling.",
+    ]));
+    lines.push("", "CHECKLIST");
+    lines.push(...bullets([
+      "Ask 5 clarifying questions before designing.",
+      "Draw the request flow and data flow.",
+      "Pick a storage model and justify it (SQL vs NoSQL).",
+      "Add caching + rate limiting + retries.",
+      "Explain bottlenecks and how you would scale.",
+    ]));
+    lines.push("", "PRACTICE PROMPTS");
+    lines.push(...bullets([
+      "Design a URL shortener.",
+      "Design a file upload + processing pipeline.",
+      "Design a simple chat system.",
+      "Design a notification system.",
+    ]));
+    return lines.join("\n");
+  }
+
+  if (r.includes("case")) {
+    lines.push("FOCUS");
+    lines.push(...bullets([
+      "Structure: clarify goal, define metrics, propose approach, tradeoffs.",
+      "Communication: explain assumptions clearly and keep it simple.",
+      "Decision making: show how you prioritize and validate.",
+    ]));
+    lines.push("", "FRAMEWORK (SIMPLE)");
+    lines.push(...bullets([
+      "Goal: what success means.",
+      "Constraints: time, resources, risk.",
+      "Options: 2-3 approaches.",
+      "Decision: pick one, justify.",
+      "Measurement: 3 metrics to track.",
+    ]));
+    return lines.join("\n");
+  }
+
+  // Technical default
+  lines.push("FOCUS");
+  lines.push(...bullets([
+    `Fundamentals for ${track} plus role-specific questions.`,
+    "DSA basics: arrays, strings, hashmaps, two pointers, recursion (as needed).",
+    "One project deep-dive: architecture, tradeoffs, impact, metrics.",
+  ]));
+  lines.push("", "WHAT TO PREP TODAY");
+  lines.push(...bullets([
+    "Do 2 timed questions and write a short post-mortem: what went wrong and why.",
+    "Prepare 3 project stories with numbers (performance, users, revenue, time saved).",
+    "Write 5 'why' answers: why role, why company, why you are a fit.",
+  ]));
+  lines.push("", "COMMON QUESTIONS");
+  lines.push(...bullets([
+    "Walk me through your most impactful project.",
+    "Explain a difficult bug you fixed (root cause + prevention).",
+    "Explain a tradeoff you made and why.",
+    "How do you handle unclear requirements?",
+  ]));
   return lines.join("\n");
 }
 
@@ -416,7 +540,7 @@ export function generateLiteResumeRewrite(args: { intake?: Intake; resumeText?: 
   const resume = norm(args.resumeText) || "";
 
   const lines: string[] = [];
-  lines.push("RESUME REWRITE STARTER (OFFLINE MODE)", `Target role: ${role}`, "");
+  lines.push("RESUME REWRITE STARTER", `Target role: ${role}`, "");
   lines.push("HEADLINE (COPY/EDIT)");
   lines.push(`• ${role} | {Top skill 1}, {Top skill 2} | Built {Outcome with numbers}`);
   lines.push("");

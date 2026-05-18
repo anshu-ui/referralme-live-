@@ -9,11 +9,11 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Textarea } from "./ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Calendar, Clock, IndianRupee, Search, Users } from "lucide-react";
+import { Calendar, Clock, IndianRupee, Search, Sparkles, Users } from "lucide-react";
 import type { FirestoreUser, MentorshipService, MentorshipSession } from "../lib/firestore";
 import { createMentorshipSession, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
-import { createMentorshipPayment, initiatePayment } from "../lib/razorpay";
+import { openCashfreeCheckout } from "../lib/cashfree";
 
 function fmtInr(amount: number) {
   const safe = Number.isFinite(amount) ? amount : 0;
@@ -32,6 +32,56 @@ function toTimestampFromLocalInput(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return Timestamp.fromDate(date);
+}
+
+function tokensFromText(text: string) {
+  return new Set(
+    String(text || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9+.#\s]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3),
+  );
+}
+
+function mentorSearchBlob(m: FirestoreUser) {
+  const services = (m.mentorshipServices || []).filter((s) => s.isActive);
+  return [
+    m.displayName,
+    m.company,
+    m.designation,
+    m.location,
+    m.mentorshipBio,
+    ...(services.map((s) => `${s.title} ${s.description}`) || []),
+    ...(m.skills || []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function computeMentorMatchScore(mentor: FirestoreUser, seeker: FirestoreUser, queryText: string) {
+  const q = queryText.trim();
+  const qTokens = q ? tokensFromText(q) : null;
+
+  const seekerTokens = tokensFromText(
+    [seeker.designation, seeker.experience, seeker.location, ...(seeker.skills || [])].filter(Boolean).join(" "),
+  );
+  const targetTokens = qTokens && qTokens.size ? qTokens : seekerTokens;
+
+  const mentorTokens = tokensFromText(mentorSearchBlob(mentor));
+
+  let overlap = 0;
+  for (const t of targetTokens) {
+    if (mentorTokens.has(t)) overlap += 1;
+  }
+
+  // A tiny boost for mentors who look more established (optional field).
+  const rating = Number(mentor.mentorshipRating || 0);
+  const sessionCount = Number(mentor.totalMentorshipSessions || 0);
+  const authorityBoost = Math.min(10, Math.round(rating * 2) + Math.round(Math.log10(sessionCount + 1) * 4));
+
+  return overlap * 6 + authorityBoost;
 }
 
 export default function MentorshipMarketplace({ user }: { user: FirestoreUser }) {
@@ -87,6 +137,14 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     });
   }, [mentors, search]);
 
+  const rankedMentors = useMemo(() => {
+    const list = filtered.slice();
+    list.sort((a, b) => computeMentorMatchScore(b, user, search) - computeMentorMatchScore(a, user, search));
+    return list;
+  }, [filtered, search, user]);
+
+  const topRecommended = useMemo(() => rankedMentors.slice(0, 3), [rankedMentors]);
+
   const activeSessions = useMemo(() => {
     return sessions.filter((s) => ["pending", "confirmed", "in_progress"].includes(s.status));
   }, [sessions]);
@@ -105,15 +163,20 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
 
     setSubmitting(true);
     try {
-      // 1) Create Razorpay order on server
-      const orderResp = await fetch("/api/razorpay/create-order", {
+      // 1) Create Cashfree order on server
+      const orderResp = await fetch("/api/cashfree/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: selected.service.price,
           currency: "INR",
-          receipt: `mentorship_${Date.now()}`,
           mentorId: selected.mentor.uid,
+          customer: {
+            id: user.uid,
+            name: user.displayName || user.firstName || "Customer",
+            email: user.email,
+            phone: user.phoneNumber || "",
+          },
         }),
       });
       if (!orderResp.ok) {
@@ -121,37 +184,30 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         throw new Error(msg);
       }
       const order = await orderResp.json();
+      if (!order?.paymentSessionId || !order?.orderId) {
+        throw new Error("Payment session not created. Please try again.");
+      }
 
-      // 2) Open Razorpay checkout
-      const paymentOptions = createMentorshipPayment(
-        user,
-        selected.mentor.displayName || "Mentor",
-        selected.service.title,
-        selected.service.price,
-        order.id,
-      );
-
-      const paymentResult: any = await new Promise((resolve, reject) => {
-        initiatePayment(
-          paymentOptions,
-          (resp) => resolve(resp),
-          (err) => reject(err),
-        );
+      // 2) Open Cashfree checkout (modal)
+      const checkoutResult = await openCashfreeCheckout({
+        mode: order?.env === "production" ? "production" : "sandbox",
+        paymentSessionId: order.paymentSessionId,
       });
+      if (checkoutResult?.error?.message) {
+        throw new Error(checkoutResult.error.message);
+      }
 
-      // 3) Verify payment signature server-side
-      const verifyResp = await fetch("/api/razorpay/verify-payment", {
+      // 3) Verify payment by checking order status from server
+      const verifyResp = await fetch("/api/cashfree/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          razorpay_order_id: paymentResult.razorpay_order_id,
-          razorpay_payment_id: paymentResult.razorpay_payment_id,
-          razorpay_signature: paymentResult.razorpay_signature,
+          orderId: order.orderId,
         }),
       });
       const verify = await verifyResp.json().catch(() => null);
       if (!verifyResp.ok || !verify?.verified) {
-        throw new Error(verify?.message || "Payment verification failed.");
+        throw new Error(verify?.message || "Payment not confirmed yet. If money was deducted, it will auto-refund or you can retry later.");
       }
 
       // 4) Create the session as paid + pending mentor confirmation
@@ -169,8 +225,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         scheduledAt: ts,
         status: "pending",
         paymentStatus: "paid",
-        razorpayOrderId: paymentResult.razorpay_order_id,
-        razorpayPaymentId: paymentResult.razorpay_payment_id,
+        cashfreeOrderId: order.orderId,
         notes: notes.trim() || undefined,
       } as any);
 
@@ -216,8 +271,76 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
               <p className="text-sm text-muted-foreground">No mentors found yet. Try a different search or check back later.</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {filtered.map((mentor) => {
+            <div className="space-y-4">
+              {topRecommended.length ? (
+                <div className="rounded-xl border bg-slate-50 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                    Recommended for you
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    We rank mentors using your profile (skills, role, location) and what you search for.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    {topRecommended.map((mentor) => {
+                      const services = (mentor.mentorshipServices || []).filter((s) => s.isActive && s.title.trim());
+                      if (services.length === 0) return null;
+                      const best = services[0];
+                      return (
+                        <div key={mentor.uid} className="rounded-lg border bg-white p-3">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={mentor.profileImageUrl || mentor.photoURL} alt={mentor.displayName} />
+                              <AvatarFallback>{getInitials(mentor.displayName)}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-semibold truncate">{mentor.displayName || "Mentor"}</div>
+                              <div className="text-xs text-slate-600 truncate">
+                                {[mentor.designation, mentor.company].filter(Boolean).join(" • ") || "Referrer"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-3 rounded-md border bg-slate-50 p-2">
+                            <div className="text-xs font-medium text-slate-900 truncate">{best.title}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {best.duration}m
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <IndianRupee className="h-3 w-3" />
+                                {fmtInr(best.price)}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full"
+                            onClick={() => {
+                              setSearch(mentor.displayName || "");
+                              setSelected({ mentor, service: best });
+                              if (!scheduledAt) {
+                                const d = new Date();
+                                d.setDate(d.getDate() + 1);
+                                d.setHours(11, 0, 0, 0);
+                                const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                                  .toISOString()
+                                  .slice(0, 16);
+                                setScheduledAt(isoLocal);
+                              }
+                            }}
+                          >
+                            Request
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-2">
+              {rankedMentors.map((mentor) => {
                 const services = (mentor.mentorshipServices || []).filter((s) => s.isActive && s.title.trim());
                 if (services.length === 0) return null;
                 return (
@@ -365,6 +488,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                   </Card>
                 );
               })}
+              </div>
             </div>
           )}
         </CardContent>

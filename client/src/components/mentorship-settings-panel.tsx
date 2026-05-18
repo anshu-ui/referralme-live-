@@ -9,6 +9,7 @@ import { Badge } from "./ui/badge";
 import { Plus, Trash2 } from "lucide-react";
 import type { FirestoreUser, MentorshipService } from "../lib/firestore";
 import { updateMentorshipProfile } from "../lib/firestore";
+import { useToast } from "../hooks/use-toast";
 
 function newService(): MentorshipService {
   return {
@@ -28,10 +29,12 @@ export default function MentorshipSettingsPanel({
   user: FirestoreUser;
   onUpdated?: () => void;
 }) {
+  const { toast } = useToast();
   const [enabled, setEnabled] = useState(Boolean(user.isMentorshipEnabled));
   const [bio, setBio] = useState(user.mentorshipBio || "");
   const [services, setServices] = useState<MentorshipService[]>(user.mentorshipServices || []);
   const [saving, setSaving] = useState(false);
+  const [toggleSaving, setToggleSaving] = useState(false);
 
   useEffect(() => {
     setEnabled(Boolean(user.isMentorshipEnabled));
@@ -74,7 +77,34 @@ export default function MentorshipSettingsPanel({
               </Badge>
               <div className="flex items-center gap-2">
                 <Label className="text-sm">Mentorship</Label>
-                <Switch checked={enabled} onCheckedChange={setEnabled} />
+                <Switch
+                  checked={enabled}
+                  disabled={toggleSaving}
+                  onCheckedChange={async (checked) => {
+                    setEnabled(checked);
+                    setToggleSaving(true);
+                    try {
+                      // Instant publish/unpublish so seekers see the change immediately.
+                      await updateMentorshipProfile(user.uid, { isMentorshipEnabled: checked });
+                      onUpdated?.();
+                      toast({
+                        title: checked ? "Mentorship enabled" : "Mentorship disabled",
+                        description: checked
+                          ? "You’re now visible in the seeker Mentorship marketplace."
+                          : "You’re now hidden from the seeker Mentorship marketplace.",
+                      });
+                    } catch (e: any) {
+                      // Revert UI if save fails
+                      setEnabled(Boolean(user.isMentorshipEnabled));
+                      toast({
+                        title: "Could not update",
+                        description: e?.message || "Please try again.",
+                      });
+                    } finally {
+                      setToggleSaving(false);
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -209,4 +239,3 @@ export default function MentorshipSettingsPanel({
     </div>
   );
 }
-

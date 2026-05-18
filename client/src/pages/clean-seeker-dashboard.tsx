@@ -1171,52 +1171,6 @@ export default function CleanSeekerDashboard() {
           {/* AI Matching Tab */}
           <TabsContent value="ai-matching" className="space-y-6">
             <div className="space-y-6">
-              {/* Coming Soon Section */}
-              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Bot className="h-5 w-5 text-blue-600" />
-                        AI Job Matching
-                      </CardTitle>
-                      <CardDescription>Personalized job recommendations powered by artificial intelligence</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Brain className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Smart AI Matching Coming Soon!</h3>
-                    <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-                      Our AI will analyze your profile, skills, and preferences to automatically match you 
-                      with the most relevant job opportunities from our referrer network.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="p-4 bg-white rounded-lg border">
-                        <Zap className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">Smart Analysis</h4>
-                        <p className="text-sm text-gray-600">AI analyzes your skills & experience</p>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg border">
-                        <Target className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">Perfect Matches</h4>
-                        <p className="text-sm text-gray-600">Get jobs that fit your profile</p>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg border">
-                        <TrendingUp className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                        <h4 className="font-medium mb-1">Success Scoring</h4>
-                        <p className="text-sm text-gray-600">See your match percentage</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full max-w-md">
-                      <Bell className="h-4 w-4 mr-2" />
-                      Notify Me When Available
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Profile-Based Matching Card */}
               <Card className="border-2 border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
                 <CardHeader>

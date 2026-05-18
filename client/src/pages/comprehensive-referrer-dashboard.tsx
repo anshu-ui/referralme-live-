@@ -602,29 +602,20 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
         </div>
       </header>
 
-      {/* Payment Account Setup Notification */}
-      {user && !(user as any).paymentSetupCompleted && (user as any).isMentorshipEnabled && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200">
+      {/* Mentorship Payments Info (Phase 1: platform collects payments) */}
+      {user && (user as any).isMentorshipEnabled && (
+        <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-blue-100">
           <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center">
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-amber-900">Complete payment setup to receive bookings</h3>
-                  <p className="text-sm text-amber-700">
-                    Choose between UPI (instant payments) or Razorpay (business accounts) to start receiving payments
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <CreditCard className="h-5 w-5 text-blue-700" />
               </div>
-              <Button 
-                onClick={() => setIsDualPaymentSetupOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Set up Payments
-              </Button>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-slate-900">Mentorship payments are handled by ReferralMe</h3>
+                <p className="text-sm text-slate-700">
+                  Students pay through our gateway (Cashfree). You do not need to connect a payment account right now.
+                </p>
+              </div>
             </div>
           </div>
         </div>

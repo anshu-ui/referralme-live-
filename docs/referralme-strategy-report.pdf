@@ -1,0 +1,956 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 1952 >>
+stream
+BT
+/F2 20 Tf
+1 0 0 1 50 756 Tm
+(ReferralMe Review Report) Tj
+/F2 15 Tf
+1 0 0 1 50 721 Tm
+(Current Position, What To Keep, What To Remove, What To Build Next) Tj
+/F2 15 Tf
+1 0 0 1 50 686 Tm
+(1. Executive Summary) Tj
+/F1 11 Tf
+1 0 0 1 50 656 Tm
+(After reviewing the current ReferralMe product, the Campus Ambassador system, and the) Tj
+/F1 11 Tf
+1 0 0 1 50 641 Tm
+(external report you received, the clearest conclusion is:) Tj
+/F1 11 Tf
+1 0 0 1 50 611 Tm
+(ReferralMe should not be built as a pure paid referral marketplace.) Tj
+/F1 11 Tf
+1 0 0 1 50 581 Tm
+(That path is risky, weak in trust, hard to scale, and has already failed many times in) Tj
+/F1 11 Tf
+1 0 0 1 50 566 Tm
+(other markets.) Tj
+/F1 11 Tf
+1 0 0 1 50 536 Tm
+(ReferralMe should instead become a career outcomes platform, where:) Tj
+/F1 11 Tf
+1 0 0 1 50 506 Tm
+(- referrals are the hook) Tj
+/F1 11 Tf
+1 0 0 1 50 491 Tm
+(- but the real value is a package around job success) Tj
+/F1 11 Tf
+1 0 0 1 50 461 Tm
+(That means the platform should help users with:) Tj
+/F1 11 Tf
+1 0 0 1 50 431 Tm
+(- opportunities) Tj
+/F1 11 Tf
+1 0 0 1 50 416 Tm
+(- referral access) Tj
+/F1 11 Tf
+1 0 0 1 50 401 Tm
+(- ATS and resume improvement) Tj
+/F1 11 Tf
+1 0 0 1 50 386 Tm
+(- mentoring) Tj
+/F1 11 Tf
+1 0 0 1 50 371 Tm
+(- interview preparation) Tj
+/F1 11 Tf
+1 0 0 1 50 356 Tm
+(- job momentum) Tj
+/F1 11 Tf
+1 0 0 1 50 326 Tm
+(So the product should move from:) Tj
+/F1 11 Tf
+1 0 0 1 50 296 Tm
+("Get a referral") Tj
+/F1 11 Tf
+1 0 0 1 50 266 Tm
+(to:) Tj
+/F1 11 Tf
+1 0 0 1 50 236 Tm
+("Get closer to a real job outcome.") Tj
+/F1 11 Tf
+1 0 0 1 50 206 Tm
+(That is the strongest direction.) Tj
+/F2 15 Tf
+1 0 0 1 50 171 Tm
+(2. Present State of ReferralMe) Tj
+/F1 11 Tf
+1 0 0 1 50 141 Tm
+(Right now, ReferralMe already has useful building blocks:) Tj
+/F2 13 Tf
+1 0 0 1 50 108 Tm
+(What already exists) Tj
+/F1 11 Tf
+1 0 0 1 50 78 Tm
+(- seeker and referrer structure) Tj
+/F1 11 Tf
+1 0 0 1 50 63 Tm
+(- referral-based thinking) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Length 2131 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 765 Tm
+(- ATS resume scan) Tj
+/F1 11 Tf
+1 0 0 1 50 750 Tm
+(- opportunity and job flow) Tj
+/F1 11 Tf
+1 0 0 1 50 735 Tm
+(- dashboard flows) Tj
+/F1 11 Tf
+1 0 0 1 50 720 Tm
+(- campus ambassador program) Tj
+/F1 11 Tf
+1 0 0 1 50 705 Tm
+(- admin controls) Tj
+/F1 11 Tf
+1 0 0 1 50 690 Tm
+(- announcements and email workflows) Tj
+/F1 11 Tf
+1 0 0 1 50 675 Tm
+(- profile and upload system) Tj
+/F1 11 Tf
+1 0 0 1 50 645 Tm
+(This is a strong foundation.) Tj
+/F2 13 Tf
+1 0 0 1 50 612 Tm
+(Current strength) Tj
+/F1 11 Tf
+1 0 0 1 50 582 Tm
+(The product already feels like more than a simple referral idea. It has the base to) Tj
+/F1 11 Tf
+1 0 0 1 50 567 Tm
+(become a broader student and early-career platform.) Tj
+/F2 13 Tf
+1 0 0 1 50 534 Tm
+(Current weakness) Tj
+/F1 11 Tf
+1 0 0 1 50 504 Tm
+(The overall product story is still not sharp enough.) Tj
+/F1 11 Tf
+1 0 0 1 50 474 Tm
+(A new user may still ask:) Tj
+/F1 11 Tf
+1 0 0 1 50 444 Tm
+(- Is this a referral platform?) Tj
+/F1 11 Tf
+1 0 0 1 50 429 Tm
+(- Is this a job board?) Tj
+/F1 11 Tf
+1 0 0 1 50 414 Tm
+(- Is this a mentorship platform?) Tj
+/F1 11 Tf
+1 0 0 1 50 399 Tm
+(- Is this for students?) Tj
+/F1 11 Tf
+1 0 0 1 50 384 Tm
+(- Is this for professionals?) Tj
+/F1 11 Tf
+1 0 0 1 50 369 Tm
+(- What is the main reason to use it?) Tj
+/F1 11 Tf
+1 0 0 1 50 339 Tm
+(That confusion is the main thing to fix now.) Tj
+/F2 15 Tf
+1 0 0 1 50 304 Tm
+(3. Main Strategic Conclusion) Tj
+/F2 13 Tf
+1 0 0 1 50 271 Tm
+(What ReferralMe should become) Tj
+/F1 11 Tf
+1 0 0 1 50 241 Tm
+(ReferralMe should become a career acceleration platform for students and early) Tj
+/F1 11 Tf
+1 0 0 1 50 226 Tm
+(professionals.) Tj
+/F2 13 Tf
+1 0 0 1 50 193 Tm
+(What referrals should be) Tj
+/F1 11 Tf
+1 0 0 1 50 163 Tm
+(Referrals should remain the wedge, not the whole business.) Tj
+/F1 11 Tf
+1 0 0 1 50 133 Tm
+(That means:) Tj
+/F1 11 Tf
+1 0 0 1 50 103 Tm
+(- referrals bring users in) Tj
+/F1 11 Tf
+1 0 0 1 50 88 Tm
+(- ATS and resume help make the product more useful) Tj
+/F1 11 Tf
+1 0 0 1 50 73 Tm
+(- mentoring adds more value) Tj
+/F1 11 Tf
+1 0 0 1 50 58 Tm
+(- campus ambassadors become the growth engine) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Length 1831 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 765 Tm
+(- later we can add more layers step by step) Tj
+/F1 11 Tf
+1 0 0 1 50 735 Tm
+(This is the strongest model.) Tj
+/F2 15 Tf
+1 0 0 1 50 700 Tm
+(4. What To Keep) Tj
+/F1 11 Tf
+1 0 0 1 50 670 Tm
+(These should stay and become stronger.) Tj
+/F2 13 Tf
+1 0 0 1 50 637 Tm
+(1. ReferralMe brand) Tj
+/F1 11 Tf
+1 0 0 1 50 607 Tm
+(Do not rush to change the name right now.) Tj
+/F1 11 Tf
+1 0 0 1 50 577 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 547 Tm
+(- the brand still fits if referrals remain the core entry point) Tj
+/F1 11 Tf
+1 0 0 1 50 532 Tm
+(- changing too early creates confusion) Tj
+/F1 11 Tf
+1 0 0 1 50 517 Tm
+(- the problem is not mainly the brand name, it is the product framing) Tj
+/F2 13 Tf
+1 0 0 1 50 484 Tm
+(2. ATS and resume improvement) Tj
+/F1 11 Tf
+1 0 0 1 50 454 Tm
+(This is one of the strongest features to keep.) Tj
+/F1 11 Tf
+1 0 0 1 50 424 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 394 Tm
+(- high user value) Tj
+/F1 11 Tf
+1 0 0 1 50 379 Tm
+(- easy to understand) Tj
+/F1 11 Tf
+1 0 0 1 50 364 Tm
+(- repeatable) Tj
+/F1 11 Tf
+1 0 0 1 50 349 Tm
+(- supports job outcomes directly) Tj
+/F2 13 Tf
+1 0 0 1 50 316 Tm
+(3. Campus Ambassador program) Tj
+/F1 11 Tf
+1 0 0 1 50 286 Tm
+(Keep it.) Tj
+/F1 11 Tf
+1 0 0 1 50 256 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 226 Tm
+(- this can become your low-cost growth engine) Tj
+/F1 11 Tf
+1 0 0 1 50 211 Tm
+(- it gives you community, identity, and student distribution) Tj
+/F1 11 Tf
+1 0 0 1 50 196 Tm
+(- this is one of your strongest differentiators) Tj
+/F2 13 Tf
+1 0 0 1 50 163 Tm
+(4. Opportunities, jobs, internships) Tj
+/F1 11 Tf
+1 0 0 1 50 133 Tm
+(Keep this as a major pillar.) Tj
+/F1 11 Tf
+1 0 0 1 50 103 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 73 Tm
+(- users need visible job outcomes) Tj
+/F1 11 Tf
+1 0 0 1 50 58 Tm
+(- without opportunities, the platform feels incomplete) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 1646 >>
+stream
+BT
+/F2 13 Tf
+1 0 0 1 50 747 Tm
+(5. Referral request layer) Tj
+/F1 11 Tf
+1 0 0 1 50 717 Tm
+(Keep this, but change how it is framed.) Tj
+/F1 11 Tf
+1 0 0 1 50 687 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 657 Tm
+(- it is still valuable) Tj
+/F1 11 Tf
+1 0 0 1 50 642 Tm
+(- but it should not feel like "buy referral access") Tj
+/F2 13 Tf
+1 0 0 1 50 609 Tm
+(6. Email, announcement, engagement layer) Tj
+/F1 11 Tf
+1 0 0 1 50 579 Tm
+(Keep and expand.) Tj
+/F1 11 Tf
+1 0 0 1 50 549 Tm
+(Reason:) Tj
+/F1 11 Tf
+1 0 0 1 50 519 Tm
+(- this helps retention) Tj
+/F1 11 Tf
+1 0 0 1 50 504 Tm
+(- this helps weekly engagement) Tj
+/F1 11 Tf
+1 0 0 1 50 489 Tm
+(- this helps campus and seeker activation) Tj
+/F2 15 Tf
+1 0 0 1 50 454 Tm
+(5. What To Change) Tj
+/F1 11 Tf
+1 0 0 1 50 424 Tm
+(These things should be repositioned, not necessarily removed.) Tj
+/F2 13 Tf
+1 0 0 1 50 391 Tm
+(1. Change the product messaging) Tj
+/F1 11 Tf
+1 0 0 1 50 361 Tm
+(Current risk:) Tj
+/F1 11 Tf
+1 0 0 1 50 331 Tm
+(- it may feel too referral-only) Tj
+/F1 11 Tf
+1 0 0 1 50 301 Tm
+(New direction:) Tj
+/F1 11 Tf
+1 0 0 1 50 271 Tm
+(- make it clear ReferralMe is about getting hired faster and better) Tj
+/F1 11 Tf
+1 0 0 1 50 256 Tm
+(- not just asking strangers for referrals) Tj
+/F2 13 Tf
+1 0 0 1 50 223 Tm
+(2. Change the pricing and value framing) Tj
+/F1 11 Tf
+1 0 0 1 50 193 Tm
+(Do not sell:) Tj
+/F1 11 Tf
+1 0 0 1 50 163 Tm
+(- pay for referral) Tj
+/F1 11 Tf
+1 0 0 1 50 133 Tm
+(Instead sell:) Tj
+/F1 11 Tf
+1 0 0 1 50 103 Tm
+(- career consultation) Tj
+/F1 11 Tf
+1 0 0 1 50 88 Tm
+(- resume improvement) Tj
+/F1 11 Tf
+1 0 0 1 50 73 Tm
+(- mock interview) Tj
+/F1 11 Tf
+1 0 0 1 50 58 Tm
+(- mentorship) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Length 1803 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 765 Tm
+(- job acceleration package) Tj
+/F1 11 Tf
+1 0 0 1 50 750 Tm
+(- referral guidance or referral access as part of the bundle) Tj
+/F1 11 Tf
+1 0 0 1 50 720 Tm
+(This is safer and stronger.) Tj
+/F2 13 Tf
+1 0 0 1 50 687 Tm
+(3. Change the homepage positioning) Tj
+/F1 11 Tf
+1 0 0 1 50 657 Tm
+(The main page should explain clearly that ReferralMe helps users with:) Tj
+/F1 11 Tf
+1 0 0 1 50 627 Tm
+(- job opportunities) Tj
+/F1 11 Tf
+1 0 0 1 50 612 Tm
+(- referrals) Tj
+/F1 11 Tf
+1 0 0 1 50 597 Tm
+(- resume readiness) Tj
+/F1 11 Tf
+1 0 0 1 50 582 Tm
+(- career support) Tj
+/F1 11 Tf
+1 0 0 1 50 567 Tm
+(- campus growth) Tj
+/F1 11 Tf
+1 0 0 1 50 537 Tm
+(Not just referrals.) Tj
+/F2 15 Tf
+1 0 0 1 50 502 Tm
+(6. What To Add) Tj
+/F1 11 Tf
+1 0 0 1 50 472 Tm
+(These are the best additions after reviewing the report.) Tj
+/F2 13 Tf
+1 0 0 1 50 439 Tm
+(Priority 1: Career outcomes layer) Tj
+/F1 11 Tf
+1 0 0 1 50 409 Tm
+(Add these first:) Tj
+/F2 12 Tf
+1 0 0 1 50 378 Tm
+(A. Mentoring and career consultation) Tj
+/F1 11 Tf
+1 0 0 1 50 348 Tm
+(- 1:1 guidance) Tj
+/F1 11 Tf
+1 0 0 1 50 333 Tm
+(- role and company-specific advice) Tj
+/F1 11 Tf
+1 0 0 1 50 318 Tm
+(- application strategy) Tj
+/F1 11 Tf
+1 0 0 1 50 288 Tm
+(Why:) Tj
+/F1 11 Tf
+1 0 0 1 50 258 Tm
+(- increases trust) Tj
+/F1 11 Tf
+1 0 0 1 50 243 Tm
+(- increases monetization potential) Tj
+/F1 11 Tf
+1 0 0 1 50 228 Tm
+(- turns ReferralMe into a stronger product) Tj
+/F2 12 Tf
+1 0 0 1 50 197 Tm
+(B. Resume review) Tj
+/F1 11 Tf
+1 0 0 1 50 167 Tm
+(- not just ATS score) Tj
+/F1 11 Tf
+1 0 0 1 50 152 Tm
+(- actual resume feedback) Tj
+/F1 11 Tf
+1 0 0 1 50 137 Tm
+(- improvement recommendations) Tj
+/F1 11 Tf
+1 0 0 1 50 107 Tm
+(Why:) Tj
+/F1 11 Tf
+1 0 0 1 50 77 Tm
+(- users understand this immediately) Tj
+/F1 11 Tf
+1 0 0 1 50 62 Tm
+(- highly useful) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Length 1792 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 765 Tm
+(- easy attach service) Tj
+/F2 12 Tf
+1 0 0 1 50 734 Tm
+(C. Mock interviews) Tj
+/F1 11 Tf
+1 0 0 1 50 704 Tm
+(- technical) Tj
+/F1 11 Tf
+1 0 0 1 50 689 Tm
+(- HR) Tj
+/F1 11 Tf
+1 0 0 1 50 674 Tm
+(- behavioral) Tj
+/F1 11 Tf
+1 0 0 1 50 659 Tm
+(- role-specific) Tj
+/F1 11 Tf
+1 0 0 1 50 629 Tm
+(Why:) Tj
+/F1 11 Tf
+1 0 0 1 50 599 Tm
+(- strong value) Tj
+/F1 11 Tf
+1 0 0 1 50 584 Tm
+(- fits job outcome narrative) Tj
+/F1 11 Tf
+1 0 0 1 50 569 Tm
+(- repeatable) Tj
+/F2 13 Tf
+1 0 0 1 50 536 Tm
+(Priority 2: Better seeker momentum) Tj
+/F2 12 Tf
+1 0 0 1 50 505 Tm
+(D. Personalized opportunity dashboard) Tj
+/F1 11 Tf
+1 0 0 1 50 475 Tm
+(- recommended jobs) Tj
+/F1 11 Tf
+1 0 0 1 50 460 Tm
+(- referral-friendly roles) Tj
+/F1 11 Tf
+1 0 0 1 50 445 Tm
+(- saved opportunities) Tj
+/F1 11 Tf
+1 0 0 1 50 430 Tm
+(- activity history) Tj
+/F2 12 Tf
+1 0 0 1 50 399 Tm
+(E. Weekly career digest) Tj
+/F1 11 Tf
+1 0 0 1 50 369 Tm
+(- jobs) Tj
+/F1 11 Tf
+1 0 0 1 50 354 Tm
+(- reminders) Tj
+/F1 11 Tf
+1 0 0 1 50 339 Tm
+(- ATS prompts) Tj
+/F1 11 Tf
+1 0 0 1 50 324 Tm
+(- profile tips) Tj
+/F1 11 Tf
+1 0 0 1 50 309 Tm
+(- new product updates) Tj
+/F2 12 Tf
+1 0 0 1 50 278 Tm
+(F. Profile strength and readiness score) Tj
+/F1 11 Tf
+1 0 0 1 50 248 Tm
+(- profile completion) Tj
+/F1 11 Tf
+1 0 0 1 50 233 Tm
+(- resume quality) Tj
+/F1 11 Tf
+1 0 0 1 50 218 Tm
+(- LinkedIn) Tj
+/F1 11 Tf
+1 0 0 1 50 203 Tm
+(- interview readiness) Tj
+/F1 11 Tf
+1 0 0 1 50 173 Tm
+(This makes the platform feel alive.) Tj
+/F2 13 Tf
+1 0 0 1 50 140 Tm
+(Priority 3: Stronger growth features) Tj
+/F2 12 Tf
+1 0 0 1 50 109 Tm
+(G. College leaderboard) Tj
+/F2 12 Tf
+1 0 0 1 50 93 Tm
+(H. Referral count) Tj
+/F2 12 Tf
+1 0 0 1 50 77 Tm
+(I. Shareable ambassador badge) Tj
+/F2 12 Tf
+1 0 0 1 50 61 Tm
+(J. Top performer and top college visibility) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Length 1701 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 750 Tm
+(These make the campus program much stronger.) Tj
+/F2 15 Tf
+1 0 0 1 50 715 Tm
+(7. What To Delete or Deprioritize) Tj
+/F1 11 Tf
+1 0 0 1 50 685 Tm
+(Not everything should be built now.) Tj
+/F2 13 Tf
+1 0 0 1 50 652 Tm
+(1. Pure paid referral marketplace idea) Tj
+/F1 11 Tf
+1 0 0 1 50 622 Tm
+(This should be dropped as the main model.) Tj
+/F1 11 Tf
+1 0 0 1 50 592 Tm
+(Do not make the company story:) Tj
+/F1 11 Tf
+1 0 0 1 50 562 Tm
+(- pay and get referred) Tj
+/F1 11 Tf
+1 0 0 1 50 532 Tm
+(This is the biggest thing to avoid.) Tj
+/F2 13 Tf
+1 0 0 1 50 499 Tm
+(2. Too many random verticals at once) Tj
+/F1 11 Tf
+1 0 0 1 50 469 Tm
+(Avoid loading:) Tj
+/F1 11 Tf
+1 0 0 1 50 439 Tm
+(- courses) Tj
+/F1 11 Tf
+1 0 0 1 50 424 Tm
+(- community) Tj
+/F1 11 Tf
+1 0 0 1 50 409 Tm
+(- placement prep) Tj
+/F1 11 Tf
+1 0 0 1 50 394 Tm
+(- freelancing) Tj
+/F1 11 Tf
+1 0 0 1 50 379 Tm
+(- mentorship marketplace) Tj
+/F1 11 Tf
+1 0 0 1 50 364 Tm
+(- bootcamp) Tj
+/F1 11 Tf
+1 0 0 1 50 349 Tm
+(- creator economy) Tj
+/F1 11 Tf
+1 0 0 1 50 334 Tm
+(- all at once) Tj
+/F1 11 Tf
+1 0 0 1 50 304 Tm
+(This will reduce clarity.) Tj
+/F2 13 Tf
+1 0 0 1 50 271 Tm
+(3. Low-trust referrer marketplace model) Tj
+/F1 11 Tf
+1 0 0 1 50 241 Tm
+(Avoid turning it into:) Tj
+/F1 11 Tf
+1 0 0 1 50 211 Tm
+(- anyone lists themselves) Tj
+/F1 11 Tf
+1 0 0 1 50 196 Tm
+(- candidates pay them directly for referral promises) Tj
+/F1 11 Tf
+1 0 0 1 50 166 Tm
+(That is risky for:) Tj
+/F1 11 Tf
+1 0 0 1 50 136 Tm
+(- trust) Tj
+/F1 11 Tf
+1 0 0 1 50 121 Tm
+(- compliance) Tj
+/F1 11 Tf
+1 0 0 1 50 106 Tm
+(- brand) Tj
+/F1 11 Tf
+1 0 0 1 50 91 Tm
+(- long-term reputation) Tj
+/F2 13 Tf
+1 0 0 1 50 58 Tm
+(4. Overbuilding admin-heavy features first) Tj
+ET
+endstream
+endobj
+10 0 obj
+<< /Length 1680 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 750 Tm
+(Do not spend too much time adding large operational tools if user value is still the) Tj
+/F1 11 Tf
+1 0 0 1 50 735 Tm
+(main problem.) Tj
+/F1 11 Tf
+1 0 0 1 50 705 Tm
+(Focus first on:) Tj
+/F1 11 Tf
+1 0 0 1 50 675 Tm
+(- user value) Tj
+/F1 11 Tf
+1 0 0 1 50 660 Tm
+(- conversion) Tj
+/F1 11 Tf
+1 0 0 1 50 645 Tm
+(- retention) Tj
+/F1 11 Tf
+1 0 0 1 50 630 Tm
+(- monetizable outcomes) Tj
+/F2 15 Tf
+1 0 0 1 50 595 Tm
+(8. Best Recommended MVP Now) Tj
+/F2 13 Tf
+1 0 0 1 50 562 Tm
+(ReferralMe MVP 2.0) Tj
+/F1 11 Tf
+1 0 0 1 50 532 Tm
+(A strong next MVP should be:) Tj
+/F2 12 Tf
+1 0 0 1 50 501 Tm
+(Core) Tj
+/F1 11 Tf
+1 0 0 1 50 471 Tm
+(- jobs, internships, opportunities) Tj
+/F1 11 Tf
+1 0 0 1 50 456 Tm
+(- referral request flow) Tj
+/F1 11 Tf
+1 0 0 1 50 441 Tm
+(- ATS resume scan) Tj
+/F1 11 Tf
+1 0 0 1 50 426 Tm
+(- seeker dashboard) Tj
+/F2 12 Tf
+1 0 0 1 50 395 Tm
+(Career outcomes) Tj
+/F1 11 Tf
+1 0 0 1 50 365 Tm
+(- resume review) Tj
+/F1 11 Tf
+1 0 0 1 50 350 Tm
+(- mock interview) Tj
+/F1 11 Tf
+1 0 0 1 50 335 Tm
+(- mentoring or consultation) Tj
+/F2 12 Tf
+1 0 0 1 50 304 Tm
+(Growth engine) Tj
+/F1 11 Tf
+1 0 0 1 50 274 Tm
+(- campus ambassador program) Tj
+/F1 11 Tf
+1 0 0 1 50 259 Tm
+(- announcements) Tj
+/F1 11 Tf
+1 0 0 1 50 244 Tm
+(- weekly emails) Tj
+/F1 11 Tf
+1 0 0 1 50 229 Tm
+(- leaderboard and social proof) Tj
+/F1 11 Tf
+1 0 0 1 50 199 Tm
+(That is a real product.) Tj
+/F1 11 Tf
+1 0 0 1 50 169 Tm
+(It is much stronger than a referral-only platform, and still focused enough to execute.) Tj
+/F2 15 Tf
+1 0 0 1 50 134 Tm
+(9. Recommended New Positioning) Tj
+/F1 11 Tf
+1 0 0 1 50 104 Tm
+(Use language like this:) Tj
+/F2 13 Tf
+1 0 0 1 50 71 Tm
+(Positioning line) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Length 2205 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 765 Tm
+(ReferralMe helps students and early professionals get closer to jobs through referrals,) Tj
+/F1 11 Tf
+1 0 0 1 50 750 Tm
+(readiness, and career support.) Tj
+/F2 13 Tf
+1 0 0 1 50 717 Tm
+(Simple version) Tj
+/F1 11 Tf
+1 0 0 1 50 687 Tm
+(ReferralMe is a career acceleration platform, not just a referral tool.) Tj
+/F2 13 Tf
+1 0 0 1 50 654 Tm
+(Campus version) Tj
+/F1 11 Tf
+1 0 0 1 50 624 Tm
+(Campus Ambassador helps ReferralMe grow through student leaders, visibility, and career) Tj
+/F1 11 Tf
+1 0 0 1 50 609 Tm
+(community building.) Tj
+/F2 15 Tf
+1 0 0 1 50 574 Tm
+(10. Recommended User Segments) Tj
+/F2 13 Tf
+1 0 0 1 50 541 Tm
+(Primary for growth) Tj
+/F1 11 Tf
+1 0 0 1 50 511 Tm
+(- students) Tj
+/F1 11 Tf
+1 0 0 1 50 496 Tm
+(- final-year students) Tj
+/F1 11 Tf
+1 0 0 1 50 481 Tm
+(- recent graduates) Tj
+/F1 11 Tf
+1 0 0 1 50 466 Tm
+(- early-career job seekers) Tj
+/F2 13 Tf
+1 0 0 1 50 433 Tm
+(Primary for monetization later) Tj
+/F1 11 Tf
+1 0 0 1 50 403 Tm
+(- mid-career professionals) Tj
+/F1 11 Tf
+1 0 0 1 50 388 Tm
+(- job switchers) Tj
+/F1 11 Tf
+1 0 0 1 50 373 Tm
+(- professionals willing to pay for better outcomes) Tj
+/F1 11 Tf
+1 0 0 1 50 343 Tm
+(This is important:) Tj
+/F1 11 Tf
+1 0 0 1 50 313 Tm
+(- students can be the growth engine) Tj
+/F1 11 Tf
+1 0 0 1 50 298 Tm
+(- mid-career can become the stronger paid layer later) Tj
+/F1 11 Tf
+1 0 0 1 50 268 Tm
+(You do not need to choose only one forever, but right now your product and campus system) Tj
+/F1 11 Tf
+1 0 0 1 50 253 Tm
+(already give you an advantage on the student side.) Tj
+/F2 15 Tf
+1 0 0 1 50 218 Tm
+(11. Final Recommendation) Tj
+/F2 13 Tf
+1 0 0 1 50 185 Tm
+(Clear recommendation) Tj
+/F1 11 Tf
+1 0 0 1 50 155 Tm
+(1. Keep the name ReferralMe) Tj
+/F1 11 Tf
+1 0 0 1 50 140 Tm
+(2. Do not build a pure paid referral marketplace) Tj
+/F1 11 Tf
+1 0 0 1 50 125 Tm
+(3. Reposition the platform as a career outcomes product) Tj
+/F1 11 Tf
+1 0 0 1 50 110 Tm
+(4. Keep referrals as the hook) Tj
+/F1 11 Tf
+1 0 0 1 50 95 Tm
+(5. Add mentoring, mock interviews, and resume review) Tj
+/F1 11 Tf
+1 0 0 1 50 80 Tm
+(6. Use campus ambassadors as the growth engine) Tj
+/F1 11 Tf
+1 0 0 1 50 65 Tm
+(7. Expand step by step, not all at once) Tj
+ET
+endstream
+endobj
+12 0 obj
+<< /Length 293 >>
+stream
+BT
+/F2 15 Tf
+1 0 0 1 50 760 Tm
+(12. Final One-Line Summary) Tj
+/F1 11 Tf
+1 0 0 1 50 730 Tm
+(ReferralMe should evolve into a student and early-career job acceleration platform,) Tj
+/F1 11 Tf
+1 0 0 1 50 715 Tm
+(where referrals are the entry point, but the real product is career outcomes.) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Pages /Kids [14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R] /Count 10 >>
+endobj
+14 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+15 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 4 0 R >>
+endobj
+16 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+17 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 6 0 R >>
+endobj
+18 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+19 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 8 0 R >>
+endobj
+20 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 9 0 R >>
+endobj
+21 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 10 0 R >>
+endobj
+22 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 11 0 R >>
+endobj
+23 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 12 0 R >>
+endobj
+24 0 obj
+<< /Type /Catalog /Pages 13 0 R >>
+endobj
+xref
+0 25
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000000160 00000 n 
+0000002164 00000 n 
+0000004347 00000 n 
+0000006230 00000 n 
+0000007928 00000 n 
+0000009783 00000 n 
+0000011627 00000 n 
+0000013380 00000 n 
+0000015113 00000 n 
+0000017371 00000 n 
+0000017716 00000 n 
+0000017839 00000 n 
+0000017977 00000 n 
+0000018115 00000 n 
+0000018253 00000 n 
+0000018391 00000 n 
+0000018529 00000 n 
+0000018667 00000 n 
+0000018805 00000 n 
+0000018944 00000 n 
+0000019083 00000 n 
+0000019222 00000 n 
+trailer
+<< /Size 25 /Root 24 0 R >>
+startxref
+19273
+%%EOF

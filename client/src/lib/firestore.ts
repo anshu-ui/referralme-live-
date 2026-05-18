@@ -198,6 +198,7 @@ export interface MentorshipSession {
   paymentStatus: "pending" | "paid" | "refunded";
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  cashfreeOrderId?: string;
   stripePaymentIntentId?: string;
   notes?: string;
   rating?: number; // 1-5 stars
@@ -1355,10 +1356,14 @@ export const updateMentorshipProfile = async (userId: string, mentorshipData: {
 }) => {
   try {
     const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
-      ...mentorshipData,
-      updatedAt: serverTimestamp(),
-    });
+    // Firestore does not allow `undefined` field values.
+    const payload = Object.fromEntries(
+      Object.entries({
+        ...mentorshipData,
+        updatedAt: serverTimestamp(),
+      }).filter(([, v]) => v !== undefined),
+    );
+    await updateDoc(userRef, payload);
   } catch (error) {
     console.error("Error updating mentorship profile:", error);
     throw error;

@@ -46,6 +46,18 @@
     return new GoogleGenAI({ apiKey });
   };
 
+  const getCashfreeConfig = () => {
+    const appId = process.env.CASHFREE_APP_ID;
+    const secretKey = process.env.CASHFREE_SECRET_KEY;
+    const envRaw = (process.env.CASHFREE_ENV || "sandbox").toLowerCase();
+    const env = envRaw === "production" ? "production" : "sandbox";
+    if (!appId || !secretKey) return null;
+    return { appId, secretKey, env };
+  };
+
+  const cashfreeBaseUrl = (env: "sandbox" | "production") =>
+    env === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
+
   const GEMINI_MENTOR_MODEL =
     process.env.GEMINI_MODEL ||
     "gemini-2.0-flash";
@@ -735,6 +747,112 @@
       return res.json({ keyId });
     });
 
+    // Cashfree payment routes - Marketplace model (platform collects 100% in Phase 1)
+    app.get("/api/cashfree/config", async (_req: Request, res: Response) => {
+      const cfg = getCashfreeConfig();
+      if (!cfg) return res.status(500).json({ message: "Cashfree not configured" });
+      return res.json({ env: cfg.env });
+    });
+
+    app.post("/api/cashfree/create-order", async (req: Request, res: Response) => {
+      try {
+        const cfg = getCashfreeConfig();
+        if (!cfg) return res.status(500).json({ message: "Cashfree not configured on server" });
+
+        const { amount, currency = "INR", mentorId, customer } = req.body || {};
+        const amt = Number(amount);
+        if (!Number.isFinite(amt) || amt <= 0) return res.status(400).json({ message: "Valid amount is required" });
+
+        const orderId = `mentorship_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        const customerId = String(customer?.id || "guest").slice(0, 50);
+        const customerName = String(customer?.name || "Customer").slice(0, 100);
+        const customerEmail = String(customer?.email || "unknown@example.com").slice(0, 120);
+        const customerPhone = String(customer?.phone || "9999999999").replace(/\D/g, "").slice(0, 15) || "9999999999";
+
+        const baseUrl = cashfreeBaseUrl(cfg.env);
+        const resp = await fetch(`${baseUrl}/pg/orders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-client-id": cfg.appId,
+            "x-client-secret": cfg.secretKey,
+            "x-api-version": "2022-09-01",
+          },
+          body: JSON.stringify({
+            order_id: orderId,
+            order_amount: amt,
+            order_currency: currency,
+            order_note: mentorId ? `Mentorship session for mentor ${mentorId}` : "Mentorship session",
+            customer_details: {
+              customer_id: customerId,
+              customer_name: customerName,
+              customer_email: customerEmail,
+              customer_phone: customerPhone,
+            },
+            order_tags: {
+              payment_type: "direct_platform_collects_all",
+              mentor_id: mentorId || "unknown",
+            },
+          }),
+        });
+
+        const data: any = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          console.error("Cashfree create-order error:", resp.status, data);
+          return res.status(500).json({ message: data?.message || "Failed to create Cashfree order" });
+        }
+
+        return res.json({
+          orderId: data?.order_id || orderId,
+          paymentSessionId: data?.payment_session_id,
+          status: data?.order_status,
+          env: cfg.env,
+        });
+      } catch (error) {
+        console.error("Cashfree order creation error:", error);
+        return res.status(500).json({ message: "Failed to create Cashfree order" });
+      }
+    });
+
+    app.post("/api/cashfree/verify-payment", async (req: Request, res: Response) => {
+      try {
+        const cfg = getCashfreeConfig();
+        if (!cfg) return res.status(500).json({ message: "Cashfree not configured on server" });
+        const { orderId } = req.body || {};
+        if (!orderId) return res.status(400).json({ message: "orderId is required" });
+
+        const baseUrl = cashfreeBaseUrl(cfg.env);
+        const resp = await fetch(`${baseUrl}/pg/orders/${encodeURIComponent(String(orderId))}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "x-client-id": cfg.appId,
+            "x-client-secret": cfg.secretKey,
+            "x-api-version": "2022-09-01",
+          },
+        });
+        const data: any = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          console.error("Cashfree verify-payment error:", resp.status, data);
+          return res.status(500).json({ message: data?.message || "Failed to verify Cashfree order" });
+        }
+
+        const status = String(data?.order_status || "").toUpperCase();
+        const isPaid = status === "PAID";
+        return res.json({
+          verified: isPaid,
+          status: data?.order_status,
+          orderId: data?.order_id,
+          orderAmount: data?.order_amount,
+          paymentMethod: data?.payment_method,
+        });
+      } catch (error) {
+        console.error("Cashfree verification error:", error);
+        return res.status(500).json({ message: "Failed to verify Cashfree payment" });
+      }
+    });
+
     app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
       try {
         const { amount, currency = 'INR', receipt, mentorId } = req.body;
@@ -882,7 +1000,7 @@
                 "",
                 "USER: Generate a premium, practical 7-day career plan.",
                 "Constraints:",
-                "- Output in Markdown.",
+                "- Output in clean plain text (no Markdown headings like #, no code fences).",
                 "- Include sections: Goal, Current Snapshot, 7-Day Plan (Day 1..Day 7 with 3-6 tasks each), Resume/ATS fixes (top 8), Referral outreach plan (message templates + who to contact), Interview prep plan, Checkpoints (what to measure).",
                 "- Keep it specific to the intake. Avoid generic filler.",
                 "- End with: 'If you want human help, book a mentor session in the Mentorship tab.'",
