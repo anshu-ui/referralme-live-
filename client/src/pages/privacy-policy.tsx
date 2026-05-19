@@ -217,7 +217,10 @@ export default function PrivacyPolicy() {
                     <a href="mailto:amit@referralme.in" className="text-blue-600 hover:text-blue-800 underline">amit@referralme.in</a>
                   </p>
                   <p className="text-blue-700 text-sm">
-                    Business Hours: Monday to Friday, 9:00 AM to 6:00 PM IST
+                    
+                    Legal Name: Amit Kumar
+                    Full Address : Village Parnali Post Office uhal Tehsil Tauni Devi Parnali 62/2 , Hamirpur
+                    Himachal Pardesh 177022 India
                   </p>
                 </div>
               </div>
