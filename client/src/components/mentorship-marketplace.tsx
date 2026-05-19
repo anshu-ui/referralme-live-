@@ -74,9 +74,10 @@ function computeMentorMatchScore(mentor: FirestoreUser, seeker: FirestoreUser, q
   const mentorTokens = tokensFromText(mentorSearchBlob(mentor));
 
   let overlap = 0;
-  for (const t of targetTokens) {
+  // Avoid TS downlevel iteration diagnostics by not relying on Set iteration.
+  Array.from(targetTokens).forEach((t) => {
     if (mentorTokens.has(t)) overlap += 1;
-  }
+  });
 
   // A tiny boost for mentors who look more established (optional field).
   const rating = Number(mentor.mentorshipRating || 0);

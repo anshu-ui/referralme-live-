@@ -50,7 +50,7 @@
     const appId = process.env.CASHFREE_APP_ID;
     const secretKey = process.env.CASHFREE_SECRET_KEY;
     const envRaw = (process.env.CASHFREE_ENV || "sandbox").toLowerCase();
-    const env = envRaw === "production" ? "production" : "sandbox";
+    const env: "sandbox" | "production" = envRaw === "production" ? "production" : "sandbox";
     if (!appId || !secretKey) return null;
     return { appId, secretKey, env };
   };
