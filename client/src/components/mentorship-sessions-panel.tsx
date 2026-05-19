@@ -6,7 +6,7 @@ import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Calendar, CheckCircle2, Clock, Link as LinkIcon } from "lucide-react";
 import type { FirestoreUser, MentorshipSession } from "../lib/firestore";
-import { subscribeToMentorshipSessions, updateMentorshipSession } from "../lib/firestore";
+import { markMentorshipSessionCompleted, subscribeToMentorshipSessions, submitMentorshipRating, updateMentorshipSession } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 
 export default function MentorshipSessionsPanel({
@@ -20,6 +20,8 @@ export default function MentorshipSessionsPanel({
   const [sessions, setSessions] = useState<MentorshipSession[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState<Record<string, string>>({});
+  const [ratingDraft, setRatingDraft] = useState<Record<string, number>>({});
+  const [feedbackDraft, setFeedbackDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const unsub = subscribeToMentorshipSessions(user.uid, role, setSessions);
@@ -49,10 +51,35 @@ export default function MentorshipSessionsPanel({
   const markCompleted = async (sessionId: string) => {
     setSavingId(sessionId);
     try {
-      await updateMentorshipSession(sessionId, { status: "completed" } as any);
+      await markMentorshipSessionCompleted({ sessionId, mentorId: user.uid });
       toast({ title: "Marked completed" });
     } catch (e: any) {
       toast({ title: "Could not update session", description: e?.message || "Please try again." });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const submitRating = async (session: MentorshipSession) => {
+    const sessionId = String(session.id || "");
+    const rating = Number(ratingDraft[sessionId] || 0);
+    const feedback = (feedbackDraft[sessionId] || "").trim();
+    if (!sessionId) return;
+    if (!rating || rating < 1 || rating > 5) {
+      toast({ title: "Select a rating", description: "Choose 1 to 5 stars." });
+      return;
+    }
+    setSavingId(sessionId);
+    try {
+      await submitMentorshipRating({
+        sessionId,
+        mentorId: session.mentorId,
+        rating,
+        feedback: feedback || undefined,
+      });
+      toast({ title: "Thanks for the rating" });
+    } catch (e: any) {
+      toast({ title: "Could not submit rating", description: e?.message || "Please try again." });
     } finally {
       setSavingId(null);
     }
@@ -92,6 +119,14 @@ export default function MentorshipSessionsPanel({
                         <Clock className="h-3.5 w-3.5" />
                         {s.duration} min
                       </span>
+                      {Number.isFinite(s.price) ? (
+                        <span className="inline-flex items-center gap-1">
+                          ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}
+                          {role === "mentor" && Number.isFinite(s.mentorPayoutAmount)
+                            ? ` (you earn ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))})`
+                            : ""}
+                        </span>
+                      ) : null}
                       <Badge variant="secondary" className="text-xs capitalize">
                         {s.status}
                       </Badge>
@@ -170,6 +205,44 @@ export default function MentorshipSessionsPanel({
                     {s.status}
                   </Badge>
                 </div>
+
+                {role === "mentee" && s.status === "completed" ? (
+                  <div className="mt-3 rounded-lg border bg-slate-50 p-3">
+                    {s.rating ? (
+                      <div className="text-xs text-slate-700">
+                        Your rating: <span className="font-semibold">{s.rating}/5</span>
+                        {s.feedback ? <span className="text-slate-600"> • {s.feedback}</span> : null}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-slate-900">Rate this session</div>
+                        <div className="flex flex-wrap gap-2">
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <Button
+                              key={v}
+                              size="sm"
+                              type="button"
+                              variant={(ratingDraft[String(s.id || "")] || 0) === v ? "default" : "outline"}
+                              onClick={() => setRatingDraft((p) => ({ ...p, [String(s.id || "")]: v }))}
+                            >
+                              {v}
+                            </Button>
+                          ))}
+                        </div>
+                        <Input
+                          value={feedbackDraft[String(s.id || "")] || ""}
+                          onChange={(e) => setFeedbackDraft((p) => ({ ...p, [String(s.id || "")]: e.target.value }))}
+                          placeholder="Optional feedback (1 line)"
+                        />
+                        <div className="flex justify-end">
+                          <Button size="sm" onClick={() => submitRating(s)} disabled={savingId === s.id}>
+                            {savingId === s.id ? "Submitting..." : "Submit rating"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             ))
           )}
@@ -178,4 +251,3 @@ export default function MentorshipSessionsPanel({
     </div>
   );
 }
-

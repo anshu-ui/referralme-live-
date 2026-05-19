@@ -20,6 +20,8 @@ function fmtInr(amount: number) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(safe);
 }
 
+const PLATFORM_FEE_PERCENT = 20;
+
 function getInitials(name?: string) {
   const parts = (name || "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "M";
@@ -163,6 +165,9 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
 
     setSubmitting(true);
     try {
+      const platformFeeAmount = Math.max(0, Math.round((selected.service.price * PLATFORM_FEE_PERCENT) / 100));
+      const mentorPayoutAmount = Math.max(0, selected.service.price - platformFeeAmount);
+
       // 1) Create Cashfree order on server
       const orderResp = await fetch("/api/cashfree/create-order", {
         method: "POST",
@@ -225,7 +230,12 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         scheduledAt: ts,
         status: "pending",
         paymentStatus: "paid",
+        paymentProvider: "cashfree",
         cashfreeOrderId: order.orderId,
+        platformFeePercent: PLATFORM_FEE_PERCENT,
+        platformFeeAmount,
+        mentorPayoutAmount,
+        payoutStatus: "unpaid",
         notes: notes.trim() || undefined,
       } as any);
 

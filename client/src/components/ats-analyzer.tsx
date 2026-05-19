@@ -18,6 +18,7 @@ interface ATSAnalyzerProps {
   onAnalysisComplete?: (result: any) => void;
   jobTitle?: string;
   company?: string;
+  onBookMentor?: (prefillSearch?: string) => void;
 }
 
 interface ImprovementSuggestion {
@@ -163,7 +164,7 @@ const buildImprovementSuggestions = (
   return suggestions.slice(0, 4);
 };
 
-export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTitle, company }: ATSAnalyzerProps) {
+export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTitle, company, onBookMentor }: ATSAnalyzerProps) {
   const { toast } = useToast();
   const { user } = useFirebaseAuth();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -214,6 +215,7 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
     ? buildImprovementSuggestions(analysisResult, resumeText, jobDescription, hasTargetJobDescription, jobTitle)
     : [];
   const selectedSuggestion = improvementSuggestions.find((suggestion) => suggestion.id === selectedSuggestionId) || improvementSuggestions[0] || null;
+  const showMentorshipNudge = Boolean(analysisResult && analysisResult.overallScore < 60 && onBookMentor);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -546,6 +548,31 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                     </div>
                   </CardContent>
                 </Card>
+
+                {showMentorshipNudge ? (
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-blue-900">
+                        <Wand2 className="h-5 w-5 text-blue-700" />
+                        Want help fixing this fast?
+                      </CardTitle>
+                      <CardDescription className="text-blue-700">
+                        If your ATS score is under 60, a 30 minute mentorship session can usually improve the top 3 problems quickly.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm text-blue-800">
+                        Recommended: Resume positioning, keyword alignment, and bullet rewrites.
+                      </div>
+                      <Button
+                        onClick={() => onBookMentor?.(jobTitle || "")}
+                        className="bg-blue-700 hover:bg-blue-800"
+                      >
+                        Book a mentor
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 {/* Score Breakdown */}
                 <Card>

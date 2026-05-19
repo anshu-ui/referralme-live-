@@ -31,10 +31,12 @@ import {
   type JobPosting,
   type PlatformAnnouncement,
   type ReferralRequest,
+  type MentorshipSession,
   createPlatformAnnouncement,
   deleteJobPosting,
   getAllATSAnalysisHistory,
   getAllJobPostings,
+  getAllMentorshipSessions,
   getPlatformAnnouncements,
   getAllReferralRequests,
   getAllUsers,
@@ -103,6 +105,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<FirestoreUser[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [requests, setRequests] = useState<ReferralRequest[]>([]);
+  const [mentorshipSessions, setMentorshipSessions] = useState<MentorshipSession[]>([]);
   const [atsAnalyses, setAtsAnalyses] = useState<ATSAnalysisHistory[]>([]);
   const [announcements, setAnnouncements] = useState<PlatformAnnouncement[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -123,16 +126,18 @@ export default function AdminDashboard() {
 
   const loadAdminData = async () => {
     try {
-      const [nextUsers, nextJobs, nextRequests, nextAtsAnalyses, nextAnnouncements] = await Promise.all([
+      const [nextUsers, nextJobs, nextRequests, nextMentorshipSessions, nextAtsAnalyses, nextAnnouncements] = await Promise.all([
         getAllUsers(),
         getAllJobPostings(),
         getAllReferralRequests(),
+        getAllMentorshipSessions(),
         getAllATSAnalysisHistory(),
         getPlatformAnnouncements(),
       ]);
       setUsers(nextUsers);
       setJobs(nextJobs);
       setRequests(nextRequests);
+      setMentorshipSessions(nextMentorshipSessions);
       setAtsAnalyses(nextAtsAnalyses);
       setAnnouncements(nextAnnouncements);
     } catch (error) {
@@ -402,6 +407,17 @@ export default function AdminDashboard() {
       setPublishingAnnouncement(false);
     }
   };
+
+  const mentorshipSummary = useMemo(() => {
+    const total = mentorshipSessions.length;
+    const pending = mentorshipSessions.filter((s) => s.status === "pending").length;
+    const confirmed = mentorshipSessions.filter((s) => s.status === "confirmed").length;
+    const completed = mentorshipSessions.filter((s) => s.status === "completed").length;
+    const payoutDue = mentorshipSessions.filter((s) => s.status === "completed" && s.paymentStatus === "paid" && (s.payoutStatus || "unpaid") === "unpaid").length;
+    const totalGmv = mentorshipSessions.reduce((sum, s) => sum + Number(s.price || 0), 0);
+    const totalFees = mentorshipSessions.reduce((sum, s) => sum + Number(s.platformFeeAmount || 0), 0);
+    return { total, pending, confirmed, completed, payoutDue, totalGmv, totalFees };
+  }, [mentorshipSessions]);
 
   const handleArchiveAnnouncement = async (announcement: PlatformAnnouncement) => {
     if (!announcement.id) return;
@@ -943,6 +959,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="jobs">Jobs</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
+            <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
             <TabsTrigger value="comms">Comms</TabsTrigger>
             <TabsTrigger value="controls">Controls</TabsTrigger>
           </TabsList>
@@ -1594,6 +1611,72 @@ export default function AdminDashboard() {
                             </SelectContent>
                           </Select>
                         </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="mentorship" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <MetricCard title="Sessions" value={mentorshipSummary.total} hint="All mentorship sessions" icon={Users} />
+              <MetricCard title="Pending" value={mentorshipSummary.pending} hint="Waiting for mentor confirm" icon={Activity} />
+              <MetricCard title="Completed" value={mentorshipSummary.completed} hint="Done sessions" icon={CheckSquare} />
+              <MetricCard title="Payout Due" value={mentorshipSummary.payoutDue} hint="Completed + unpaid" icon={Mail} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <MetricCard
+                title="Mentorship GMV"
+                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalGmv)}`}
+                hint="Sum of session prices"
+                icon={TrendingUp}
+              />
+              <MetricCard
+                title="Platform Fees"
+                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalFees)}`}
+                hint="20% fee captured on paid sessions"
+                icon={Target}
+              />
+            </div>
+
+            <Card className={ADMIN_SURFACE}>
+              <CardHeader>
+                <CardTitle>Mentorship Sessions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Mentor</TableHead>
+                      <TableHead>Mentee</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Fee</TableHead>
+                      <TableHead className="text-right">Payout</TableHead>
+                      <TableHead>Payout Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mentorshipSessions.slice(0, 200).map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="text-xs text-slate-600">{s.scheduledAt?.toDate?.()?.toLocaleString?.() || "-"}</TableCell>
+                        <TableCell className="text-sm">{s.mentorName}</TableCell>
+                        <TableCell className="text-sm">{s.menteeName}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{s.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {s.paymentProvider || (s.cashfreeOrderId ? "cashfree" : s.razorpayOrderId ? "razorpay" : "-")}
+                        </TableCell>
+                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}</TableCell>
+                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))}</TableCell>
+                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))}</TableCell>
+                        <TableCell className="text-xs capitalize">{s.payoutStatus || "unpaid"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

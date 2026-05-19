@@ -1848,6 +1848,17 @@ export default function CleanSeekerDashboard() {
         onAnalysisComplete={(result) => {
           setAtsAnalysisResult(result);
         }}
+        onBookMentor={(prefill) => {
+          try {
+            if (prefill) {
+              localStorage.setItem(`referralme:mentorshipSearch:${(user as any)?.uid || "anon"}`, prefill);
+            }
+          } catch {
+            // ignore
+          }
+          setIsATSAnalyzerOpen(false);
+          setActiveTab("mentorship");
+        }}
       />
 
       {/* Community Posts Modal */}

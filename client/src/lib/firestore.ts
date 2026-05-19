@@ -11,6 +11,8 @@ import {
   where, 
   orderBy, 
   onSnapshot,
+  runTransaction,
+  increment,
   serverTimestamp,
   Timestamp 
 } from "firebase/firestore";
@@ -47,6 +49,7 @@ export interface FirestoreUser {
   mentorshipServices?: MentorshipService[];
   mentorshipBio?: string;
   mentorshipRating?: number;
+  mentorshipRatingCount?: number;
   totalMentorshipSessions?: number;
   // Referral system fields
   referralCode?: string;
@@ -200,9 +203,16 @@ export interface MentorshipSession {
   razorpayPaymentId?: string;
   cashfreeOrderId?: string;
   stripePaymentIntentId?: string;
+  paymentProvider?: "cashfree" | "razorpay" | "stripe";
+  platformFeePercent?: number; // e.g., 20
+  platformFeeAmount?: number; // INR
+  mentorPayoutAmount?: number; // INR
+  payoutStatus?: "unpaid" | "paid";
+  payoutNote?: string;
   notes?: string;
   rating?: number; // 1-5 stars
   feedback?: string;
+  ratedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -1419,6 +1429,91 @@ export const subscribeToActiveMentors = (callback: (mentors: FirestoreUser[]) =>
     console.error("Error setting up active mentors subscription:", error);
     throw error;
   }
+};
+
+export const getAllMentorshipSessions = async (): Promise<MentorshipSession[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "mentorshipSessions"));
+    const sessions = querySnapshot.docs.map((sessionDoc) => ({
+      id: sessionDoc.id,
+      ...sessionDoc.data(),
+    })) as MentorshipSession[];
+
+    sessions.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+    return sessions;
+  } catch (error) {
+    console.error("Error getting all mentorship sessions:", error);
+    throw error;
+  }
+};
+
+export const markMentorshipSessionCompleted = async (args: { sessionId: string; mentorId: string }) => {
+  const { sessionId, mentorId } = args;
+  const sessionRef = doc(db, "mentorshipSessions", sessionId);
+  const mentorRef = doc(db, "users", mentorId);
+
+  await runTransaction(db, async (tx) => {
+    const sessionSnap = await tx.get(sessionRef);
+    if (!sessionSnap.exists()) throw new Error("Session not found");
+    const current = sessionSnap.data() as any;
+
+    if (current.status !== "completed") {
+      tx.update(sessionRef, {
+        status: "completed",
+        updatedAt: serverTimestamp(),
+      });
+      tx.update(mentorRef, {
+        totalMentorshipSessions: increment(1),
+        updatedAt: serverTimestamp(),
+      } as any);
+    }
+  });
+};
+
+export const submitMentorshipRating = async (args: {
+  sessionId: string;
+  mentorId: string;
+  rating: number;
+  feedback?: string;
+}) => {
+  const sessionRef = doc(db, "mentorshipSessions", args.sessionId);
+  const mentorRef = doc(db, "users", args.mentorId);
+
+  const rating = Math.max(1, Math.min(5, Math.round(Number(args.rating || 0))));
+  if (!rating) throw new Error("Invalid rating");
+
+  await runTransaction(db, async (tx) => {
+    const sessionSnap = await tx.get(sessionRef);
+    if (!sessionSnap.exists()) throw new Error("Session not found");
+    const session = sessionSnap.data() as any;
+    if (session.rating) return;
+
+    tx.update(sessionRef, {
+      rating,
+      feedback: args.feedback || "",
+      ratedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    const mentorSnap = await tx.get(mentorRef);
+    if (!mentorSnap.exists()) return;
+    const mentor = mentorSnap.data() as any;
+    const prevAvg = Number(mentor.mentorshipRating || 0);
+    const prevCount = Number(mentor.mentorshipRatingCount || 0);
+    const nextCount = prevCount + 1;
+    const nextAvgRaw = (prevAvg * prevCount + rating) / nextCount;
+    const nextAvg = Math.round(nextAvgRaw * 10) / 10;
+
+    tx.update(mentorRef, {
+      mentorshipRating: nextAvg,
+      mentorshipRatingCount: increment(1),
+      updatedAt: serverTimestamp(),
+    } as any);
+  });
 };
 
 // ===== REFERRAL SYSTEM FUNCTIONS =====
