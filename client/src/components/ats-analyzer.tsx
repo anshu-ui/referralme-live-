@@ -565,7 +565,18 @@ export default function ATSAnalyzer({ isOpen, onClose, onAnalysisComplete, jobTi
                         Recommended: Resume positioning, keyword alignment, and bullet rewrites.
                       </div>
                       <Button
-                        onClick={() => onBookMentor?.(jobTitle || "")}
+                        onClick={() => {
+                          const prefill = [
+                            jobTitle,
+                            ...(analysisResult?.missingKeywords || []).slice(0, 8),
+                            "resume",
+                            "ats",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")
+                            .trim();
+                          onBookMentor?.(prefill || jobTitle || "");
+                        }}
                         className="bg-blue-700 hover:bg-blue-800"
                       >
                         Book a mentor

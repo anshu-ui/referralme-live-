@@ -32,6 +32,7 @@ import {
   type PlatformAnnouncement,
   type ReferralRequest,
   type MentorshipSession,
+  markMentorshipPayoutPaid,
   createPlatformAnnouncement,
   deleteJobPosting,
   getAllATSAnalysisHistory,
@@ -51,6 +52,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -114,6 +123,10 @@ export default function AdminDashboard() {
   const [userFilter, setUserFilter] = useState<UserFilter>("all");
   const [jobFilter, setJobFilter] = useState<JobFilter>("all");
   const [requestFilter, setRequestFilter] = useState<RequestFilter>("all");
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
+  const [payoutTarget, setPayoutTarget] = useState<MentorshipSession | null>(null);
+  const [payoutNote, setPayoutNote] = useState("");
+  const [payoutSaving, setPayoutSaving] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -160,6 +173,33 @@ export default function AdminDashboard() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadAdminData();
+  };
+
+  const openPayoutDialog = (session: MentorshipSession) => {
+    setPayoutTarget(session);
+    setPayoutNote(session.payoutNote || "");
+    setPayoutDialogOpen(true);
+  };
+
+  const confirmPayoutPaid = async () => {
+    if (!payoutTarget?.id) return;
+    setPayoutSaving(true);
+    try {
+      await markMentorshipPayoutPaid({
+        sessionId: payoutTarget.id,
+        note: payoutNote.trim() || undefined,
+        adminEmail: user?.email || undefined,
+      });
+      toast({ title: "Payout marked as paid" });
+      setPayoutDialogOpen(false);
+      setPayoutTarget(null);
+      setPayoutNote("");
+      await loadAdminData();
+    } catch (e: any) {
+      toast({ title: "Could not update payout", description: e?.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setPayoutSaving(false);
+    }
   };
 
   const handleToggleVerified = async (targetUser: FirestoreUser) => {
@@ -901,6 +941,47 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Mark payout as paid</DialogTitle>
+            <DialogDescription>
+              This is a manual payout tracker. Only mark as paid after you transfer the mentor payout.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+              <div className="font-semibold text-slate-900">{payoutTarget?.title || "Mentorship session"}</div>
+              <div className="mt-1 text-xs text-slate-600">
+                Mentor: {payoutTarget?.mentorName || "—"} • Mentee: {payoutTarget?.menteeName || "—"}
+              </div>
+              <div className="mt-2 text-xs text-slate-600">
+                Payout amount:{" "}
+                <span className="font-semibold text-slate-900">
+                  ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(payoutTarget?.mentorPayoutAmount || 0))}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Note (optional)</div>
+              <Input
+                value={payoutNote}
+                onChange={(e) => setPayoutNote(e.target.value)}
+                placeholder="UTR / reference / bank transfer note"
+                className="border-slate-200 bg-white"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayoutDialogOpen(false)} disabled={payoutSaving}>
+              Cancel
+            </Button>
+            <Button onClick={confirmPayoutPaid} disabled={payoutSaving}>
+              {payoutSaving ? "Saving..." : "Confirm paid"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -1648,22 +1729,23 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Scheduled</TableHead>
-                      <TableHead>Mentor</TableHead>
-                      <TableHead>Mentee</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Provider</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Fee</TableHead>
-                      <TableHead className="text-right">Payout</TableHead>
-                      <TableHead>Payout Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mentorshipSessions.slice(0, 200).map((s) => (
-                      <TableRow key={s.id}>
+	                  <TableHeader>
+	                    <TableRow>
+	                      <TableHead>Scheduled</TableHead>
+	                      <TableHead>Mentor</TableHead>
+	                      <TableHead>Mentee</TableHead>
+	                      <TableHead>Status</TableHead>
+	                      <TableHead>Provider</TableHead>
+	                      <TableHead className="text-right">Price</TableHead>
+	                      <TableHead className="text-right">Fee</TableHead>
+	                      <TableHead className="text-right">Payout</TableHead>
+	                      <TableHead>Payout Status</TableHead>
+	                      <TableHead className="text-right">Actions</TableHead>
+	                    </TableRow>
+	                  </TableHeader>
+	                  <TableBody>
+	                    {mentorshipSessions.slice(0, 200).map((s) => (
+	                      <TableRow key={s.id}>
                         <TableCell className="text-xs text-slate-600">{s.scheduledAt?.toDate?.()?.toLocaleString?.() || "-"}</TableCell>
                         <TableCell className="text-sm">{s.mentorName}</TableCell>
                         <TableCell className="text-sm">{s.menteeName}</TableCell>
@@ -1674,15 +1756,24 @@ export default function AdminDashboard() {
                           {s.paymentProvider || (s.cashfreeOrderId ? "cashfree" : s.razorpayOrderId ? "razorpay" : "-")}
                         </TableCell>
                         <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}</TableCell>
-                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))}</TableCell>
-                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))}</TableCell>
-                        <TableCell className="text-xs capitalize">{s.payoutStatus || "unpaid"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))}</TableCell>
+	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))}</TableCell>
+	                        <TableCell className="text-xs capitalize">{s.payoutStatus || "unpaid"}</TableCell>
+	                        <TableCell className="text-right">
+	                          {s.status === "completed" && s.paymentStatus === "paid" && (s.payoutStatus || "unpaid") === "unpaid" ? (
+	                            <Button size="sm" variant="outline" onClick={() => openPayoutDialog(s)}>
+	                              Mark paid
+	                            </Button>
+	                          ) : (
+	                            <span className="text-xs text-slate-400">—</span>
+	                          )}
+	                        </TableCell>
+	                      </TableRow>
+	                    ))}
+	                  </TableBody>
+	                </Table>
+	              </CardContent>
+	            </Card>
           </TabsContent>
 
           <TabsContent value="comms" className="space-y-4">

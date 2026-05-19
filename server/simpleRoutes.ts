@@ -29,6 +29,12 @@
     generateCampusProofReviewedEmail,
     generateCampusRewardUnlockedEmail,
     generateCampusWeeklyDigestEmail,
+    generateMentorshipAdminEventEmail,
+    generateMentorshipCompletedEmail,
+    generateMentorshipConfirmedEmail,
+    generateMentorshipNewRequestEmail,
+    generateMentorshipPaymentReceivedEmail,
+    generateMentorshipRatingReceivedEmail,
   } from "./emailService";
 
   // Initialize Firebase Admin (only if credentials are available)
@@ -717,6 +723,166 @@
       } catch (error) {
         console.error('Campus weekly digest email error:', error);
         return res.status(500).json({ error: 'Email service error' });
+      }
+    });
+
+    // ========================================
+    // Mentorship emails
+    // ========================================
+    const getAdminEmail = () => process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "amit@referralme.in";
+
+    app.post("/api/email/mentorship-booked", async (req: Request, res: Response) => {
+      try {
+        const { sessionId, menteeName, menteeEmail, mentorName, mentorEmail, title, scheduledAt, duration, price } = req.body || {};
+        if (!menteeName || !menteeEmail || !mentorName || !mentorEmail || !title || !scheduledAt || !duration || !price) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const scheduledAtLabel = new Date(scheduledAt).toLocaleString();
+        const priceInr = Number(price || 0);
+        const durationMinutes = Number(duration || 0);
+
+        const menteeEmailContent = generateMentorshipPaymentReceivedEmail({
+          menteeName,
+          mentorName,
+          title,
+          scheduledAtLabel,
+          priceInr,
+        });
+        const mentorEmailContent = generateMentorshipNewRequestEmail({
+          mentorName,
+          mentorEmail,
+          menteeName,
+          title,
+          scheduledAtLabel,
+          durationMinutes,
+          priceInr,
+        });
+        const adminEmailContent = generateMentorshipAdminEventEmail({
+          event: "booked",
+          mentorName,
+          mentorEmail,
+          menteeName,
+          menteeEmail,
+          title,
+          scheduledAtLabel,
+          priceInr,
+          sessionId,
+        });
+
+        const results = await Promise.all([
+          sendEmail({ to: menteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
+          sendEmail({ to: mentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
+          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        ]);
+
+        const success = results.filter(Boolean).length;
+        return res.json({ success: success >= 2, sent: success, failed: results.length - success });
+      } catch (error) {
+        console.error("Mentorship booked email error:", error);
+        return res.status(500).json({ error: "Email service error" });
+      }
+    });
+
+    app.post("/api/email/mentorship-confirmed", async (req: Request, res: Response) => {
+      try {
+        const { sessionId, menteeName, menteeEmail, mentorName, mentorEmail, title, scheduledAt, meetingUrl } = req.body || {};
+        if (!menteeName || !menteeEmail || !mentorName || !title || !scheduledAt || !meetingUrl) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+        const scheduledAtLabel = new Date(scheduledAt).toLocaleString();
+        const menteeEmailContent = generateMentorshipConfirmedEmail({
+          menteeName,
+          mentorName,
+          title,
+          scheduledAtLabel,
+          meetingUrl,
+        });
+        const adminEmailContent = generateMentorshipAdminEventEmail({
+          event: "confirmed",
+          mentorName,
+          mentorEmail,
+          menteeName,
+          menteeEmail,
+          title,
+          scheduledAtLabel,
+          sessionId,
+        });
+        const results = await Promise.all([
+          sendEmail({ to: menteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
+          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        ]);
+        const sent = results.filter(Boolean).length;
+        return res.json({ success: sent === results.length, sent, failed: results.length - sent });
+      } catch (error) {
+        console.error("Mentorship confirmed email error:", error);
+        return res.status(500).json({ error: "Email service error" });
+      }
+    });
+
+    app.post("/api/email/mentorship-completed", async (req: Request, res: Response) => {
+      try {
+        const { sessionId, menteeName, menteeEmail, mentorName, mentorEmail, title } = req.body || {};
+        if (!menteeName || !menteeEmail || !mentorName || !title) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+        const menteeEmailContent = generateMentorshipCompletedEmail({
+          menteeName,
+          mentorName,
+          title,
+        });
+        const adminEmailContent = generateMentorshipAdminEventEmail({
+          event: "completed",
+          mentorName,
+          mentorEmail,
+          menteeName,
+          menteeEmail,
+          title,
+          sessionId,
+        });
+        const results = await Promise.all([
+          sendEmail({ to: menteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
+          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        ]);
+        const sent = results.filter(Boolean).length;
+        return res.json({ success: sent === results.length, sent, failed: results.length - sent });
+      } catch (error) {
+        console.error("Mentorship completed email error:", error);
+        return res.status(500).json({ error: "Email service error" });
+      }
+    });
+
+    app.post("/api/email/mentorship-rating-received", async (req: Request, res: Response) => {
+      try {
+        const { sessionId, mentorName, mentorEmail, menteeName, menteeEmail, title, rating } = req.body || {};
+        if (!mentorName || !mentorEmail || !title || !rating) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+        const ratingNumber = Number(rating || 0);
+        const mentorEmailContent = generateMentorshipRatingReceivedEmail({
+          mentorName,
+          title,
+          rating: ratingNumber,
+        });
+        const adminEmailContent = generateMentorshipAdminEventEmail({
+          event: "rated",
+          mentorName,
+          mentorEmail,
+          menteeName: menteeName || "Mentee",
+          menteeEmail,
+          title,
+          rating: ratingNumber,
+          sessionId,
+        });
+        const results = await Promise.all([
+          sendEmail({ to: mentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
+          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        ]);
+        const sent = results.filter(Boolean).length;
+        return res.json({ success: sent === results.length, sent, failed: results.length - sent });
+      } catch (error) {
+        console.error("Mentorship rating received email error:", error);
+        return res.status(500).json({ error: "Email service error" });
       }
     });
 

@@ -280,3 +280,81 @@ export async function sendJobAlertToSeekers(payload: {
     payload,
   });
 }
+
+export async function sendMentorshipBookedEmails(payload: {
+  sessionId?: string;
+  menteeName: string;
+  menteeEmail: string;
+  mentorName: string;
+  mentorEmail: string;
+  title: string;
+  scheduledAt: string; // ISO
+  duration: number;
+  price: number;
+}): Promise<boolean> {
+  if (!payload.menteeName || !payload.menteeEmail || !payload.mentorName || !payload.mentorEmail || !payload.title) {
+    console.error("Missing required fields for mentorship booked email", payload);
+    return false;
+  }
+  return postEmailRequest({
+    endpoint: "/api/email/mentorship-booked",
+    payload,
+  });
+}
+
+export async function sendMentorshipConfirmedEmail(payload: {
+  sessionId?: string;
+  menteeName: string;
+  menteeEmail: string;
+  mentorName: string;
+  mentorEmail?: string;
+  title: string;
+  scheduledAt: string; // ISO
+  meetingUrl: string;
+}): Promise<boolean> {
+  if (!payload.menteeName || !payload.menteeEmail || !payload.mentorName || !payload.title || !payload.scheduledAt || !payload.meetingUrl) {
+    console.error("Missing required fields for mentorship confirmed email", payload);
+    return false;
+  }
+  return postEmailRequest({
+    endpoint: "/api/email/mentorship-confirmed",
+    payload,
+  });
+}
+
+export async function sendMentorshipCompletedEmail(payload: {
+  sessionId?: string;
+  menteeName: string;
+  menteeEmail: string;
+  mentorName: string;
+  mentorEmail?: string;
+  title: string;
+}): Promise<boolean> {
+  if (!payload.menteeName || !payload.menteeEmail || !payload.mentorName || !payload.title) {
+    console.error("Missing required fields for mentorship completed email", payload);
+    return false;
+  }
+  return postEmailRequest({
+    endpoint: "/api/email/mentorship-completed",
+    payload,
+  });
+}
+
+export async function sendMentorshipRatingReceivedEmail(payload: {
+  sessionId?: string;
+  mentorName: string;
+  mentorEmail: string;
+  menteeName?: string;
+  menteeEmail?: string;
+  title: string;
+  rating: number;
+}): Promise<boolean> {
+  if (!payload.mentorName || !payload.mentorEmail || !payload.title || !payload.rating) {
+    console.error("Missing required fields for mentorship rating email", payload);
+    return false;
+  }
+  return postEmailRequest({
+    endpoint: "/api/email/mentorship-rating-received",
+    payload,
+  });
+}

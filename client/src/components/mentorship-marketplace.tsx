@@ -11,9 +11,10 @@ import { Textarea } from "./ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, IndianRupee, Search, Sparkles, Users } from "lucide-react";
 import type { FirestoreUser, MentorshipService, MentorshipSession } from "../lib/firestore";
-import { createMentorshipSession, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
+import { createMentorshipSession, getUserATSAnalysisHistory, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 import { openCashfreeCheckout } from "../lib/cashfree";
+import { sendMentorshipBookedEmails } from "../lib/emailService";
 
 function fmtInr(amount: number) {
   const safe = Number.isFinite(amount) ? amount : 0;
@@ -92,6 +93,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
   const [mentors, setMentors] = useState<FirestoreUser[]>([]);
   const [sessions, setSessions] = useState<MentorshipSession[]>([]);
   const [search, setSearch] = useState("");
+  const [autoSearch, setAutoSearch] = useState<string>("");
 
   const [selected, setSelected] = useState<{ mentor: FirestoreUser; service: MentorshipService } | null>(null);
   const [scheduledAt, setScheduledAt] = useState<string>("");
@@ -104,6 +106,30 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     return () => {
       unsubMentors?.();
       unsubSessions?.();
+    };
+  }, [user.uid]);
+
+  useEffect(() => {
+    // Use latest ATS analysis keywords to improve recommendations automatically.
+    let cancelled = false;
+    getUserATSAnalysisHistory(user.uid)
+      .then((items) => {
+        if (cancelled) return;
+        const latest = items[0];
+        if (!latest) return;
+        const tokens = [
+          latest.jobTitle,
+          latest.company,
+          ...(latest.missingKeywords || []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        if (tokens) setAutoSearch(tokens);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
   }, [user.uid]);
 
@@ -140,11 +166,13 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     });
   }, [mentors, search]);
 
+  const effectiveQuery = useMemo(() => (search.trim() ? search : autoSearch), [search, autoSearch]);
+
   const rankedMentors = useMemo(() => {
     const list = filtered.slice();
-    list.sort((a, b) => computeMentorMatchScore(b, user, search) - computeMentorMatchScore(a, user, search));
+    list.sort((a, b) => computeMentorMatchScore(b, user, effectiveQuery) - computeMentorMatchScore(a, user, effectiveQuery));
     return list;
-  }, [filtered, search, user]);
+  }, [filtered, effectiveQuery, user]);
 
   const topRecommended = useMemo(() => rankedMentors.slice(0, 3), [rankedMentors]);
 
@@ -217,7 +245,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
       }
 
       // 4) Create the session as paid + pending mentor confirmation
-      await createMentorshipSession({
+      const sessionId = await createMentorshipSession({
         mentorId: selected.mentor.uid,
         mentorName: selected.mentor.displayName || "Mentor",
         mentorEmail: selected.mentor.email || "",
@@ -239,6 +267,19 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         payoutStatus: "unpaid",
         notes: notes.trim() || undefined,
       } as any);
+
+      // Fire-and-forget emails (do not block user flow)
+      sendMentorshipBookedEmails({
+        sessionId,
+        menteeName: user.displayName || "Mentee",
+        menteeEmail: user.email || "",
+        mentorName: selected.mentor.displayName || "Mentor",
+        mentorEmail: selected.mentor.email || "",
+        title: selected.service.title,
+        scheduledAt: ts.toDate().toISOString(),
+        duration: selected.service.duration,
+        price: selected.service.price,
+      }).catch(() => {});
 
       toast({ title: "Request sent", description: "Your mentorship request is created. The mentor will confirm." });
       setSelected(null);

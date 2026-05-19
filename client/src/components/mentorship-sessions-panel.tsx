@@ -8,6 +8,7 @@ import { Calendar, CheckCircle2, Clock, Link as LinkIcon } from "lucide-react";
 import type { FirestoreUser, MentorshipSession } from "../lib/firestore";
 import { markMentorshipSessionCompleted, subscribeToMentorshipSessions, submitMentorshipRating, updateMentorshipSession } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
+import { sendMentorshipCompletedEmail, sendMentorshipConfirmedEmail, sendMentorshipRatingReceivedEmail } from "../lib/emailService";
 
 export default function MentorshipSessionsPanel({
   user,
@@ -31,7 +32,8 @@ export default function MentorshipSessionsPanel({
   const active = useMemo(() => sessions.filter((s) => ["pending", "confirmed", "in_progress"].includes(s.status)), [sessions]);
   const history = useMemo(() => sessions.filter((s) => ["completed", "cancelled"].includes(s.status)), [sessions]);
 
-  const saveMeetingUrl = async (sessionId: string) => {
+  const saveMeetingUrl = async (session: MentorshipSession) => {
+    const sessionId = String(session.id || "");
     const url = (meetingUrlDraft[sessionId] || "").trim();
     if (!url) {
       toast({ title: "Add a meeting link", description: "Paste a Google Meet / Zoom link first." });
@@ -41,6 +43,20 @@ export default function MentorshipSessionsPanel({
     try {
       await updateMentorshipSession(sessionId, { meetingUrl: url, status: "confirmed" } as any);
       toast({ title: "Updated", description: "Meeting link saved and session confirmed." });
+
+      // Fire-and-forget confirmation email to mentee (+ admin on server)
+      if (session.menteeEmail) {
+        sendMentorshipConfirmedEmail({
+          sessionId,
+          menteeName: session.menteeName,
+          menteeEmail: session.menteeEmail,
+          mentorName: session.mentorName,
+          mentorEmail: session.mentorEmail,
+          title: session.title,
+          scheduledAt: session.scheduledAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+          meetingUrl: url,
+        }).catch(() => {});
+      }
     } catch (e: any) {
       toast({ title: "Could not update session", description: e?.message || "Please try again." });
     } finally {
@@ -48,11 +64,23 @@ export default function MentorshipSessionsPanel({
     }
   };
 
-  const markCompleted = async (sessionId: string) => {
+  const markCompleted = async (session: MentorshipSession) => {
+    const sessionId = String(session.id || "");
     setSavingId(sessionId);
     try {
       await markMentorshipSessionCompleted({ sessionId, mentorId: user.uid });
       toast({ title: "Marked completed" });
+
+      if (session.menteeEmail) {
+        sendMentorshipCompletedEmail({
+          sessionId,
+          menteeName: session.menteeName,
+          menteeEmail: session.menteeEmail,
+          mentorName: session.mentorName,
+          mentorEmail: session.mentorEmail,
+          title: session.title,
+        }).catch(() => {});
+      }
     } catch (e: any) {
       toast({ title: "Could not update session", description: e?.message || "Please try again." });
     } finally {
@@ -78,6 +106,18 @@ export default function MentorshipSessionsPanel({
         feedback: feedback || undefined,
       });
       toast({ title: "Thanks for the rating" });
+
+      if (session.mentorEmail) {
+        sendMentorshipRatingReceivedEmail({
+          sessionId,
+          mentorName: session.mentorName,
+          mentorEmail: session.mentorEmail,
+          menteeName: session.menteeName,
+          menteeEmail: session.menteeEmail,
+          title: session.title,
+          rating,
+        }).catch(() => {});
+      }
     } catch (e: any) {
       toast({ title: "Could not submit rating", description: e?.message || "Please try again." });
     } finally {
@@ -154,7 +194,7 @@ export default function MentorshipSessionsPanel({
                             className="w-[240px]"
                           />
                         </div>
-                        <Button size="sm" onClick={() => saveMeetingUrl(String(s.id))} disabled={savingId === s.id} className="gap-2">
+                        <Button size="sm" onClick={() => saveMeetingUrl(s)} disabled={savingId === s.id} className="gap-2">
                           <CheckCircle2 className="h-4 w-4" />
                           {savingId === s.id ? "Saving..." : "Confirm"}
                         </Button>
@@ -165,7 +205,7 @@ export default function MentorshipSessionsPanel({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => markCompleted(String(s.id))}
+                        onClick={() => markCompleted(s)}
                         disabled={savingId === s.id}
                       >
                         Mark done

@@ -209,6 +209,8 @@ export interface MentorshipSession {
   mentorPayoutAmount?: number; // INR
   payoutStatus?: "unpaid" | "paid";
   payoutNote?: string;
+  payoutPaidAt?: Timestamp;
+  payoutPaidByEmail?: string;
   notes?: string;
   rating?: number; // 1-5 stars
   feedback?: string;
@@ -1472,6 +1474,22 @@ export const markMentorshipSessionCompleted = async (args: { sessionId: string; 
       } as any);
     }
   });
+};
+
+export const markMentorshipPayoutPaid = async (args: { sessionId: string; note?: string; adminEmail?: string }) => {
+  try {
+    const sessionRef = doc(db, "mentorshipSessions", args.sessionId);
+    await updateDoc(sessionRef, sanitizeFirestorePayload({
+      payoutStatus: "paid",
+      payoutNote: args.note || null,
+      payoutPaidAt: serverTimestamp(),
+      payoutPaidByEmail: args.adminEmail || null,
+      updatedAt: serverTimestamp(),
+    }));
+  } catch (error) {
+    console.error("Error marking payout as paid:", error);
+    throw error;
+  }
 };
 
 export const submitMentorshipRating = async (args: {

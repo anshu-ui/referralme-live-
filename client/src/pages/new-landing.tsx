@@ -3,7 +3,7 @@ import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
 import { useLocation } from "wouter";
-import { getUserProfile, getJobPostings, JobPosting } from "../lib/firestore";
+import { getMentorsWithActiveProfiles, getUserProfile, getJobPostings, JobPosting, type FirestoreUser } from "../lib/firestore";
 import LiveAnimatedStats from "../components/live-animated-stats";
 import LiveJobsSection from "../components/live-jobs-section";
 import { Link } from "wouter";
@@ -105,9 +105,11 @@ export default function NewLanding() {
   const { user, refreshUser } = useFirebaseAuth();
   const [, setLocation] = useLocation();
   const [allJobs, setAllJobs] = useState<JobPosting[]>([]);
+  const [topMentors, setTopMentors] = useState<FirestoreUser[]>([]);
 
   const featuresReveal = useScrollReveal();
   const atsReveal = useScrollReveal();
+  const mentorshipReveal = useScrollReveal();
   const howReveal = useScrollReveal();
   const statsReveal = useScrollReveal();
   const ctaReveal = useScrollReveal();
@@ -126,11 +128,31 @@ export default function NewLanding() {
   }, []);
 
   useEffect(() => {
+    // Landing-page "Top mentors" section (public, read-only).
+    getMentorsWithActiveProfiles()
+      .then((mentors) => {
+        const ranked = mentors
+          .slice()
+          .sort((a, b) => {
+            const ar = Number(a.mentorshipRating || 0);
+            const br = Number(b.mentorshipRating || 0);
+            const ac = Number(a.totalMentorshipSessions || 0);
+            const bc = Number(b.totalMentorshipSessions || 0);
+            if (br !== ar) return br - ar;
+            return bc - ac;
+          })
+          .slice(0, 6);
+        setTopMentors(ranked);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 30);
       const total = document.body.scrollHeight - window.innerHeight;
       setScrollProgress(total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0);
-      const sections = ["hero", "resume-scan", "features", "campus-program", "how-it-works", "live-jobs"];
+      const sections = ["hero", "resume-scan", "features", "mentorship", "campus-program", "how-it-works", "live-jobs"];
       const pos = window.scrollY + 120;
       for (const s of sections) {
         const el = document.getElementById(s);
@@ -196,8 +218,9 @@ export default function NewLanding() {
     { icon: "🎯", title: "Smart Referrals", desc: "Skip the ATS black hole. Get your resume directly in front of the hiring manager through a real employee referral.", wide: true, highlight: true },
     { icon: "🤝", title: "Verified Professionals", desc: "Every referrer is a verified employee at their company — authentic and trustworthy connections.", wide: false, highlight: false },
     { icon: "📊", title: "ATS Resume Analysis", desc: "Get an instant AI-powered resume score with detailed feedback and keyword recommendations.", wide: false, highlight: false },
+    { icon: "🧠", title: "AI Mentor", desc: "Career guidance that feels like a real coach: plans, resume fixes, interview prep, and role-specific suggestions.", wide: false, highlight: false },
+    { icon: "📞", title: "1:1 Mentorship", desc: "Book sessions with active referrers. Pay first, get a meeting link, and track everything in the dashboard.", wide: false, highlight: false },
     { icon: "🏆", title: "Reward System", desc: "Referrers earn points and rewards for every successful placement, creating a thriving ecosystem.", wide: false, highlight: false },
-    { icon: "💬", title: "Direct Messaging", desc: "Communicate directly with referrers, ask questions, and build genuine professional relationships.", wide: false, highlight: false },
     { icon: "🔒", title: "100% Private", desc: "Your data is end-to-end encrypted. You control who sees your profile and resume at all times.", wide: true, highlight: false },
   ];
 
@@ -221,6 +244,12 @@ export default function NewLanding() {
     { name: "Ananya Iyer", role: "Data Analyst at Amazon", text: "The ATS resume analysis helped me fix my resume and the referral network is amazing. Got my dream job in 2 weeks!", avatar: "A", color: "#1e40af" },
     { name: "Karan Mehta", role: "UX Designer at Swiggy", text: "As a referrer, I love helping talented people land roles at my company. The platform makes it seamless and rewarding.", avatar: "K", color: "#1e3a8a" },
   ];
+
+  const getMentorStartingPrice = (mentor: FirestoreUser) => {
+    const services = (mentor.mentorshipServices || []).filter((s: any) => s?.isActive);
+    const prices = services.map((s: any) => Number(s?.price || 0)).filter((v: number) => Number.isFinite(v) && v > 0);
+    return prices.length ? Math.min(...prices) : 0;
+  };
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -969,6 +998,111 @@ export default function NewLanding() {
           font-size: 0.72rem; font-weight: 700;
         }
 
+        /* ── MENTORSHIP SECTION ───────────── */
+        .lp-mentor {
+          padding: 5.5rem 1.5rem;
+          background:
+            radial-gradient(circle at 20% 20%, rgba(37,99,235,0.10), transparent 40%),
+            radial-gradient(circle at 80% 30%, rgba(34,197,94,0.10), transparent 45%),
+            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          border-top: 1px solid #e2e8f0;
+        }
+        .lp-mentor-wrap {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 2rem;
+          align-items: start;
+          opacity: 0;
+          transform: translateY(28px);
+          transition: all 0.7s ease;
+        }
+        .lp-mentor-wrap.revealed { opacity: 1; transform: translateY(0); }
+        @media (min-width: 980px) {
+          .lp-mentor-wrap { grid-template-columns: 0.9fr 1.1fr; }
+        }
+        .lp-mentor-copy { text-align: left; }
+        .lp-mentor-kpis {
+          margin-top: 1.25rem;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+        .lp-mentor-kpi {
+          border: 1px solid #dbeafe;
+          background: rgba(255,255,255,0.92);
+          border-radius: 18px;
+          padding: 0.9rem 1rem;
+          box-shadow: 0 18px 40px rgba(37,99,235,0.08);
+        }
+        .lp-mentor-kpi strong { display: block; color: #0f172a; font-size: 0.95rem; }
+        .lp-mentor-kpi span { display: block; margin-top: 0.25rem; color: #64748b; font-size: 0.82rem; }
+        .lp-mentor-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        @media (min-width: 640px) {
+          .lp-mentor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1100px) {
+          .lp-mentor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        .lp-mentor-card {
+          border: 1px solid #dbeafe;
+          background: rgba(255,255,255,0.95);
+          border-radius: 22px;
+          padding: 1.2rem;
+          box-shadow: 0 18px 44px rgba(37,99,235,0.10);
+          transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+          overflow: hidden;
+        }
+        .lp-mentor-card:hover { transform: translateY(-6px); border-color: rgba(37,99,235,0.55); box-shadow: 0 30px 70px rgba(37,99,235,0.16); }
+        .lp-mentor-head { display: flex; align-items: center; gap: 0.9rem; }
+        .lp-mentor-avatar {
+          width: 46px; height: 46px; border-radius: 16px;
+          background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+          color: white;
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 900; letter-spacing: 0.02em;
+          box-shadow: 0 18px 40px rgba(37,99,235,0.18);
+          flex-shrink: 0;
+        }
+        .lp-mentor-name { font-weight: 800; color: #0f172a; font-size: 0.95rem; line-height: 1.25; }
+        .lp-mentor-meta { font-size: 0.8rem; color: #64748b; margin-top: 0.15rem; }
+        .lp-mentor-badges { margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .lp-mentor-badge {
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          border-radius: 999px;
+          padding: 0.45rem 0.65rem;
+          border: 1px solid #bfdbfe;
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .lp-mentor-footer {
+          margin-top: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+        }
+        .lp-mentor-price { color: #0f172a; font-weight: 800; font-size: 0.9rem; }
+        .lp-mentor-cta {
+          background: #2563eb; color: white;
+          border: none; border-radius: 14px;
+          padding: 0.55rem 0.85rem;
+          font-weight: 800;
+          font-size: 0.82rem;
+          cursor: pointer;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+          box-shadow: 0 18px 40px rgba(37,99,235,0.22);
+        }
+        .lp-mentor-cta:hover { transform: translateY(-2px); box-shadow: 0 24px 56px rgba(37,99,235,0.28); }
+
         /* ── LIVE ACTIVITY FEED ───────────── */
         .lp-activity {
           padding: 5rem 0;
@@ -1512,7 +1646,7 @@ export default function NewLanding() {
         @keyframes lpFadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
         /* ── SCROLL MARGIN ────────────────── */
-        #hero, #features, #how-it-works, #live-jobs { scroll-margin-top: 70px; }
+        #hero, #resume-scan, #features, #mentorship, #campus-program, #how-it-works, #live-jobs { scroll-margin-top: 70px; }
 
         /* ── MOBILE ───────────────────────── */
         @media (max-width: 480px) {
@@ -1548,6 +1682,7 @@ export default function NewLanding() {
             <li><a href="#hero" className={activeSection === "hero" ? "active" : ""}>Home</a></li>
             <li><a href="#resume-scan" className={activeSection === "resume-scan" ? "active" : ""}>Free ATS Scan</a></li>
             <li><a href="#features" className={activeSection === "features" ? "active" : ""}>Features</a></li>
+            <li><a href="#mentorship" className={activeSection === "mentorship" ? "active" : ""}>Mentorship</a></li>
             <li><a href="#how-it-works" className={activeSection === "how-it-works" ? "active" : ""}>How It Works</a></li>
             <li><a href="#live-jobs" className={activeSection === "live-jobs" ? "active" : ""}>Live Jobs</a></li>
             <li><a href="/campus-ambassador">Campus Program</a></li>
@@ -1568,6 +1703,7 @@ export default function NewLanding() {
         <a href="#hero" onClick={() => setIsMenuOpen(false)}>🏠 Home</a>
         <a href="#resume-scan" onClick={() => setIsMenuOpen(false)}>📄 Free ATS Scan</a>
         <a href="#features" onClick={() => setIsMenuOpen(false)}>⚡ Features</a>
+        <a href="#mentorship" onClick={() => setIsMenuOpen(false)}>🤝 Mentorship</a>
         <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>🔢 How It Works</a>
         <a href="#live-jobs" onClick={() => setIsMenuOpen(false)}>💼 Live Jobs</a>
         <a href="/campus-ambassador" onClick={() => setIsMenuOpen(false)}>🎓 Campus Program</a>
@@ -1811,6 +1947,88 @@ export default function NewLanding() {
               {f.highlight && <span className="lp-bento-badge">Most Popular ✨</span>}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* MENTORSHIP */}
+      <section id="mentorship" className="lp-mentor">
+        <div ref={mentorshipReveal.ref} className={`lp-mentor-wrap ${mentorshipReveal.visible ? "revealed" : ""}`}>
+          <div className="lp-mentor-copy">
+            <div className="lp-section-tag">Mentorship</div>
+            <h2 className="lp-section-title">Get unstuck with <span>1:1 sessions</span></h2>
+            <p className="lp-section-sub">
+              If your ATS score is low or you need direction, book a focused session with a verified professional. Pay first, get a meeting link, and track everything inside ReferralMe.
+            </p>
+            <div className="lp-mentor-kpis">
+              <div className="lp-mentor-kpi">
+                <strong>Pay and book</strong>
+                <span>Secure checkout before a session is scheduled.</span>
+              </div>
+              <div className="lp-mentor-kpi">
+                <strong>Meet link inside</strong>
+                <span>Mentor confirms and shares a Google Meet or Zoom link.</span>
+              </div>
+              <div className="lp-mentor-kpi">
+                <strong>Rate the session</strong>
+                <span>Ratings power our Top Mentors list for quality.</span>
+              </div>
+              <div className="lp-mentor-kpi">
+                <strong>Matches your needs</strong>
+                <span>Recommendations use your profile and ATS signals.</span>
+              </div>
+            </div>
+            <div className="lp-campus-actions" style={{ marginTop: "1.4rem" }}>
+              <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn}>
+                {isSigningIn ? "Signing in…" : "Explore Mentors →"}
+              </button>
+              <a href="#resume-scan" className="lp-btn-secondary">Try ATS Scan</a>
+            </div>
+          </div>
+
+          <div>
+            <div className="lp-section-tag" style={{ marginBottom: "0.75rem" }}>Top mentors</div>
+            {topMentors.length === 0 ? (
+              <div className="lp-campus-card">
+                <div className="lp-campus-card-top">
+                  <span className="lp-campus-badge">Mentorship</span>
+                  <span className="lp-campus-count">Loading</span>
+                </div>
+                <p style={{ margin: 0, color: "#475569", fontWeight: 600 }}>
+                  Add mentors by enabling Mentorship in a referrer profile. They will appear here automatically once they have at least one active service.
+                </p>
+              </div>
+            ) : (
+              <div className="lp-mentor-grid">
+                {topMentors.map((m) => {
+                  const price = getMentorStartingPrice(m);
+                  const rating = Number(m.mentorshipRating || 0);
+                  const count = Number(m.totalMentorshipSessions || 0);
+                  const initials = (m.displayName || m.email || "M").split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase();
+                  return (
+                    <div key={m.uid} className="lp-mentor-card">
+                      <div className="lp-mentor-head">
+                        <div className="lp-mentor-avatar">{initials || "M"}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="lp-mentor-name">{m.displayName || "Mentor"}</div>
+                          <div className="lp-mentor-meta">{m.company ? `${m.company}${m.designation ? ` • ${m.designation}` : ""}` : (m.designation || "Verified professional")}</div>
+                        </div>
+                      </div>
+                      <div className="lp-mentor-badges">
+                        <span className="lp-mentor-badge">{rating ? `${rating.toFixed(1)}/5` : "New"}</span>
+                        <span className="lp-mentor-badge">{count ? `${count}+ sessions` : "Fresh mentor"}</span>
+                      </div>
+                      <div className="lp-mentor-footer">
+                        <div className="lp-mentor-price">{price ? `From ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(price)}` : "View pricing"}</div>
+                        <button className="lp-mentor-cta" onClick={handleGetStarted} disabled={isSigningIn}>
+                          Book
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

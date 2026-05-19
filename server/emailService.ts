@@ -15,6 +15,8 @@ const APP_URL = "https://referralme.in";
 const SEEKER_DASHBOARD_URL = `${APP_URL}/seeker-dashboard`;
 const REFERRER_DASHBOARD_URL = `${APP_URL}/referrer-dashboard`;
 const CAMPUS_DASHBOARD_URL = `${APP_URL}/campus-ambassador/dashboard`;
+const MENTORSHIP_SEEKER_URL = `${APP_URL}/seeker-dashboard`;
+const MENTORSHIP_MENTOR_URL = `${APP_URL}/referrer-dashboard`;
 
 // ---------- CORE EMAIL FUNCTION ----------
 export async function sendEmail({
@@ -658,6 +660,219 @@ export function generateApplicationDeclinedEmail(
       ctaHref: SEEKER_DASHBOARD_URL,
       secondaryLinkLabel: "Open Seeker Dashboard",
       secondaryLinkHref: SEEKER_DASHBOARD_URL,
+    }),
+  };
+}
+
+// ========================================
+// Mentorship Emails
+// ========================================
+
+export function generateMentorshipPaymentReceivedEmail(args: {
+  menteeName: string;
+  mentorName: string;
+  title: string;
+  scheduledAtLabel: string;
+  priceInr: number;
+  dashboardUrl?: string;
+}) {
+  const dashboardUrl = args.dashboardUrl || MENTORSHIP_SEEKER_URL;
+  return {
+    subject: `Mentorship booked: ${args.title}`,
+    html: wrapEmail({
+      preheader: `Payment received. Your session with ${args.mentorName} is booked.`,
+      eyebrow: "Mentorship",
+      title: "Your mentorship session is booked",
+      intro: `Hi ${args.menteeName}, your payment is confirmed and the session request is now sent to ${args.mentorName}.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0 0 6px;"><strong>Mentor:</strong> ${args.mentorName}</p>
+          <p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>
+          <p style="margin:0;"><strong>Amount paid:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>
+        </div>
+        <p style="margin:0 0 14px;">Next step: the mentor will confirm the session and share the meeting link in your dashboard.</p>
+      `,
+      ctaLabel: "Open My Mentorship",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open Seeker Dashboard",
+      secondaryLinkHref: MENTORSHIP_SEEKER_URL,
+    }),
+  };
+}
+
+export function generateMentorshipNewRequestEmail(args: {
+  mentorName: string;
+  mentorEmail: string;
+  menteeName: string;
+  title: string;
+  scheduledAtLabel: string;
+  durationMinutes: number;
+  priceInr: number;
+  mentorDashboardUrl?: string;
+}) {
+  const dashboardUrl = args.mentorDashboardUrl || MENTORSHIP_MENTOR_URL;
+  return {
+    subject: `New mentorship request: ${args.title}`,
+    html: wrapEmail({
+      preheader: `New session request from ${args.menteeName}.`,
+      eyebrow: "Mentorship",
+      title: "You have a new mentorship request",
+      intro: `Hi ${args.mentorName}, ${args.menteeName} booked a session with you.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0 0 6px;"><strong>Mentee:</strong> ${args.menteeName}</p>
+          <p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>
+          <p style="margin:0 0 6px;"><strong>Duration:</strong> ${args.durationMinutes} min</p>
+          <p style="margin:0;"><strong>Price:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>
+        </div>
+        <p style="margin:0 0 14px;">Please confirm the request by adding a Google Meet / Zoom link in your mentor dashboard.</p>
+      `,
+      ctaLabel: "Open Mentor Dashboard",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open ReferralMe",
+      secondaryLinkHref: APP_URL,
+    }),
+  };
+}
+
+export function generateMentorshipConfirmedEmail(args: {
+  menteeName: string;
+  mentorName: string;
+  title: string;
+  scheduledAtLabel: string;
+  meetingUrl: string;
+  dashboardUrl?: string;
+}) {
+  const dashboardUrl = args.dashboardUrl || MENTORSHIP_SEEKER_URL;
+  return {
+    subject: `Session confirmed: ${args.title}`,
+    html: wrapEmail({
+      preheader: `Meeting link added by ${args.mentorName}.`,
+      eyebrow: "Mentorship",
+      title: "Your mentorship session is confirmed",
+      intro: `Hi ${args.menteeName}, ${args.mentorName} confirmed your session and added the meeting link.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>
+          <p style="margin:0 0 6px;"><strong>Mentor:</strong> ${args.mentorName}</p>
+          <p style="margin:0;"><strong>Meeting link:</strong> <a href="${args.meetingUrl}" style="color:#2563eb;text-decoration:underline;">Join session</a></p>
+        </div>
+        <p style="margin:0 0 14px;">Tip: join 2 minutes early and keep your resume + JD ready.</p>
+      `,
+      ctaLabel: "Open Mentorship",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Join Meeting",
+      secondaryLinkHref: args.meetingUrl,
+    }),
+  };
+}
+
+export function generateMentorshipCompletedEmail(args: {
+  menteeName: string;
+  mentorName: string;
+  title: string;
+  dashboardUrl?: string;
+}) {
+  const dashboardUrl = args.dashboardUrl || MENTORSHIP_SEEKER_URL;
+  return {
+    subject: `Session completed: ${args.title}`,
+    html: wrapEmail({
+      preheader: `Your session with ${args.mentorName} is marked completed.`,
+      eyebrow: "Mentorship",
+      title: "Mentorship session completed",
+      intro: `Hi ${args.menteeName}, your session with ${args.mentorName} is marked completed.`,
+      body: `
+        <p style="margin:0 0 14px;">Please rate the session in your dashboard. Ratings help us highlight top mentors and keep quality high.</p>
+      `,
+      ctaLabel: "Rate This Session",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open Dashboard",
+      secondaryLinkHref: dashboardUrl,
+    }),
+  };
+}
+
+export function generateMentorshipRatingReceivedEmail(args: {
+  mentorName: string;
+  title: string;
+  rating: number;
+  mentorDashboardUrl?: string;
+}) {
+  const dashboardUrl = args.mentorDashboardUrl || MENTORSHIP_MENTOR_URL;
+  return {
+    subject: `New rating received: ${args.rating}/5`,
+    html: wrapEmail({
+      preheader: `You received a new rating for ${args.title}.`,
+      eyebrow: "Mentorship",
+      title: "You received a new rating",
+      intro: `Hi ${args.mentorName}, thanks for supporting the ReferralMe community.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0;"><strong>Rating:</strong> ${args.rating}/5</p>
+        </div>
+        <p style="margin:0 0 14px;">Higher ratings help you appear in the Top Mentors section on our site.</p>
+      `,
+      ctaLabel: "Open Mentor Dashboard",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open ReferralMe",
+      secondaryLinkHref: APP_URL,
+    }),
+  };
+}
+
+export function generateMentorshipAdminEventEmail(args: {
+  event: "booked" | "confirmed" | "completed" | "rated";
+  mentorName: string;
+  mentorEmail?: string;
+  menteeName: string;
+  menteeEmail?: string;
+  title: string;
+  scheduledAtLabel?: string;
+  priceInr?: number;
+  rating?: number;
+  sessionId?: string;
+}) {
+  const label =
+    args.event === "booked"
+      ? "Booking paid"
+      : args.event === "confirmed"
+        ? "Meeting link added"
+        : args.event === "completed"
+          ? "Session completed"
+          : "Rating received";
+
+  const lines = [
+    args.sessionId ? `<p style="margin:0 0 6px;"><strong>Session ID:</strong> ${args.sessionId}</p>` : "",
+    `<p style="margin:0 0 6px;"><strong>Title:</strong> ${args.title}</p>`,
+    `<p style="margin:0 0 6px;"><strong>Mentor:</strong> ${args.mentorName}${args.mentorEmail ? ` (${args.mentorEmail})` : ""}</p>`,
+    `<p style="margin:0 0 6px;"><strong>Mentee:</strong> ${args.menteeName}${args.menteeEmail ? ` (${args.menteeEmail})` : ""}</p>`,
+    args.scheduledAtLabel ? `<p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>` : "",
+    typeof args.priceInr === "number"
+      ? `<p style="margin:0 0 6px;"><strong>Amount:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>`
+      : "",
+    typeof args.rating === "number" ? `<p style="margin:0;"><strong>Rating:</strong> ${args.rating}/5</p>` : "",
+  ].filter(Boolean);
+
+  return {
+    subject: `Mentorship admin: ${label}`,
+    html: wrapEmail({
+      preheader: `Mentorship update: ${label}.`,
+      eyebrow: "Admin",
+      title: `Mentorship update: ${label}`,
+      intro: "A mentorship event just occurred on ReferralMe.",
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          ${lines.join("")}
+        </div>
+      `,
+      ctaLabel: "Open Admin Dashboard",
+      ctaHref: `${APP_URL}/admin-dashboard`,
+      secondaryLinkLabel: "Open ReferralMe",
+      secondaryLinkHref: APP_URL,
     }),
   };
 }
