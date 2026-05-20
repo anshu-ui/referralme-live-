@@ -5,12 +5,8 @@ import path from "path";
 import dotenv from "dotenv";
 
 // ---------- 1️⃣ Load environment variables ----------
-// dotenv.config({ path: process.cwd() + "/.env" });// Load local .env (ignored in most production hosts if env vars are set in dashboard)
-
-
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config();
-}
+// Load local `.env` when present. In production, real env vars still win (override=false).
+dotenv.config({ override: false });
 
 // ---------- 2️⃣ Check essential env variables ----------
 const requiredEnv = ["BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME"];
