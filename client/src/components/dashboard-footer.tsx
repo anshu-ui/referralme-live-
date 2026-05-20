@@ -31,6 +31,22 @@ export default function DashboardFooter() {
             >
               Terms of Service
             </a>
+            <a
+              href="/refund-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Refund Policy
+            </a>
+            <a
+              href="/return-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Return Policy
+            </a>
             <a 
               href="mailto:amit@referralme.in" 
               className="text-sm text-gray-600 hover:text-blue-600 transition-colors"

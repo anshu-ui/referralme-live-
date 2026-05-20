@@ -25,6 +25,8 @@ import JobPostingPage from "./pages/job-posting-page";
 import PaymentSetup from "./pages/payment-setup";
 import PrivacyPolicy from "./pages/privacy-policy";
 import TermsOfService from "./pages/terms-of-service";
+import RefundPolicy from "./pages/refund-policy";
+import ReturnPolicy from "./pages/return-policy";
 import CampusAmbassadorLanding from "./pages/campus-ambassador";
 import CampusAmbassadorApplyPage from "./pages/campus-ambassador-apply";
 import CampusAmbassadorAdminPage from "./pages/campus-ambassador-admin";
@@ -134,11 +136,13 @@ function Router() {
       <Switch>
         {/* Public routes - always accessible */}
 
-      <Route path="/privacy-policy" component={PrivacyPolicy} />
-      <Route path="/terms-of-service" component={TermsOfService} />
-      
-      {/* Authentication flow routes - PROTECTED */}
-      <Route path="/role-selection" component={() => {
+	      <Route path="/privacy-policy" component={PrivacyPolicy} />
+	      <Route path="/terms-of-service" component={TermsOfService} />
+	      <Route path="/refund-policy" component={RefundPolicy} />
+	      <Route path="/return-policy" component={ReturnPolicy} />
+	      
+	      {/* Authentication flow routes - PROTECTED */}
+	      <Route path="/role-selection" component={() => {
         console.log("Role Selection - Firebase User:", !!firebaseUser);
         if (!firebaseUser) {
           console.log("Not authenticated for role selection - redirecting to home");

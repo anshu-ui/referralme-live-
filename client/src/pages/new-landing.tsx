@@ -2325,6 +2325,8 @@ export default function NewLanding() {
             <ul>
               <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
               <li><a href="/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
+              <li><a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refund Policy</a></li>
+              <li><a href="/return-policy" target="_blank" rel="noopener noreferrer">Return Policy</a></li>
               <li><a href="mailto:info@referralme.in">Support</a></li>
             </ul>
           </div>
