@@ -1842,17 +1842,22 @@ export const saveATSAnalysis = async (analysisData: Omit<ATSAnalysisHistory, "id
 // Get all ATS analyses for a user
 export const getUserATSAnalysisHistory = async (userId: string): Promise<ATSAnalysisHistory[]> => {
   try {
-    const q = query(
-      collection(db, "atsAnalysisHistory"),
-      where("userId", "==", userId),
-      orderBy("analyzedAt", "desc")
-    );
-    
+    // Avoid requiring a composite index (userId + analyzedAt). We'll sort client-side.
+    const q = query(collection(db, "atsAnalysisHistory"), where("userId", "==", userId));
+
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+    const items = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
     })) as ATSAnalysisHistory[];
+
+    items.sort((a, b) => {
+      const aTime = a.analyzedAt?.toDate?.() || new Date(0);
+      const bTime = b.analyzedAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    return items;
   } catch (error) {
     console.error("Error getting ATS analysis history:", error);
     // Return empty array if collection doesn't exist yet
