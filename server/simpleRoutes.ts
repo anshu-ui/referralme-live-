@@ -55,8 +55,17 @@
   const getCashfreeConfig = () => {
     const appId = process.env.CASHFREE_APP_ID;
     const secretKey = process.env.CASHFREE_SECRET_KEY;
-    const envRaw = (process.env.CASHFREE_ENV || "sandbox").toLowerCase();
-    const env: "sandbox" | "production" = envRaw === "production" ? "production" : "sandbox";
+    const envRaw = String(process.env.CASHFREE_ENV || "").trim().toLowerCase();
+    // If CASHFREE_ENV isn't provided, infer it from the secret key prefix.
+    // Production keys typically contain `_prod_` (example: `cfsk_ma_prod_...`).
+    const inferred: "sandbox" | "production" =
+      secretKey && /_prod_/i.test(secretKey) ? "production" : "sandbox";
+    const env: "sandbox" | "production" =
+      envRaw === "production" || envRaw === "prod"
+        ? "production"
+        : envRaw === "sandbox" || envRaw === "test"
+          ? "sandbox"
+          : inferred;
     if (!appId || !secretKey) return null;
     return { appId, secretKey, env };
   };
