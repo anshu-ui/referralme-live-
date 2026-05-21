@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Payment Information</h3>
                   <p className="text-gray-700">
-                    Payment processing is handled by trusted third-party payment gateways (such as Cashfree).
+                    Payment processing is handled by trusted third-party payment gateways (such as Razorpay).
                     We do not store your complete payment card information on our servers.
                   </p>
                 </div>
@@ -133,7 +133,7 @@ export default function PrivacyPolicy() {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Payment Processing</h3>
                   <p className="text-gray-700">
-                    We use third-party payment gateways (such as Cashfree) for payment processing.
+                    We use third-party payment gateways (such as Razorpay) for payment processing.
                     The gateway’s privacy policy governs the collection and use of payment information.
                   </p>
                 </div>

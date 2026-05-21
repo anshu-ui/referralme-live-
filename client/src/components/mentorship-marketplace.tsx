@@ -13,8 +13,8 @@ import { Calendar, Clock, IndianRupee, Search, Sparkles, Users } from "lucide-re
 import type { FirestoreUser, MentorshipService, MentorshipSession } from "../lib/firestore";
 import { createMentorshipSession, getUserATSAnalysisHistory, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
-import { openCashfreeCheckout } from "../lib/cashfree";
 import { sendMentorshipBookedEmails } from "../lib/emailService";
+import { createMentorshipPayment, initiatePayment } from "../lib/razorpay";
 
 function fmtInr(amount: number) {
   const safe = Number.isFinite(amount) ? amount : 0;
@@ -197,51 +197,47 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
       const platformFeeAmount = Math.max(0, Math.round((selected.service.price * PLATFORM_FEE_PERCENT) / 100));
       const mentorPayoutAmount = Math.max(0, selected.service.price - platformFeeAmount);
 
-      // 1) Create Cashfree order on server
-      const orderResp = await fetch("/api/cashfree/create-order", {
+      // 1) Create Razorpay order on server
+      const orderResp = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: selected.service.price,
           currency: "INR",
           mentorId: selected.mentor.uid,
-          customer: {
-            id: user.uid,
-            name: user.displayName || user.firstName || "Customer",
-            email: user.email,
-            phone: user.phoneNumber || "",
-          },
         }),
       });
       if (!orderResp.ok) {
         const msg = (await orderResp.json().catch(() => null))?.message || "Failed to create payment order.";
         throw new Error(msg);
       }
-      const order = await orderResp.json();
-      if (!order?.paymentSessionId || !order?.orderId) {
-        throw new Error("Payment session not created. Please try again.");
+      const order = await orderResp.json().catch(() => null);
+      const razorpayOrderId = order?.id;
+      if (!razorpayOrderId) {
+        throw new Error("Payment order not created. Please try again.");
       }
 
-      // 2) Open Cashfree checkout (modal)
-      const checkoutResult = await openCashfreeCheckout({
-        mode: order?.env === "production" ? "production" : "sandbox",
-        paymentSessionId: order.paymentSessionId,
+      // 2) Open Razorpay checkout (modal)
+      const paymentResponse = await new Promise<any>((resolve, reject) => {
+        const opts = createMentorshipPayment(
+          user as any,
+          selected.mentor.displayName || "Mentor",
+          selected.service.title,
+          selected.service.price,
+          razorpayOrderId,
+        );
+        initiatePayment(opts, resolve, reject);
       });
-      if (checkoutResult?.error?.message) {
-        throw new Error(checkoutResult.error.message);
-      }
 
-      // 3) Verify payment by checking order status from server
-      const verifyResp = await fetch("/api/cashfree/verify-payment", {
+      // 3) Verify Razorpay payment signature on server
+      const verifyResp = await fetch("/api/razorpay/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.orderId,
-        }),
+        body: JSON.stringify(paymentResponse),
       });
       const verify = await verifyResp.json().catch(() => null);
       if (!verifyResp.ok || !verify?.verified) {
-        throw new Error(verify?.message || "Payment not confirmed yet. If money was deducted, it will auto-refund or you can retry later.");
+        throw new Error(verify?.message || "Payment verification failed. If money was deducted, it will auto-refund or you can retry later.");
       }
 
       // 4) Create the session as paid + pending mentor confirmation
@@ -259,8 +255,9 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         scheduledAt: ts,
         status: "pending",
         paymentStatus: "paid",
-        paymentProvider: "cashfree",
-        cashfreeOrderId: order.orderId,
+        paymentProvider: "razorpay",
+        razorpayOrderId: paymentResponse?.razorpay_order_id || razorpayOrderId,
+        razorpayPaymentId: paymentResponse?.razorpay_payment_id,
         platformFeePercent: PLATFORM_FEE_PERCENT,
         platformFeeAmount,
         mentorPayoutAmount,

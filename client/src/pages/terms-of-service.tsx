@@ -76,7 +76,7 @@ export default function TermsOfService() {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Payment Processing</h3>
                   <p className="text-gray-700">
-                    Payments are processed through trusted third-party payment gateways (such as Cashfree),
+                    Payments are processed through trusted third-party payment gateways (such as Razorpay),
                     and by making a payment, you agree to the applicable gateway terms and conditions.
                   </p>
                 </div>
