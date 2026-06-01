@@ -71,29 +71,23 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mb-4">Payment Terms & No Refund Policy</h2>
+              <h2 className="text-2xl font-semibold mb-4">Payments, Refunds & Cancellations</h2>
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-medium mb-2">Payment Processing</h3>
                   <p className="text-gray-700">
-                    Payments are processed through trusted third-party payment gateways (such as Razorpay),
-                    and by making a payment, you agree to the applicable gateway terms and conditions.
+                    Payments are processed through trusted third-party payment gateways. By making a payment, you
+                    agree to the applicable gateway terms and conditions.
                   </p>
                 </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="text-lg font-medium mb-2 text-yellow-800">⚠️ No Refund Policy</h3>
-                  <p className="text-yellow-700">
-                    <strong>All payments made to ReferralMe are final and non-refundable.</strong> This includes:
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-yellow-700 mt-2 ml-4">
-                    <li>Premium subscription fees</li>
-                    <li>Mentorship session payments</li>
-                    <li>Additional referral request packages</li>
-                    <li>Any other paid services or features</li>
-                  </ul>
-                  <p className="text-yellow-700 mt-3">
-                    Please ensure you understand the service features before making any payment. 
-                    We encourage users to utilize free features first to evaluate our platform.
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Refunds & Cancellations</h3>
+                  <p className="text-gray-700">
+                    Refunds and cancellations are handled according to our{" "}
+                    <Link href="/refund-policy" className="text-blue-600 hover:underline">
+                      Refund Policy
+                    </Link>
+                    . Some digital services may be non-refundable after delivery or completion.
                   </p>
                 </div>
                 <div>
@@ -265,7 +259,7 @@ export default function TermsOfService() {
                 <div className="space-y-2">
                   <p className="text-blue-800 flex items-center">
                     <span className="w-16 font-medium">Email:</span>
-                    <a href="mailto:amit@referralme.in" className="text-blue-600 hover:text-blue-800 underline">amit@referralme.in</a>
+                    <a href="mailto:info@referralme.in" className="text-blue-600 hover:text-blue-800 underline">info@referralme.in</a>
                   </p>
                   <p className="text-blue-700 text-sm">
                     Business Hours: Monday to Friday, 9:00 AM to 6:00 PM IST

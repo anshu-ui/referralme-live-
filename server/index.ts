@@ -90,7 +90,9 @@ app.use((req, res, next) => {
 
   const port = process.env.PORT || 5000;
   const isReplit = process.env.REPLIT_ENVIRONMENT || process.env.REPLIT_DOMAINS;
-  const host = isReplit ? "0.0.0.0" : "localhost";
+  // On some macOS setups, binding to "localhost" may resolve to IPv6 (::1) and fail with EPERM.
+  // Default to IPv4 loopback for local dev unless explicitly overridden.
+  const host = process.env.HOST || (isReplit ? "0.0.0.0" : "127.0.0.1");
 
   server.listen({ port: Number(port), host }, () => {
     log(`🚀 ReferralMe Server running on ${host}:${port}`);

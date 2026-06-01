@@ -51,8 +51,8 @@ export default function ReturnPolicy() {
               <h2 className="text-2xl font-semibold mb-4">Contact</h2>
               <p className="text-gray-700">
                 For questions, contact{" "}
-                <a className="text-blue-600 hover:underline" href="mailto:amit@referralme.in">
-                  amit@referralme.in
+                <a className="text-blue-600 hover:underline" href="mailto:info@referralme.in">
+                  info@referralme.in
                 </a>
                 .
               </p>
@@ -63,4 +63,3 @@ export default function ReturnPolicy() {
     </div>
   );
 }
-

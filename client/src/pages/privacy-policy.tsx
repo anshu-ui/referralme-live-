@@ -195,7 +195,7 @@ export default function PrivacyPolicy() {
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="font-medium mb-2">As required under Indian IT laws, our Grievance Officer is:</p>
                 <p className="text-gray-700">Name: Privacy Officer</p>
-                <p className="text-gray-700">Email: amit@referralme.in</p>
+                <p className="text-gray-700">Email: info@referralme.in</p>
                 <p className="text-gray-700">Response Time: Within 24 hours</p>
                 <p className="text-gray-700 text-sm mt-2">
                   For complaints related to data processing, please contact our Grievance Officer 
@@ -214,7 +214,7 @@ export default function PrivacyPolicy() {
                 <div className="space-y-2">
                   <p className="text-blue-800 flex items-center">
                     <span className="w-16 font-medium">Email:</span>
-                    <a href="mailto:amit@referralme.in" className="text-blue-600 hover:text-blue-800 underline">amit@referralme.in</a>
+                    <a href="mailto:info@referralme.in" className="text-blue-600 hover:text-blue-800 underline">info@referralme.in</a>
                   </p>
                   <p className="text-blue-700 text-sm">
                     

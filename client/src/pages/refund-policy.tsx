@@ -19,7 +19,7 @@ export default function RefundPolicy() {
               <img src={"/logo.png"} alt="ReferralMe" className="h-12 w-12 mr-3 rounded-lg" />
               <span className="text-3xl font-bold text-blue-600">ReferralMe</span>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Refund Policy</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Refund & Cancellation Policy</h1>
             <div className="inline-flex items-center bg-blue-50 border border-blue-200 rounded-lg px-6 py-3">
               <p className="text-blue-800 font-medium">Last updated: May 20, 2026</p>
             </div>
@@ -57,12 +57,40 @@ export default function RefundPolicy() {
                   <h3 className="text-lg font-medium mb-2 text-yellow-800">Mentorship Sessions</h3>
                   <ul className="list-disc list-inside space-y-2 text-yellow-700">
                     <li>
+                      You can request a reschedule with the mentor if the original time does not work.
+                    </li>
+                    <li>
                       If a mentor cancels and a reschedule is not accepted by you within a reasonable time, you may
                       request a refund for that session.
                     </li>
                     <li>
                       If a session is completed (or marked completed), it is not eligible for refund.
                     </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">Cancellations</h2>
+              <div className="space-y-4 text-gray-700">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Mentorship Booking Cancellation</h3>
+                  <ul className="list-disc list-inside space-y-2">
+                    <li>
+                      If you cancel before the session starts, we may issue a refund or provide a reschedule option,
+                      depending on the mentor’s availability and the booking status.
+                    </li>
+                    <li>
+                      If the session has started or is completed, it is generally not eligible for cancellation/refund.
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Subscription Cancellation</h3>
+                  <ul className="list-disc list-inside space-y-2">
+                    <li>Subscriptions can be cancelled any time to stop future renewals.</li>
+                    <li>Fees already paid for a current billing period are typically not refunded unless required by law.</li>
                   </ul>
                 </div>
               </div>
@@ -82,8 +110,8 @@ export default function RefundPolicy() {
               <h2 className="text-2xl font-semibold mb-4">How to Request a Refund</h2>
               <p className="text-gray-700">
                 Email us at{" "}
-                <a className="text-blue-600 hover:underline" href="mailto:amit@referralme.in">
-                  amit@referralme.in
+                <a className="text-blue-600 hover:underline" href="mailto:info@referralme.in">
+                  info@referralme.in
                 </a>{" "}
                 with your registered email, transaction details, and the reason for the request. We may ask for
                 additional information to verify the request.
@@ -103,4 +131,3 @@ export default function RefundPolicy() {
     </div>
   );
 }
-

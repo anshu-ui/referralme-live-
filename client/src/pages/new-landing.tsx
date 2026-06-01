@@ -120,7 +120,7 @@ export default function NewLanding() {
 
   const roles = ["Software Engineer", "Product Manager", "Data Analyst", "UX Designer", "DevOps Engineer"];
   const typedRole = useTypewriter(roles);
-  const heroSignal = useRotatingLabel(["Referrals", "Interviews", "Offers", "Career Momentum"]);
+  const heroSignal = useRotatingLabel(["Mentorship", "Resume", "Interviews", "Career Momentum"]);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   useEffect(() => {
@@ -215,34 +215,26 @@ export default function NewLanding() {
   };
 
   const features = [
-    { icon: "🎯", title: "Smart Referrals", desc: "Skip the ATS black hole. Get your resume directly in front of the hiring manager through a real employee referral.", wide: true, highlight: true },
-    { icon: "🤝", title: "Verified Professionals", desc: "Every referrer is a verified employee at their company — authentic and trustworthy connections.", wide: false, highlight: false },
-    { icon: "📊", title: "ATS Resume Analysis", desc: "Get an instant AI-powered resume score with detailed feedback and keyword recommendations.", wide: false, highlight: false },
-    { icon: "🧠", title: "AI Mentor", desc: "Career guidance that feels like a real coach: plans, resume fixes, interview prep, and role-specific suggestions.", wide: false, highlight: false },
-    { icon: "📞", title: "1:1 Mentorship", desc: "Book sessions with active referrers. Pay first, get a meeting link, and track everything in the dashboard.", wide: false, highlight: false },
-    { icon: "🏆", title: "Reward System", desc: "Referrers earn points and rewards for every successful placement, creating a thriving ecosystem.", wide: false, highlight: false },
-    { icon: "🔒", title: "100% Private", desc: "Your data is end-to-end encrypted. You control who sees your profile and resume at all times.", wide: true, highlight: false },
+    { icon: "🧠", title: "AI Mentor", desc: "Career guidance that feels like a real coach: plans, resume fixes, interview prep, and role-specific suggestions.", wide: true, highlight: true },
+    { icon: "📞", title: "1:1 Mentorship", desc: "Book sessions with experienced professionals. Pay first, get a meeting link, and track everything in the dashboard.", wide: false, highlight: false },
+    { icon: "📊", title: "ATS Resume Analysis", desc: "Get an instant resume score with actionable feedback and keyword suggestions.", wide: false, highlight: false },
+    { icon: "🎯", title: "Referral Support (Optional)", desc: "Where available, mentors may guide you on referrals and applications. Referrals are not guaranteed and depend on company policy.", wide: false, highlight: false },
+    { icon: "🤝", title: "Trust & Profiles", desc: "Mentors and referrers build reputations through verified profiles, session history, and ratings.", wide: false, highlight: false },
+    { icon: "🔐", title: "Data Control", desc: "You control what you share. We use secure infrastructure (Firebase) for authentication and data storage.", wide: true, highlight: false },
   ];
 
   const steps = [
     { num: "01", icon: "👤", title: "Create Your Profile", desc: "Sign up with Google in seconds. Set your role as a job seeker or a professional referrer." },
     { num: "02", icon: "🔍", title: "Discover Opportunities", desc: "Browse live job openings from verified professionals at top companies across India." },
-    { num: "03", icon: "📄", title: "Apply with Your Resume", desc: "Submit your resume with our ATS optimizer. Get matched based on skills and experience." },
-    { num: "04", icon: "🚀", title: "Get Referred & Hired", desc: "Your referrer submits your application internally. Track every step of your journey in real-time." },
-  ];
-
-  const stats = [
-    { number: "10,000+", label: "Professionals Joined", icon: "👥" },
-    { number: "2,500+", label: "Referrals Sent", icon: "📨" },
-    { number: "850+", label: "Jobs Posted", icon: "💼" },
-    { number: "92%", label: "Success Rate", icon: "🏆" },
+    { num: "03", icon: "📄", title: "Improve Your Resume", desc: "Run an ATS scan and get clear fixes: keywords, formatting, and impact bullets." },
+    { num: "04", icon: "🚀", title: "Get Job-Ready Faster", desc: "Use AI + 1:1 mentorship to plan, practice, and apply with confidence. Referral guidance may be available where appropriate." },
   ];
 
   const testimonials = [
-    { name: "Priya Sharma", role: "Software Engineer at Google", text: "ReferralMe got me an interview at Google in just 3 days. The referral from an actual employee made all the difference!", avatar: "P", color: "#2563eb" },
-    { name: "Rahul Verma", role: "Product Manager at Flipkart", text: "I was struggling to get responses. After using ReferralMe, I had 4 interviews scheduled within a week. Incredible platform.", avatar: "R", color: "#1d4ed8" },
-    { name: "Ananya Iyer", role: "Data Analyst at Amazon", text: "The ATS resume analysis helped me fix my resume and the referral network is amazing. Got my dream job in 2 weeks!", avatar: "A", color: "#1e40af" },
-    { name: "Karan Mehta", role: "UX Designer at Swiggy", text: "As a referrer, I love helping talented people land roles at my company. The platform makes it seamless and rewarding.", avatar: "K", color: "#1e3a8a" },
+    { name: "Priya S.", role: "Software Engineer", text: "The ATS feedback was genuinely actionable. I fixed my resume in one evening and started getting more callbacks.", avatar: "P", color: "#2563eb" },
+    { name: "Rahul V.", role: "Product Candidate", text: "The mentorship session gave me a clear plan: what to apply for, what to fix, and how to prepare round by round.", avatar: "R", color: "#1d4ed8" },
+    { name: "Ananya I.", role: "Data Analyst", text: "Loved the structured interview prep. It helped me reduce anxiety and perform better in real interviews.", avatar: "A", color: "#1e40af" },
+    { name: "Karan M.", role: "Mentor", text: "The platform makes it easy to run focused sessions and track bookings. Ratings keep quality high.", avatar: "K", color: "#1e3a8a" },
   ];
 
   const getMentorStartingPrice = (mentor: FirestoreUser) => {
@@ -260,16 +252,13 @@ export default function NewLanding() {
   }, [testimonials.length]);
 
   const activityFeed = [
-    { icon: "✅", text: "Priya S. got referred to Google", time: "2 min ago" },
-    { icon: "🎯", text: "New SDE-II role posted at Microsoft", time: "5 min ago" },
-    { icon: "🎉", text: "Rahul V. accepted at Flipkart", time: "12 min ago" },
-    { icon: "📊", text: "Ananya's resume scored 94/100", time: "18 min ago" },
-    { icon: "✅", text: "Karan M. referred to Swiggy", time: "24 min ago" },
-    { icon: "💼", text: "Amazon posted 3 new openings", time: "31 min ago" },
-    { icon: "🚀", text: "Sneha T. landed her dream job!", time: "45 min ago" },
-    { icon: "🎯", text: "Product role posted at Razorpay", time: "1 hr ago" },
-    { icon: "🤝", text: "Aditya K. connected with referrer", time: "1 hr ago" },
-    { icon: "🏆", text: "100th successful referral today!", time: "2 hr ago" },
+    { icon: "✅", text: "New mentorship session booked", time: "2 min ago" },
+    { icon: "📄", text: "Resume improved after ATS scan", time: "6 min ago" },
+    { icon: "🎤", text: "Mock interview scheduled", time: "14 min ago" },
+    { icon: "📊", text: "ATS report generated for SDE role", time: "22 min ago" },
+    { icon: "💼", text: "New roles added to the job board", time: "38 min ago" },
+    { icon: "🚀", text: "Candidate completed a 7-day plan", time: "1 hr ago" },
+    { icon: "⭐", text: "Mentor received a 5-star rating", time: "2 hr ago" },
   ];
 
   const trustBrands = [
@@ -305,11 +294,11 @@ export default function NewLanding() {
   return (
     <div className="lp-root">
       <SeoHead
-        title="ReferralMe | Job Referrals, ATS Resume Scan, and Career Growth"
-        description="ReferralMe helps job seekers get real employee referrals, improve resumes with a free ATS scan, and discover live opportunities faster."
+        title="ReferralMe | Mentorship, ATS Resume Scan, and Career Growth"
+        description="ReferralMe helps job seekers improve resumes with an ATS scan, get structured interview prep, and book 1:1 mentorship sessions."
         canonicalPath="/"
         image="https://referralme.in/logo.png"
-        keywords="ReferralMe, job referrals, employee referrals, ATS resume scan, referral platform India, careers, jobs"
+        keywords="ReferralMe, mentorship, career guidance, ATS resume scan, interview prep, job search India, careers"
         structuredData={websiteStructuredData}
       />
       <style>{`
@@ -1722,21 +1711,21 @@ export default function NewLanding() {
           <div>
             <div className="lp-hero-badge">
               <span className="lp-hero-badge-dot"></span>
-              India's #1 Referral Platform
+              Career Mentorship + ATS Toolkit
             </div>
             <h1>Land Your Dream Job as a</h1>
             <div className="lp-hero-role-line">
               {typedRole}<span className="lp-typewriter-cursor"></span>
             </div>
             <p className="lp-hero-sub">
-              Connect with verified professionals at top companies. Skip the ATS black hole and get your resume seen by the right people — fast.
+              Get a clear plan for resumes, interviews, and applications. Use AI guidance, ATS feedback, and 1:1 mentorship to move faster with confidence.
             </p>
             <div className="lp-hero-signals">
               <div className="lp-signal-pill">
                 <span className="lp-signal-dot"></span>
                 Next up: <strong key={heroSignal}>{heroSignal}</strong>
               </div>
-              <div className="lp-signal-mini">Live roles from verified referrers</div>
+              <div className="lp-signal-mini">Mentors, feedback, and live roles in one place</div>
             </div>
             <div className="lp-hero-ctas">
               <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn}>
@@ -1748,7 +1737,7 @@ export default function NewLanding() {
               <div className="lp-trust-avatars">
                 {["P","R","A","K"].map((l, i) => <div key={i} className="lp-trust-avatar">{l}</div>)}
               </div>
-              <span>Trusted by <strong>10,000+</strong> professionals across India</span>
+              <span>Built for serious job seekers and mentors in India</span>
             </div>
             {signInError && (
               <div className="lp-error">
@@ -1791,7 +1780,7 @@ export default function NewLanding() {
 
       {/* TRUST BAR */}
       <div className="lp-trust-bar">
-        <p className="lp-trust-label">Referrals available at top companies</p>
+        <p className="lp-trust-label">Mentors and opportunities from top companies</p>
         <div className="lp-trust-track-wrap">
           <div className="lp-trust-scroll">
             {[...trustBrands, ...trustBrands].map((b, i) => (
@@ -1803,19 +1792,6 @@ export default function NewLanding() {
           </div>
         </div>
       </div>
-
-      {/* STATS */}
-      <section className="lp-stats">
-        <div ref={statsReveal.ref} className="lp-stats-inner">
-          {stats.map((s, i) => (
-            <div key={i} className={`lp-stat-item ${statsReveal.visible ? "revealed" : ""}`}>
-              <span className="lp-stat-icon">{s.icon}</span>
-              <span className="lp-stat-num">{s.number}</span>
-              <span className="lp-stat-label">{s.label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* FREE ATS SCAN */}
       <section id="resume-scan" className="lp-ats">
@@ -1863,7 +1839,7 @@ export default function NewLanding() {
                 <ul className="lp-ats-list">
                   <li className="lp-ats-list-warning"><span>1</span>Spot issues before your resume gets screened out</li>
                   <li className="lp-ats-list-warning"><span>2</span>Improve job-specific keyword alignment</li>
-                  <li className="lp-ats-list-warning"><span>3</span>Apply with more confidence through referrals</li>
+                  <li className="lp-ats-list-warning"><span>3</span>Apply with more confidence and clarity</li>
                 </ul>
               </div>
             </div>
@@ -1896,14 +1872,14 @@ export default function NewLanding() {
                   </ul>
                 </div>
 
-                <div className="lp-ats-preview-card">
-                  <h4>Visible Fixes</h4>
-                  <ul className="lp-ats-list">
-                    <li className="lp-ats-list-warning"><span>1</span>Add more quantified impact to recent work</li>
-                    <li className="lp-ats-list-warning"><span>2</span>Strengthen keyword alignment for target roles</li>
-                    <li className="lp-ats-list-warning"><span>3</span>Refine summary and skills prioritization</li>
-                  </ul>
-                </div>
+              <div className="lp-ats-preview-card">
+                <h4>Visible Fixes</h4>
+                <ul className="lp-ats-list">
+                  <li className="lp-ats-list-warning"><span>1</span>Add more quantified impact to recent work</li>
+                  <li className="lp-ats-list-warning"><span>2</span>Strengthen keyword alignment for target roles</li>
+                  <li className="lp-ats-list-warning"><span>3</span>Refine summary and skills prioritization</li>
+                </ul>
+              </div>
 
                 <div className="lp-ats-locked">
                   <div className="lp-ats-locked-inner">
@@ -1930,9 +1906,9 @@ export default function NewLanding() {
       <section id="features" className="lp-features">
         <div ref={featuresReveal.ref} className={`lp-section-header ${featuresReveal.visible ? "revealed" : ""}`}>
           <div className="lp-section-tag">Platform Features</div>
-          <h2 className="lp-section-title">Everything You Need to <span>Get Hired</span></h2>
+          <h2 className="lp-section-title">Everything You Need to <span>Get Job-Ready</span></h2>
           <p className="lp-section-sub">
-            From AI-powered resume analysis to direct referrals — every tool to accelerate your career.
+            From AI-powered resume analysis to 1:1 mentorship — every tool to accelerate your career.
           </p>
         </div>
         <div className="lp-bento-grid">
@@ -2142,13 +2118,13 @@ export default function NewLanding() {
         </div>
       </section>
 
-      {/* ALL REAL REFERRALS — SCROLLING TICKER */}
+      {/* LIVE OPPORTUNITIES — SCROLLING TICKER */}
       <section id="all-referrals" className="lp-all-refs">
         <div ref={allJobsReveal.ref} className={`lp-section-header lp-all-refs-header ${allJobsReveal.visible ? "revealed" : ""}`}>
-          <div className="lp-section-tag">Live Referral Board</div>
-          <h2 className="lp-section-title">Browse All <span>Active Referrals</span></h2>
+          <div className="lp-section-tag">Live Opportunities</div>
+          <h2 className="lp-section-title">Browse <span>Active Roles</span></h2>
           <p className="lp-section-sub">
-            Real job postings from verified professionals — updated live. Hover to pause, click to apply.
+            Updated live. Hover to pause, click to explore.
           </p>
         </div>
 
@@ -2186,7 +2162,7 @@ export default function NewLanding() {
 
         <div className="lp-refs-show-all">
           <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn} style={{ margin: "0 auto" }}>
-            {isSigningIn ? "Signing in…" : "Sign Up to Apply to All Referrals 🚀"}
+            {isSigningIn ? "Signing in…" : "Sign Up to Explore Roles 🚀"}
           </button>
         </div>
       </section>
@@ -2216,12 +2192,12 @@ export default function NewLanding() {
       <section className="lp-callout">
         <div className="lp-callout-glow"></div>
         <div ref={calloutReveal.ref} className={`lp-callout-inner lp-callout-reveal ${calloutReveal.visible ? "revealed" : ""}`}>
-          <div className="lp-callout-eyebrow">⚡ The Fastest Path to Your Dream Job</div>
-          <h2>The referral that changes<br /><em>everything.</em></h2>
-          <p>One referral can be the difference between getting ignored and getting hired. ReferralMe makes it happen — at scale, in India.</p>
+          <div className="lp-callout-eyebrow">⚡ A Clearer Career Path</div>
+          <h2>Mentorship that improves<br /><em>real outcomes.</em></h2>
+          <p>Get structured guidance for resume, interviews, and job strategy. Referral support may be available, but outcomes are never guaranteed.</p>
           <div className="lp-callout-btns">
             <button className="lp-callout-btn-white" onClick={handleGetStarted} disabled={isSigningIn}>
-              {isSigningIn ? "Signing in…" : "Get My First Referral"}
+              {isSigningIn ? "Signing in…" : "Start Mentorship"}
             </button>
             <a href="#features" className="lp-callout-btn-ghost">Explore Features →</a>
           </div>
@@ -2232,10 +2208,10 @@ export default function NewLanding() {
         <div className="lp-campus-cta-box">
           <div className="lp-campus-cta-copy">
             <div className="lp-section-tag">Students Also Join ReferralMe</div>
-            <h2 className="lp-section-title">Students can use ReferralMe for <span>careers</span> too</h2>
-            <p className="lp-section-sub">
-              The campus ambassador program is only one side. Students can also join ReferralMe directly to access referrals, scan their resumes, and discover live opportunities from verified professionals.
-            </p>
+          <h2 className="lp-section-title">Students can use ReferralMe for <span>careers</span> too</h2>
+          <p className="lp-section-sub">
+              The campus ambassador program is only one side. Students can also join ReferralMe directly to scan their resumes, get career guidance, and explore live opportunities.
+          </p>
             <div className="lp-campus-cta-actions">
               <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn}>
                 {isSigningIn ? "Signing in…" : "Join ReferralMe"}
@@ -2249,8 +2225,8 @@ export default function NewLanding() {
               <span>Students can test and improve resume quality before applying.</span>
             </div>
             <div>
-              <strong>Real Referrals</strong>
-              <span>Access verified professionals and live opportunities on one platform.</span>
+              <strong>Mentorship Support</strong>
+              <span>Get guidance from professionals and improve your applications.</span>
             </div>
             <div>
               <strong>Campus Growth</strong>
@@ -2258,7 +2234,7 @@ export default function NewLanding() {
             </div>
             <div>
               <strong>Career Momentum</strong>
-              <span>One platform for referrals, jobs, visibility, and student growth.</span>
+              <span>One platform for resume feedback, mentorship, and opportunities.</span>
             </div>
           </div>
         </div>
@@ -2270,7 +2246,7 @@ export default function NewLanding() {
           <div className="lp-section-tag">Success Stories</div>
           <h2 className="lp-section-title">People Who <span>Got Hired</span></h2>
           <p className="lp-section-sub">
-            Real stories from real people who landed their dream jobs through ReferralMe.
+            Real stories from people who improved their resumes and interviews with ReferralMe.
           </p>
         </div>
         <div className="lp-testi-grid">
@@ -2299,7 +2275,7 @@ export default function NewLanding() {
               <span>ReferralMe</span>
             </div>
             <p className="lp-footer-desc">
-              India's leading professional referral platform. Connecting talent with opportunity through authentic, human connections.
+              Career mentorship and job readiness tools for ambitious professionals in India.
             </p>
             <div className="lp-footer-badge">🇮🇳 Made in India</div>
           </div>
@@ -2317,23 +2293,24 @@ export default function NewLanding() {
             <ul>
               <li><a href="/">Home</a></li>
               <li><a href="/campus-ambassador">Campus Ambassador</a></li>
-              <li><a href="mailto:info@referralme.in">Contact</a></li>
+              <li><a href="/contact" target="_blank" rel="noopener noreferrer">Contact</a></li>
             </ul>
           </div>
           <div className="lp-footer-col">
             <h4>Legal</h4>
             <ul>
+              <li><a href="/contact" target="_blank" rel="noopener noreferrer">No-Guarantee Notice</a></li>
               <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
               <li><a href="/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
-              <li><a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refund Policy</a></li>
+              <li><a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refund/Cancellation</a></li>
               <li><a href="/return-policy" target="_blank" rel="noopener noreferrer">Return Policy</a></li>
-              <li><a href="mailto:info@referralme.in">Support</a></li>
+              <li><a href="/contact" target="_blank" rel="noopener noreferrer">Support</a></li>
             </ul>
           </div>
         </div>
         <div className="lp-footer-bottom">
           <span>© 2025 ReferralMe. Built with ❤️ in India.</span>
-          <span>Making careers happen, one referral at a time.</span>
+          <span>Mentorship, clarity, and better applications.</span>
         </div>
       </footer>
     </div>

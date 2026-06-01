@@ -27,6 +27,7 @@ import PrivacyPolicy from "./pages/privacy-policy";
 import TermsOfService from "./pages/terms-of-service";
 import RefundPolicy from "./pages/refund-policy";
 import ReturnPolicy from "./pages/return-policy";
+import ContactPage from "./pages/contact";
 import CampusAmbassadorLanding from "./pages/campus-ambassador";
 import CampusAmbassadorApplyPage from "./pages/campus-ambassador-apply";
 import CampusAmbassadorAdminPage from "./pages/campus-ambassador-admin";
@@ -140,6 +141,7 @@ function Router() {
 	      <Route path="/terms-of-service" component={TermsOfService} />
 	      <Route path="/refund-policy" component={RefundPolicy} />
 	      <Route path="/return-policy" component={ReturnPolicy} />
+	      <Route path="/contact" component={ContactPage} />
 	      
 	      {/* Authentication flow routes - PROTECTED */}
 	      <Route path="/role-selection" component={() => {

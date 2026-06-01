@@ -15,6 +15,14 @@ export default function DashboardFooter() {
           </div>
           
           <div className="flex items-center space-x-6">
+            <a
+              href="/contact"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Contact
+            </a>
             <a 
               href="/privacy-policy" 
               target="_blank" 
@@ -37,7 +45,7 @@ export default function DashboardFooter() {
               rel="noopener noreferrer"
               className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
             >
-              Refund Policy
+              Refund/Cancellation
             </a>
             <a
               href="/return-policy"
@@ -46,12 +54,6 @@ export default function DashboardFooter() {
               className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
             >
               Return Policy
-            </a>
-            <a 
-              href="mailto:amit@referralme.in" 
-              className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Support
             </a>
           </div>
         </div>
