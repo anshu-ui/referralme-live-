@@ -33,6 +33,7 @@ import {
   type ReferralRequest,
   type MentorshipSession,
   markMentorshipPayoutPaid,
+  verifyManualMentorshipPayment,
   createPlatformAnnouncement,
   deleteJobPosting,
   getAllATSAnalysisHistory,
@@ -46,7 +47,7 @@ import {
   updateJobPosting,
   updateUser,
 } from "../lib/firestore";
-import { sendAdminBroadcastEmail } from "../lib/emailService";
+import { sendAdminBroadcastEmail, sendMentorshipPaymentVerifiedEmails } from "../lib/emailService";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -127,6 +128,10 @@ export default function AdminDashboard() {
   const [payoutTarget, setPayoutTarget] = useState<MentorshipSession | null>(null);
   const [payoutNote, setPayoutNote] = useState("");
   const [payoutSaving, setPayoutSaving] = useState(false);
+  const [paymentVerifyDialogOpen, setPaymentVerifyDialogOpen] = useState(false);
+  const [paymentVerifyTarget, setPaymentVerifyTarget] = useState<MentorshipSession | null>(null);
+  const [paymentVerifyNote, setPaymentVerifyNote] = useState("");
+  const [paymentVerifySaving, setPaymentVerifySaving] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -181,6 +186,12 @@ export default function AdminDashboard() {
     setPayoutDialogOpen(true);
   };
 
+  const openPaymentVerifyDialog = (session: MentorshipSession) => {
+    setPaymentVerifyTarget(session);
+    setPaymentVerifyNote(session.manualPaymentVerificationNote || "");
+    setPaymentVerifyDialogOpen(true);
+  };
+
   const confirmPayoutPaid = async () => {
     if (!payoutTarget?.id) return;
     setPayoutSaving(true);
@@ -199,6 +210,42 @@ export default function AdminDashboard() {
       toast({ title: "Could not update payout", description: e?.message || "Please try again.", variant: "destructive" });
     } finally {
       setPayoutSaving(false);
+    }
+  };
+
+  const confirmManualPaymentVerified = async () => {
+    if (!paymentVerifyTarget?.id) return;
+    setPaymentVerifySaving(true);
+    try {
+      await verifyManualMentorshipPayment({
+        sessionId: paymentVerifyTarget.id,
+        note: paymentVerifyNote.trim() || undefined,
+        adminEmail: user?.email || undefined,
+      });
+
+      sendMentorshipPaymentVerifiedEmails({
+        sessionId: paymentVerifyTarget.id,
+        menteeName: paymentVerifyTarget.menteeName,
+        menteeEmail: paymentVerifyTarget.menteeEmail,
+        mentorName: paymentVerifyTarget.mentorName,
+        mentorEmail: paymentVerifyTarget.mentorEmail,
+        title: paymentVerifyTarget.title,
+        scheduledAt: paymentVerifyTarget.scheduledAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+        duration: paymentVerifyTarget.duration,
+        price: paymentVerifyTarget.price,
+        upiId: paymentVerifyTarget.manualUpiId,
+        paymentReference: paymentVerifyTarget.manualPaymentReference,
+      }).catch(() => {});
+
+      toast({ title: "Payment verified", description: "Mentor and seeker will receive booking confirmation emails." });
+      setPaymentVerifyDialogOpen(false);
+      setPaymentVerifyTarget(null);
+      setPaymentVerifyNote("");
+      await loadAdminData();
+    } catch (e: any) {
+      toast({ title: "Could not verify payment", description: e?.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setPaymentVerifySaving(false);
     }
   };
 
@@ -982,6 +1029,54 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={paymentVerifyDialogOpen} onOpenChange={setPaymentVerifyDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Verify manual UPI payment</DialogTitle>
+            <DialogDescription>
+              Confirm only after matching the UPI payment in your bank/UPI statement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+              <div className="font-semibold text-slate-900">{paymentVerifyTarget?.title || "Mentorship session"}</div>
+              <div className="mt-1 text-xs text-slate-600">
+                Mentor: {paymentVerifyTarget?.mentorName || "—"} • Mentee: {paymentVerifyTarget?.menteeName || "—"}
+              </div>
+              <div className="mt-3 grid gap-2 text-xs text-slate-700">
+                <div>
+                  Amount:{" "}
+                  <span className="font-semibold text-slate-900">
+                    ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(paymentVerifyTarget?.price || 0))}
+                  </span>
+                </div>
+                <div>UPI ID: <span className="font-semibold text-slate-900">{paymentVerifyTarget?.manualUpiId || "—"}</span></div>
+                <div>Reference/UTR: <span className="font-semibold text-slate-900">{paymentVerifyTarget?.manualPaymentReference || "—"}</span></div>
+                {paymentVerifyTarget?.manualPaymentProofNote ? (
+                  <div>Proof note: <span className="font-semibold text-slate-900">{paymentVerifyTarget.manualPaymentProofNote}</span></div>
+                ) : null}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Verification note (optional)</div>
+              <Input
+                value={paymentVerifyNote}
+                onChange={(e) => setPaymentVerifyNote(e.target.value)}
+                placeholder="Matched in UPI statement / bank note"
+                className="border-slate-200 bg-white"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentVerifyDialogOpen(false)} disabled={paymentVerifySaving}>
+              Cancel
+            </Button>
+            <Button onClick={confirmManualPaymentVerified} disabled={paymentVerifySaving}>
+              {paymentVerifySaving ? "Verifying..." : "Verify payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -1735,7 +1830,9 @@ export default function AdminDashboard() {
 	                      <TableHead>Mentor</TableHead>
 	                      <TableHead>Mentee</TableHead>
 	                      <TableHead>Status</TableHead>
+	                      <TableHead>Payment</TableHead>
 	                      <TableHead>Provider</TableHead>
+	                      <TableHead>Reference</TableHead>
 	                      <TableHead className="text-right">Price</TableHead>
 	                      <TableHead className="text-right">Fee</TableHead>
 	                      <TableHead className="text-right">Payout</TableHead>
@@ -1752,15 +1849,27 @@ export default function AdminDashboard() {
                         <TableCell>
                           <Badge variant="secondary" className="capitalize">{s.status}</Badge>
                         </TableCell>
+                        <TableCell>
+                          <Badge variant={s.paymentStatus === "paid" ? "default" : "outline"} className="capitalize">
+                            {s.paymentStatus === "paid" ? "Paid" : "Pending"}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-xs">
                           {s.paymentProvider || (s.cashfreeOrderId ? "cashfree" : s.razorpayOrderId ? "razorpay" : "-")}
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate text-xs">
+                          {s.manualPaymentReference || s.razorpayPaymentId || s.cashfreeOrderId || "-"}
                         </TableCell>
                         <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}</TableCell>
 	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))}</TableCell>
 	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))}</TableCell>
 	                        <TableCell className="text-xs capitalize">{s.payoutStatus || "unpaid"}</TableCell>
 	                        <TableCell className="text-right">
-	                          {s.status === "completed" && s.paymentStatus === "paid" && (s.payoutStatus || "unpaid") === "unpaid" ? (
+	                          {s.paymentProvider === "manual_upi" && s.paymentStatus !== "paid" ? (
+	                            <Button size="sm" onClick={() => openPaymentVerifyDialog(s)}>
+	                              Verify payment
+	                            </Button>
+	                          ) : s.status === "completed" && s.paymentStatus === "paid" && (s.payoutStatus || "unpaid") === "unpaid" ? (
 	                            <Button size="sm" variant="outline" onClick={() => openPayoutDialog(s)}>
 	                              Mark paid
 	                            </Button>

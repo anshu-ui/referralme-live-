@@ -14,7 +14,6 @@ import type { FirestoreUser, MentorshipService, MentorshipSession } from "../lib
 import { createMentorshipSession, getUserATSAnalysisHistory, subscribeToActiveMentors, subscribeToMentorshipSessions } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 import { sendMentorshipBookedEmails } from "../lib/emailService";
-import { createMentorshipPayment, initiatePayment } from "../lib/razorpay";
 
 function fmtInr(amount: number) {
   const safe = Number.isFinite(amount) ? amount : 0;
@@ -22,6 +21,7 @@ function fmtInr(amount: number) {
 }
 
 const PLATFORM_FEE_PERCENT = 20;
+const MANUAL_UPI_ID = "8510840825@ptsbi";
 
 function getInitials(name?: string) {
   const parts = (name || "").trim().split(/\s+/).filter(Boolean);
@@ -98,6 +98,8 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
   const [selected, setSelected] = useState<{ mentor: FirestoreUser; service: MentorshipService } | null>(null);
   const [scheduledAt, setScheduledAt] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentProofNote, setPaymentProofNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -184,11 +186,22 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     return sessions.filter((s) => ["completed", "cancelled"].includes(s.status));
   }, [sessions]);
 
-  const handlePayAndRequest = async () => {
+  const closeRequestDialog = () => {
+    setSelected(null);
+    setPaymentReference("");
+    setPaymentProofNote("");
+  };
+
+  const handleSubmitManualPayment = async () => {
     if (!selected) return;
     const ts = toTimestampFromLocalInput(scheduledAt);
     if (!ts) {
       toast({ title: "Pick a date/time", description: "Please select a valid schedule time." });
+      return;
+    }
+    const ref = paymentReference.trim();
+    if (ref.length < 6) {
+      toast({ title: "Add payment reference", description: "Enter the UPI UTR/reference number after payment." });
       return;
     }
 
@@ -197,50 +210,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
       const platformFeeAmount = Math.max(0, Math.round((selected.service.price * PLATFORM_FEE_PERCENT) / 100));
       const mentorPayoutAmount = Math.max(0, selected.service.price - platformFeeAmount);
 
-      // 1) Create Razorpay order on server
-      const orderResp = await fetch("/api/razorpay/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: selected.service.price,
-          currency: "INR",
-          mentorId: selected.mentor.uid,
-        }),
-      });
-      if (!orderResp.ok) {
-        const msg = (await orderResp.json().catch(() => null))?.message || "Failed to create payment order.";
-        throw new Error(msg);
-      }
-      const order = await orderResp.json().catch(() => null);
-      const razorpayOrderId = order?.id;
-      if (!razorpayOrderId) {
-        throw new Error("Payment order not created. Please try again.");
-      }
-
-      // 2) Open Razorpay checkout (modal)
-      const paymentResponse = await new Promise<any>((resolve, reject) => {
-        const opts = createMentorshipPayment(
-          user as any,
-          selected.mentor.displayName || "Mentor",
-          selected.service.title,
-          selected.service.price,
-          razorpayOrderId,
-        );
-        initiatePayment(opts, resolve, reject);
-      });
-
-      // 3) Verify Razorpay payment signature on server
-      const verifyResp = await fetch("/api/razorpay/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paymentResponse),
-      });
-      const verify = await verifyResp.json().catch(() => null);
-      if (!verifyResp.ok || !verify?.verified) {
-        throw new Error(verify?.message || "Payment verification failed. If money was deducted, it will auto-refund or you can retry later.");
-      }
-
-      // 4) Create the session as paid + pending mentor confirmation
+      // Create the session pending admin payment verification.
       const sessionId = await createMentorshipSession({
         mentorId: selected.mentor.uid,
         mentorName: selected.mentor.displayName || "Mentor",
@@ -254,10 +224,12 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         price: selected.service.price,
         scheduledAt: ts,
         status: "pending",
-        paymentStatus: "paid",
-        paymentProvider: "razorpay",
-        razorpayOrderId: paymentResponse?.razorpay_order_id || razorpayOrderId,
-        razorpayPaymentId: paymentResponse?.razorpay_payment_id,
+        paymentStatus: "pending",
+        paymentProvider: "manual_upi",
+        manualUpiId: MANUAL_UPI_ID,
+        manualPaymentReference: ref,
+        manualPaymentProofNote: paymentProofNote.trim() || undefined,
+        manualPaymentSubmittedAt: Timestamp.now(),
         platformFeePercent: PLATFORM_FEE_PERCENT,
         platformFeeAmount,
         mentorPayoutAmount,
@@ -276,12 +248,18 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         scheduledAt: ts.toDate().toISOString(),
         duration: selected.service.duration,
         price: selected.service.price,
+        paymentMode: "manual_upi",
+        upiId: MANUAL_UPI_ID,
+        paymentReference: ref,
+        paymentProofNote: paymentProofNote.trim() || undefined,
       }).catch(() => {});
 
-      toast({ title: "Request sent", description: "Your mentorship request is created. The mentor will confirm." });
+      toast({ title: "Payment proof submitted", description: "Admin will verify the UPI payment, then the mentor can confirm." });
       setSelected(null);
       setScheduledAt("");
       setNotes("");
+      setPaymentReference("");
+      setPaymentProofNote("");
     } catch (e: any) {
       toast({ title: "Could not create request", description: e?.message || "Please try again." });
     } finally {
@@ -442,7 +420,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                               <Dialog
                                 open={selected?.mentor.uid === mentor.uid && selected?.service.id === svc.id}
                                 onOpenChange={(open) => {
-                                  if (!open) setSelected(null);
+                                  if (!open) closeRequestDialog();
                                 }}
                               >
                                 <DialogTrigger asChild>
@@ -469,7 +447,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                   <DialogHeader>
                                     <DialogTitle>Request Session</DialogTitle>
                                     <DialogDescription>
-                                      Pick a time. The mentor will confirm and share meeting details.
+                                      Pay by UPI, submit the reference, and admin will verify before mentor confirmation.
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="space-y-4">
@@ -515,12 +493,53 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                       />
                                     </div>
 
+                                    <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <div className="text-sm font-semibold text-blue-950">Manual UPI payment</div>
+                                          <p className="mt-1 text-xs text-blue-800">
+                                            Pay the full session amount to ReferralMe. Admin verifies it before mentor confirmation.
+                                          </p>
+                                        </div>
+                                        <Badge variant="secondary">UPI</Badge>
+                                      </div>
+                                      <div className="mt-3 grid gap-2 text-sm">
+                                        <div className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
+                                          <span className="text-slate-600">UPI ID</span>
+                                          <span className="font-semibold text-slate-950">{MANUAL_UPI_ID}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
+                                          <span className="text-slate-600">Amount</span>
+                                          <span className="font-semibold text-slate-950">₹{fmtInr(svc.price)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label>UPI reference / UTR number</Label>
+                                      <Input
+                                        value={paymentReference}
+                                        onChange={(e) => setPaymentReference(e.target.value)}
+                                        placeholder="Example: 412345678901"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label>Payment proof note (optional)</Label>
+                                      <Textarea
+                                        value={paymentProofNote}
+                                        onChange={(e) => setPaymentProofNote(e.target.value)}
+                                        placeholder="Paste screenshot link or add payment details if needed."
+                                        className="min-h-[70px]"
+                                      />
+                                    </div>
+
                                     <div className="flex justify-end gap-2">
-                                      <Button variant="outline" onClick={() => setSelected(null)} disabled={submitting}>
+                                      <Button variant="outline" onClick={closeRequestDialog} disabled={submitting}>
                                         Cancel
                                       </Button>
-                                      <Button onClick={handlePayAndRequest} disabled={submitting}>
-                                        {submitting ? "Processing..." : "Pay & Send Request"}
+                                      <Button onClick={handleSubmitManualPayment} disabled={submitting}>
+                                        {submitting ? "Submitting..." : "Submit Payment Proof"}
                                       </Button>
                                     </div>
                                   </div>
@@ -573,6 +592,11 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                         <Badge variant="secondary" className="text-xs capitalize">
                           {s.status}
                         </Badge>
+                        {s.paymentProvider === "manual_upi" && s.paymentStatus !== "paid" ? (
+                          <Badge variant="outline" className="text-xs">
+                            Payment verification pending
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
                     {s.meetingUrl ? (

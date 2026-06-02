@@ -291,6 +291,10 @@ export async function sendMentorshipBookedEmails(payload: {
   scheduledAt: string; // ISO
   duration: number;
   price: number;
+  paymentMode?: "manual_upi";
+  upiId?: string;
+  paymentReference?: string;
+  paymentProofNote?: string;
 }): Promise<boolean> {
   if (!payload.menteeName || !payload.menteeEmail || !payload.mentorName || !payload.mentorEmail || !payload.title) {
     console.error("Missing required fields for mentorship booked email", payload);
@@ -298,6 +302,29 @@ export async function sendMentorshipBookedEmails(payload: {
   }
   return postEmailRequest({
     endpoint: "/api/email/mentorship-booked",
+    payload,
+  });
+}
+
+export async function sendMentorshipPaymentVerifiedEmails(payload: {
+  sessionId?: string;
+  menteeName: string;
+  menteeEmail: string;
+  mentorName: string;
+  mentorEmail: string;
+  title: string;
+  scheduledAt: string; // ISO
+  duration: number;
+  price: number;
+  upiId?: string;
+  paymentReference?: string;
+}): Promise<boolean> {
+  if (!payload.menteeName || !payload.menteeEmail || !payload.mentorName || !payload.mentorEmail || !payload.title) {
+    console.error("Missing required fields for mentorship payment verified email", payload);
+    return false;
+  }
+  return postEmailRequest({
+    endpoint: "/api/email/mentorship-payment-verified",
     payload,
   });
 }

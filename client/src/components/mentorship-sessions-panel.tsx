@@ -34,6 +34,10 @@ export default function MentorshipSessionsPanel({
 
   const saveMeetingUrl = async (session: MentorshipSession) => {
     const sessionId = String(session.id || "");
+    if (session.paymentStatus !== "paid") {
+      toast({ title: "Payment not verified", description: "Admin must verify payment before you confirm this session." });
+      return;
+    }
     const url = (meetingUrlDraft[sessionId] || "").trim();
     if (!url) {
       toast({ title: "Add a meeting link", description: "Paste a Google Meet / Zoom link first." });
@@ -66,6 +70,10 @@ export default function MentorshipSessionsPanel({
 
   const markCompleted = async (session: MentorshipSession) => {
     const sessionId = String(session.id || "");
+    if (session.paymentStatus !== "paid") {
+      toast({ title: "Payment not verified", description: "This session cannot be completed until payment is verified." });
+      return;
+    }
     setSavingId(sessionId);
     try {
       await markMentorshipSessionCompleted({ sessionId, mentorId: user.uid });
@@ -170,6 +178,11 @@ export default function MentorshipSessionsPanel({
                       <Badge variant="secondary" className="text-xs capitalize">
                         {s.status}
                       </Badge>
+                      {s.paymentProvider === "manual_upi" && s.paymentStatus !== "paid" ? (
+                        <Badge variant="outline" className="text-xs">
+                          Payment pending
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
 
@@ -192,9 +205,10 @@ export default function MentorshipSessionsPanel({
                             onChange={(e) => setMeetingUrlDraft((prev) => ({ ...prev, [s.id || ""]: e.target.value }))}
                             placeholder="https://meet.google.com/..."
                             className="w-[240px]"
+                            disabled={s.paymentStatus !== "paid"}
                           />
                         </div>
-                        <Button size="sm" onClick={() => saveMeetingUrl(s)} disabled={savingId === s.id} className="gap-2">
+                        <Button size="sm" onClick={() => saveMeetingUrl(s)} disabled={savingId === s.id || s.paymentStatus !== "paid"} className="gap-2">
                           <CheckCircle2 className="h-4 w-4" />
                           {savingId === s.id ? "Saving..." : "Confirm"}
                         </Button>
@@ -206,7 +220,7 @@ export default function MentorshipSessionsPanel({
                         size="sm"
                         variant="outline"
                         onClick={() => markCompleted(s)}
-                        disabled={savingId === s.id}
+                        disabled={savingId === s.id || s.paymentStatus !== "paid"}
                       >
                         Mark done
                       </Button>

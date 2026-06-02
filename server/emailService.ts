@@ -701,6 +701,78 @@ export function generateMentorshipPaymentReceivedEmail(args: {
   };
 }
 
+export function generateMentorshipManualPaymentSubmittedEmail(args: {
+  menteeName: string;
+  mentorName: string;
+  title: string;
+  scheduledAtLabel: string;
+  priceInr: number;
+  upiId: string;
+  paymentReference?: string;
+  dashboardUrl?: string;
+}) {
+  const dashboardUrl = args.dashboardUrl || MENTORSHIP_SEEKER_URL;
+  return {
+    subject: `Payment proof received: ${args.title}`,
+    html: wrapEmail({
+      preheader: `Your payment proof is submitted and waiting for admin verification.`,
+      eyebrow: "Mentorship",
+      title: "Payment proof received",
+      intro: `Hi ${args.menteeName}, we received your UPI payment proof for the session with ${args.mentorName}.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0 0 6px;"><strong>Mentor:</strong> ${args.mentorName}</p>
+          <p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>
+          <p style="margin:0 0 6px;"><strong>Amount:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>
+          <p style="margin:0 0 6px;"><strong>Paid to UPI:</strong> ${args.upiId}</p>
+          ${args.paymentReference ? `<p style="margin:0;"><strong>Reference/UTR:</strong> ${args.paymentReference}</p>` : ""}
+        </div>
+        <p style="margin:0 0 14px;">Next step: our admin will verify the payment. After verification, the mentor will confirm your session and add a meeting link.</p>
+      `,
+      ctaLabel: "Open My Mentorship",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open Seeker Dashboard",
+      secondaryLinkHref: MENTORSHIP_SEEKER_URL,
+    }),
+  };
+}
+
+export function generateMentorshipManualPaymentPendingMentorEmail(args: {
+  mentorName: string;
+  menteeName: string;
+  title: string;
+  scheduledAtLabel: string;
+  durationMinutes: number;
+  priceInr: number;
+  mentorDashboardUrl?: string;
+}) {
+  const dashboardUrl = args.mentorDashboardUrl || MENTORSHIP_MENTOR_URL;
+  return {
+    subject: `Mentorship request pending payment verification: ${args.title}`,
+    html: wrapEmail({
+      preheader: `New session request from ${args.menteeName}; admin is verifying payment.`,
+      eyebrow: "Mentorship",
+      title: "New request pending payment verification",
+      intro: `Hi ${args.mentorName}, ${args.menteeName} requested a mentorship session with you.`,
+      body: `
+        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:0 0 16px;background:#ffffff;">
+          <p style="margin:0 0 6px;"><strong>Session:</strong> ${args.title}</p>
+          <p style="margin:0 0 6px;"><strong>Mentee:</strong> ${args.menteeName}</p>
+          <p style="margin:0 0 6px;"><strong>Scheduled:</strong> ${args.scheduledAtLabel}</p>
+          <p style="margin:0 0 6px;"><strong>Duration:</strong> ${args.durationMinutes} min</p>
+          <p style="margin:0;"><strong>Price:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>
+        </div>
+        <p style="margin:0 0 14px;">Please wait for admin payment verification before confirming the session or adding a meeting link.</p>
+      `,
+      ctaLabel: "Open Mentor Dashboard",
+      ctaHref: dashboardUrl,
+      secondaryLinkLabel: "Open ReferralMe",
+      secondaryLinkHref: APP_URL,
+    }),
+  };
+}
+
 export function generateMentorshipNewRequestEmail(args: {
   mentorName: string;
   mentorEmail: string;
@@ -825,7 +897,7 @@ export function generateMentorshipRatingReceivedEmail(args: {
 }
 
 export function generateMentorshipAdminEventEmail(args: {
-  event: "booked" | "confirmed" | "completed" | "rated";
+  event: "booked" | "manual_payment_submitted" | "manual_payment_verified" | "confirmed" | "completed" | "rated";
   mentorName: string;
   mentorEmail?: string;
   menteeName: string;
@@ -835,15 +907,22 @@ export function generateMentorshipAdminEventEmail(args: {
   priceInr?: number;
   rating?: number;
   sessionId?: string;
+  paymentReference?: string;
+  paymentProofNote?: string;
+  upiId?: string;
 }) {
   const label =
     args.event === "booked"
       ? "Booking paid"
-      : args.event === "confirmed"
-        ? "Meeting link added"
-        : args.event === "completed"
-          ? "Session completed"
-          : "Rating received";
+      : args.event === "manual_payment_submitted"
+        ? "Manual payment submitted"
+        : args.event === "manual_payment_verified"
+          ? "Manual payment verified"
+          : args.event === "confirmed"
+            ? "Meeting link added"
+            : args.event === "completed"
+              ? "Session completed"
+              : "Rating received";
 
   const lines = [
     args.sessionId ? `<p style="margin:0 0 6px;"><strong>Session ID:</strong> ${args.sessionId}</p>` : "",
@@ -854,6 +933,9 @@ export function generateMentorshipAdminEventEmail(args: {
     typeof args.priceInr === "number"
       ? `<p style="margin:0 0 6px;"><strong>Amount:</strong> ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(args.priceInr || 0))}</p>`
       : "",
+    args.upiId ? `<p style="margin:0 0 6px;"><strong>UPI ID:</strong> ${args.upiId}</p>` : "",
+    args.paymentReference ? `<p style="margin:0 0 6px;"><strong>Reference/UTR:</strong> ${args.paymentReference}</p>` : "",
+    args.paymentProofNote ? `<p style="margin:0 0 6px;"><strong>Proof note:</strong> ${args.paymentProofNote}</p>` : "",
     typeof args.rating === "number" ? `<p style="margin:0;"><strong>Rating:</strong> ${args.rating}/5</p>` : "",
   ].filter(Boolean);
 

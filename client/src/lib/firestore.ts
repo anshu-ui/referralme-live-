@@ -203,7 +203,14 @@ export interface MentorshipSession {
   razorpayPaymentId?: string;
   cashfreeOrderId?: string;
   stripePaymentIntentId?: string;
-  paymentProvider?: "cashfree" | "razorpay" | "stripe";
+  paymentProvider?: "cashfree" | "razorpay" | "stripe" | "manual_upi";
+  manualUpiId?: string;
+  manualPaymentReference?: string;
+  manualPaymentProofNote?: string;
+  manualPaymentSubmittedAt?: Timestamp;
+  manualPaymentVerifiedAt?: Timestamp;
+  manualPaymentVerifiedByEmail?: string;
+  manualPaymentVerificationNote?: string;
   platformFeePercent?: number; // e.g., 20
   platformFeeAmount?: number; // INR
   mentorPayoutAmount?: number; // INR
@@ -1488,6 +1495,22 @@ export const markMentorshipPayoutPaid = async (args: { sessionId: string; note?:
     }));
   } catch (error) {
     console.error("Error marking payout as paid:", error);
+    throw error;
+  }
+};
+
+export const verifyManualMentorshipPayment = async (args: { sessionId: string; note?: string; adminEmail?: string }) => {
+  try {
+    const sessionRef = doc(db, "mentorshipSessions", args.sessionId);
+    await updateDoc(sessionRef, sanitizeFirestorePayload({
+      paymentStatus: "paid",
+      manualPaymentVerificationNote: args.note || null,
+      manualPaymentVerifiedAt: serverTimestamp(),
+      manualPaymentVerifiedByEmail: args.adminEmail || null,
+      updatedAt: serverTimestamp(),
+    }));
+  } catch (error) {
+    console.error("Error verifying manual mentorship payment:", error);
     throw error;
   }
 };
