@@ -25,6 +25,12 @@ export async function sendEmail({
   html,
 }: EmailParams): Promise<boolean> {
   try {
+    const recipientEmail = String(to || "").trim();
+    if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      console.error("❌ Invalid email recipient", { to });
+      return false;
+    }
+
     // 🔐 Read env vars at runtime
     const BREVO_API_KEY = process.env.BREVO_API_KEY;
     const FROM_EMAIL = process.env.EMAIL_FROM;
@@ -58,7 +64,7 @@ export async function sendEmail({
           email: FROM_EMAIL,
           name: FROM_NAME,
         },
-        to: [{ email: to }],
+        to: [{ email: recipientEmail }],
         subject,
         htmlContent: html,
       }),
@@ -83,7 +89,7 @@ export async function sendEmail({
     }
 
     console.log("✅ Email sent:", {
-      to,
+      to: recipientEmail,
       messageId: result?.messageId,
     });
 

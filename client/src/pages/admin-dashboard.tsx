@@ -226,9 +226,9 @@ export default function AdminDashboard() {
       sendMentorshipPaymentVerifiedEmails({
         sessionId: paymentVerifyTarget.id,
         menteeName: paymentVerifyTarget.menteeName,
-        menteeEmail: paymentVerifyTarget.menteeEmail,
+        menteeEmail: String(paymentVerifyTarget.menteeEmail || "").trim(),
         mentorName: paymentVerifyTarget.mentorName,
-        mentorEmail: paymentVerifyTarget.mentorEmail,
+        mentorEmail: String(paymentVerifyTarget.mentorEmail || "").trim(),
         title: paymentVerifyTarget.title,
         scheduledAt: paymentVerifyTarget.scheduledAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
         duration: paymentVerifyTarget.duration,

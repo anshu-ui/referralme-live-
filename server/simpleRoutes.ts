@@ -741,6 +741,8 @@
     // Mentorship emails
     // ========================================
     const getAdminEmail = () => process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "info@referralme.in";
+    const normalizeEmail = (value: unknown) => String(value || "").trim().toLowerCase();
+    const isEmailLike = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     app.post("/api/email/mentorship-booked", async (req: Request, res: Response) => {
       try {
@@ -759,8 +761,21 @@
           paymentReference,
           paymentProofNote,
         } = req.body || {};
-        if (!menteeName || !menteeEmail || !mentorName || !mentorEmail || !title || !scheduledAt || !duration || !price) {
+        const cleanMenteeEmail = normalizeEmail(menteeEmail);
+        const cleanMentorEmail = normalizeEmail(mentorEmail);
+        const cleanAdminEmail = normalizeEmail(getAdminEmail());
+        if (!menteeName || !cleanMenteeEmail || !mentorName || !cleanMentorEmail || !title || !scheduledAt || !duration || !price) {
           return res.status(400).json({ error: "Missing required fields" });
+        }
+        if (!isEmailLike(cleanMenteeEmail) || !isEmailLike(cleanMentorEmail) || !isEmailLike(cleanAdminEmail)) {
+          return res.status(400).json({
+            error: "Invalid email recipient",
+            recipients: {
+              mentee: cleanMenteeEmail,
+              mentor: cleanMentorEmail,
+              admin: cleanAdminEmail,
+            },
+          });
         }
 
         const scheduledAtLabel = new Date(scheduledAt).toLocaleString();
@@ -796,7 +811,7 @@
             })
           : generateMentorshipNewRequestEmail({
               mentorName,
-              mentorEmail,
+              mentorEmail: cleanMentorEmail,
               menteeName,
               title,
               scheduledAtLabel,
@@ -806,9 +821,9 @@
         const adminEmailContent = generateMentorshipAdminEventEmail({
           event: isManualUpi ? "manual_payment_submitted" : "booked",
           mentorName,
-          mentorEmail,
+          mentorEmail: cleanMentorEmail,
           menteeName,
-          menteeEmail,
+          menteeEmail: cleanMenteeEmail,
           title,
           scheduledAtLabel,
           priceInr,
@@ -818,14 +833,30 @@
           paymentProofNote: paymentProofNote ? String(paymentProofNote) : undefined,
         });
 
-        const results = await Promise.all([
-          sendEmail({ to: menteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
-          sendEmail({ to: mentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
-          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        const [menteeSent, mentorSent, adminSent] = await Promise.all([
+          sendEmail({ to: cleanMenteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
+          sendEmail({ to: cleanMentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
+          sendEmail({ to: cleanAdminEmail, subject: adminEmailContent.subject, html: adminEmailContent.html }),
         ]);
+        console.log("Mentorship booked email results", {
+          sessionId,
+          mentee: { email: cleanMenteeEmail, sent: menteeSent },
+          mentor: { email: cleanMentorEmail, sent: mentorSent },
+          admin: { email: cleanAdminEmail, sent: adminSent },
+        });
 
-        const success = results.filter(Boolean).length;
-        return res.json({ success: success >= 2, sent: success, failed: results.length - success });
+        const results = [menteeSent, mentorSent, adminSent];
+        const sent = results.filter(Boolean).length;
+        return res.json({
+          success: sent === results.length,
+          sent,
+          failed: results.length - sent,
+          recipients: {
+            mentee: { email: cleanMenteeEmail, sent: menteeSent },
+            mentor: { email: cleanMentorEmail, sent: mentorSent },
+            admin: { email: cleanAdminEmail, sent: adminSent },
+          },
+        });
       } catch (error) {
         console.error("Mentorship booked email error:", error);
         return res.status(500).json({ error: "Email service error" });
@@ -835,8 +866,21 @@
     app.post("/api/email/mentorship-payment-verified", async (req: Request, res: Response) => {
       try {
         const { sessionId, menteeName, menteeEmail, mentorName, mentorEmail, title, scheduledAt, duration, price, paymentReference, upiId } = req.body || {};
-        if (!menteeName || !menteeEmail || !mentorName || !mentorEmail || !title || !scheduledAt || !duration || !price) {
+        const cleanMenteeEmail = normalizeEmail(menteeEmail);
+        const cleanMentorEmail = normalizeEmail(mentorEmail);
+        const cleanAdminEmail = normalizeEmail(getAdminEmail());
+        if (!menteeName || !cleanMenteeEmail || !mentorName || !cleanMentorEmail || !title || !scheduledAt || !duration || !price) {
           return res.status(400).json({ error: "Missing required fields" });
+        }
+        if (!isEmailLike(cleanMenteeEmail) || !isEmailLike(cleanMentorEmail) || !isEmailLike(cleanAdminEmail)) {
+          return res.status(400).json({
+            error: "Invalid email recipient",
+            recipients: {
+              mentee: cleanMenteeEmail,
+              mentor: cleanMentorEmail,
+              admin: cleanAdminEmail,
+            },
+          });
         }
 
         const scheduledAtLabel = new Date(scheduledAt).toLocaleString();
@@ -852,7 +896,7 @@
         });
         const mentorEmailContent = generateMentorshipNewRequestEmail({
           mentorName,
-          mentorEmail,
+          mentorEmail: cleanMentorEmail,
           menteeName,
           title,
           scheduledAtLabel,
@@ -862,9 +906,9 @@
         const adminEmailContent = generateMentorshipAdminEventEmail({
           event: "manual_payment_verified",
           mentorName,
-          mentorEmail,
+          mentorEmail: cleanMentorEmail,
           menteeName,
-          menteeEmail,
+          menteeEmail: cleanMenteeEmail,
           title,
           scheduledAtLabel,
           priceInr,
@@ -873,14 +917,30 @@
           paymentReference: paymentReference ? String(paymentReference) : undefined,
         });
 
-        const results = await Promise.all([
-          sendEmail({ to: menteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
-          sendEmail({ to: mentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
-          sendEmail({ to: getAdminEmail(), subject: adminEmailContent.subject, html: adminEmailContent.html }),
+        const [menteeSent, mentorSent, adminSent] = await Promise.all([
+          sendEmail({ to: cleanMenteeEmail, subject: menteeEmailContent.subject, html: menteeEmailContent.html }),
+          sendEmail({ to: cleanMentorEmail, subject: mentorEmailContent.subject, html: mentorEmailContent.html }),
+          sendEmail({ to: cleanAdminEmail, subject: adminEmailContent.subject, html: adminEmailContent.html }),
         ]);
+        console.log("Mentorship payment verified email results", {
+          sessionId,
+          mentee: { email: cleanMenteeEmail, sent: menteeSent },
+          mentor: { email: cleanMentorEmail, sent: mentorSent },
+          admin: { email: cleanAdminEmail, sent: adminSent },
+        });
 
+        const results = [menteeSent, mentorSent, adminSent];
         const sent = results.filter(Boolean).length;
-        return res.json({ success: sent >= 2, sent, failed: results.length - sent });
+        return res.json({
+          success: sent === results.length,
+          sent,
+          failed: results.length - sent,
+          recipients: {
+            mentee: { email: cleanMenteeEmail, sent: menteeSent },
+            mentor: { email: cleanMentorEmail, sent: mentorSent },
+            admin: { email: cleanAdminEmail, sent: adminSent },
+          },
+        });
       } catch (error) {
         console.error("Mentorship payment verified email error:", error);
         return res.status(500).json({ error: "Email service error" });

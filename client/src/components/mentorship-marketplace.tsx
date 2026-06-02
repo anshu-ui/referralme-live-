@@ -209,12 +209,16 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
     try {
       const platformFeeAmount = Math.max(0, Math.round((selected.service.price * PLATFORM_FEE_PERCENT) / 100));
       const mentorPayoutAmount = Math.max(0, selected.service.price - platformFeeAmount);
+      const mentorEmail = String(selected.mentor.email || "").trim();
+      if (!mentorEmail) {
+        throw new Error("This mentor profile is missing an email address. Please choose another mentor or contact support.");
+      }
 
       // Create the session pending admin payment verification.
       const sessionId = await createMentorshipSession({
         mentorId: selected.mentor.uid,
         mentorName: selected.mentor.displayName || "Mentor",
-        mentorEmail: selected.mentor.email || "",
+        mentorEmail,
         menteeId: user.uid,
         menteeName: user.displayName || "Mentee",
         menteeEmail: user.email || "",
@@ -243,7 +247,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
         menteeName: user.displayName || "Mentee",
         menteeEmail: user.email || "",
         mentorName: selected.mentor.displayName || "Mentor",
-        mentorEmail: selected.mentor.email || "",
+        mentorEmail,
         title: selected.service.title,
         scheduledAt: ts.toDate().toISOString(),
         duration: selected.service.duration,
