@@ -1287,11 +1287,11 @@ export const subscribeToSeekerRequests = (seekerId: string, callback: (requests:
 // Mentorship Session operations
 export const createMentorshipSession = async (sessionData: Omit<MentorshipSession, "id" | "createdAt" | "updatedAt">) => {
   try {
-    const sessionDoc = {
+    const sessionDoc = sanitizeFirestorePayload({
       ...sessionData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    };
+    });
     
     const docRef = await addDoc(collection(db, "mentorshipSessions"), sessionDoc);
     return docRef.id;
@@ -1304,10 +1304,10 @@ export const createMentorshipSession = async (sessionData: Omit<MentorshipSessio
 export const updateMentorshipSession = async (sessionId: string, updates: Partial<MentorshipSession>) => {
   try {
     const sessionRef = doc(db, "mentorshipSessions", sessionId);
-    await updateDoc(sessionRef, {
+    await updateDoc(sessionRef, sanitizeFirestorePayload({
       ...updates,
       updatedAt: serverTimestamp(),
-    });
+    }));
   } catch (error) {
     console.error("Error updating mentorship session:", error);
     throw error;
