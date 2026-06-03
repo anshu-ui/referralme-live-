@@ -10,19 +10,23 @@ import { Textarea } from "./ui/textarea";
 import {
   AlertTriangle,
   ArrowRight,
+  CalendarDays,
   CheckCircle2,
   Copy,
   FileText,
+  ListChecks,
   Loader2,
   MessageSquareText,
   Mic2,
   RefreshCcw,
+  Save,
   Send,
   Sparkles,
   Target,
   Wand2,
 } from "lucide-react";
-import type { FirestoreUser } from "../lib/firestore";
+import type { FirestoreUser, PlacementPlan, PlacementPlanTask } from "../lib/firestore";
+import { getLatestPlacementPlan, savePlacementPlan, updatePlacementPlan } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 import { analyzeResumeWithGemini } from "../lib/gemini-ats";
 
@@ -43,6 +47,103 @@ function keyFor(uid: string) {
   return `referralme:ai-mentor:${uid}`;
 }
 
+function buildPlacementTasks(intake: {
+  targetRole: string;
+  dreamCompanies: string;
+  biggestBlocker: string;
+}): PlacementPlanTask[] {
+  const role = intake.targetRole.trim() || "target role";
+  const targets = intake.dreamCompanies.trim() || "target companies";
+  const blocker = intake.biggestBlocker.trim() || "your biggest blocker";
+
+  return [
+    {
+      id: "week1-resume",
+      week: 1,
+      title: "Fix resume positioning",
+      description: `Rewrite the top resume section for ${role}: headline, skills, and 3 impact bullets.`,
+      done: false,
+    },
+    {
+      id: "week1-ats",
+      week: 1,
+      title: "Run ATS gap check",
+      description: "Compare your resume with 2 target JDs and add only truthful missing keywords.",
+      done: false,
+    },
+    {
+      id: "week1-profile",
+      week: 1,
+      title: "Clean LinkedIn/profile proof",
+      description: `Update headline, About, and project links so ${targets} can understand your fit quickly.`,
+      done: false,
+    },
+    {
+      id: "week2-skill",
+      week: 2,
+      title: "Close the biggest skill gap",
+      description: `Spend 5 focused sessions on the blocker: ${blocker}. Track mistakes and fixes.`,
+      done: false,
+    },
+    {
+      id: "week2-project",
+      week: 2,
+      title: "Create proof of work",
+      description: `Ship or polish one ${role} project/case study with problem, approach, stack, and outcome.`,
+      done: false,
+    },
+    {
+      id: "week2-keywords",
+      week: 2,
+      title: "Build target keyword map",
+      description: "Collect 10 JDs and list repeated skills, tools, responsibilities, and interview themes.",
+      done: false,
+    },
+    {
+      id: "week3-technical",
+      week: 3,
+      title: "Round-wise interview prep",
+      description: "Prepare technical/domain, project, HR, and manager-round answers separately.",
+      done: false,
+    },
+    {
+      id: "week3-mock",
+      week: 3,
+      title: "Do two mock interviews",
+      description: "Record answers, note weak points, and rewrite your project explanation.",
+      done: false,
+    },
+    {
+      id: "week3-stories",
+      week: 3,
+      title: "Prepare 6 STAR stories",
+      description: "Ownership, conflict, failure, leadership, learning, and measurable impact.",
+      done: false,
+    },
+    {
+      id: "week4-applications",
+      week: 4,
+      title: "Apply with a focused pipeline",
+      description: "Apply to 20 high-fit roles, track every application, and follow up professionally.",
+      done: false,
+    },
+    {
+      id: "week4-network",
+      week: 4,
+      title: "Use ReferralMe network",
+      description: "Shortlist mentors/referrers that match your role, company type, and skill gaps.",
+      done: false,
+    },
+    {
+      id: "week4-review",
+      week: 4,
+      title: "Review and upgrade",
+      description: "Measure response rate, interview calls, ATS score, and decide the next 30-day focus.",
+      done: false,
+    },
+  ];
+}
+
 export default function AiMentorChat({
   user,
   onBookMentor,
@@ -56,6 +157,8 @@ export default function AiMentorChat({
 
   const [planText, setPlanText] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [savedPlacementPlan, setSavedPlacementPlan] = useState<PlacementPlan | null>(null);
+  const [placementTasks, setPlacementTasks] = useState<PlacementPlanTask[]>([]);
 
   const [intake, setIntake] = useState({
     targetRole: "",
@@ -186,6 +289,25 @@ export default function AiMentorChat({
   }, [user.uid]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadPlan = async () => {
+      const latestPlan = await getLatestPlacementPlan(user.uid);
+      if (cancelled || !latestPlan) return;
+
+      setSavedPlacementPlan(latestPlan);
+      setPlanText(latestPlan.planText);
+      setPlacementTasks(Array.isArray(latestPlan.tasks) ? latestPlan.tasks : []);
+    };
+
+    loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user.uid]);
+
+  useEffect(() => {
     // Keep resume coach prefilled from intake, but do not overwrite edits.
     setResumeCoach((p) => ({
       ...p,
@@ -232,15 +354,49 @@ export default function AiMentorChat({
         mode: "plan",
         intake,
         profile,
+        timeline: "30-day-placement-roadmap",
       });
       if (offline) toast({ title: "AI is busy", description: "Using offline guidance for now." });
+      const tasks = buildPlacementTasks(intake);
       setPlanText(text);
+      setPlacementTasks(tasks);
       try {
         localStorage.setItem(`${keyFor(user.uid)}:plan`, text);
       } catch {
         // ignore
       }
-      toast({ title: "Plan generated" });
+      try {
+        const planId = await savePlacementPlan({
+          userId: user.uid,
+          targetRole: intake.targetRole.trim(),
+          dreamCompanies: intake.dreamCompanies.trim() || undefined,
+          experience: intake.experience.trim() || undefined,
+          location: intake.location.trim() || undefined,
+          currentStatus: intake.currentStatus.trim() || undefined,
+          biggestBlocker: intake.biggestBlocker.trim() || undefined,
+          resumeTextPreview: intake.resumeText.trim().slice(0, 1200) || undefined,
+          planText: text,
+          tasks,
+        });
+        setSavedPlacementPlan({
+          id: planId,
+          userId: user.uid,
+          targetRole: intake.targetRole.trim(),
+          dreamCompanies: intake.dreamCompanies.trim() || undefined,
+          experience: intake.experience.trim() || undefined,
+          location: intake.location.trim() || undefined,
+          currentStatus: intake.currentStatus.trim() || undefined,
+          biggestBlocker: intake.biggestBlocker.trim() || undefined,
+          resumeTextPreview: intake.resumeText.trim().slice(0, 1200) || undefined,
+          planText: text,
+          tasks,
+          createdAt: new Date() as any,
+          updatedAt: new Date() as any,
+        });
+        toast({ title: "Placement plan saved" });
+      } catch {
+        toast({ title: "Plan generated", description: "Saved locally. Cloud save failed, please try again later." });
+      }
     } catch (e: any) {
       toast({ title: "AI mentor unavailable", description: e?.message || "Please try again." });
     } finally {
@@ -319,13 +475,46 @@ export default function AiMentorChat({
     return parts.join(" ").trim();
   }, [intake.dreamCompanies, intake.targetRole]);
 
+  const planProgress = useMemo(() => {
+    if (!placementTasks.length) return { done: 0, total: 0, percent: 0 };
+    const done = placementTasks.filter((task) => task.done).length;
+    return {
+      done,
+      total: placementTasks.length,
+      percent: Math.round((done / placementTasks.length) * 100),
+    };
+  }, [placementTasks]);
+
+  const tasksByWeek = useMemo(() => {
+    return [1, 2, 3, 4].map((week) => ({
+      week,
+      tasks: placementTasks.filter((task) => task.week === week),
+    }));
+  }, [placementTasks]);
+
   const bookMentor = () => {
     onBookMentor?.({ search: handoffSearch });
   };
 
+  const togglePlacementTask = async (taskId: string) => {
+    const nextTasks = placementTasks.map((task) =>
+      task.id === taskId ? { ...task, done: !task.done } : task,
+    );
+    setPlacementTasks(nextTasks);
+    setSavedPlacementPlan((prev) => (prev ? { ...prev, tasks: nextTasks } : prev));
+
+    if (!savedPlacementPlan?.id) return;
+
+    try {
+      await updatePlacementPlan(savedPlacementPlan.id, { tasks: nextTasks });
+    } catch {
+      toast({ title: "Progress not saved", description: "Please try again in a moment." });
+    }
+  };
+
   const sectionTabs: Array<{ id: Tab; label: string; icon: any }> = [
     { id: "chat", label: "Chat", icon: MessageSquareText },
-    { id: "plan", label: "Plan", icon: FileText },
+    { id: "plan", label: "Placement Plan", icon: CalendarDays },
     { id: "resume", label: "Resume Coach", icon: Target },
     { id: "interview", label: "Interview Prep", icon: Mic2 },
     { id: "rewrite", label: "Resume Rewrite", icon: RefreshCcw },
@@ -343,7 +532,7 @@ export default function AiMentorChat({
                 Beta
               </Badge>
             </CardTitle>
-            <CardDescription>Chat, generate plans, improve your resume, and build referral-ready messages.</CardDescription>
+            <CardDescription>Chat with a career mentor, build a placement plan, review resumes, and prepare round-wise.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -353,7 +542,7 @@ export default function AiMentorChat({
                 setPlanStep(1);
               }}
             >
-              Intake + plan
+              Placement plan
             </Button>
             <Button onClick={bookMentor} disabled={!onBookMentor || !intakeComplete}>
               Book a mentor
@@ -451,20 +640,25 @@ export default function AiMentorChat({
 
         {tab === "plan" ? (
           <div className="space-y-4">
-            <div className="rounded-xl border bg-slate-50 p-4">
+            <div className="rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-5 text-white shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm font-medium text-slate-900">Career Intake</div>
-                <Badge variant={intakeComplete ? "default" : "secondary"}>{intakeComplete ? "Ready" : "In progress"}</Badge>
+                <div>
+                  <div className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-200">AI Placement Plan</div>
+                  <h3 className="mt-1 text-xl font-semibold">Build a clear 30-day path to interviews.</h3>
+                </div>
+                <Badge variant={intakeComplete ? "default" : "secondary"} className="w-fit">
+                  {savedPlacementPlan ? "Saved" : intakeComplete ? "Ready" : "Intake needed"}
+                </Badge>
               </div>
-              <p className="mt-1 text-sm text-slate-600">
-                Answer these once. Then generate a 7-day plan and refine it in chat.
+              <p className="mt-2 max-w-3xl text-sm text-slate-200">
+                Answer once, then ReferralMe creates a structured plan for resume, ATS, interview prep, applications, and mentor handoff.
               </p>
             </div>
 
             <Card className="border-slate-200/80">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Step {planStep} of 4</CardTitle>
-                <CardDescription>Short answers are fine. This improves recommendations.</CardDescription>
+                <CardTitle className="text-base">Career intake · Step {planStep} of 4</CardTitle>
+                <CardDescription>Short answers are fine. Better context creates better guidance.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {planStep === 1 ? (
@@ -565,7 +759,7 @@ export default function AiMentorChat({
                         </Button>
                         <Button onClick={generatePlan} disabled={!intakeComplete || planLoading} className="gap-2">
                           {planLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                          Generate 7-day plan
+                          Generate 30-day plan
                         </Button>
                       </>
                     )}
@@ -575,24 +769,103 @@ export default function AiMentorChat({
             </Card>
 
             {planText ? (
-              <Card className="border-slate-200/80">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Saved plan</CardTitle>
-                  <CardDescription>Stored locally on this device.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="whitespace-pre-wrap text-sm text-slate-900 leading-relaxed">{planText}</div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => setTab("chat")}>
-                      Continue in chat
-                    </Button>
-                    <Button variant="outline" onClick={() => planText && copyText(planText)} className="gap-2">
-                      <Copy className="h-4 w-4" />
-                      Copy plan
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Card className="border-slate-200/80">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        Target
+                      </div>
+                      <div className="mt-2 text-sm text-slate-600">{intake.targetRole || savedPlacementPlan?.targetRole || "Not set"}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-slate-200/80">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                        <ListChecks className="h-4 w-4 text-blue-600" />
+                        Progress
+                      </div>
+                      <div className="mt-2 text-sm text-slate-600">
+                        {planProgress.done}/{planProgress.total} roadmap actions complete
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-blue-600" style={{ width: `${planProgress.percent}%` }} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-slate-200/80">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                        <Save className="h-4 w-4 text-blue-600" />
+                        Saved plan
+                      </div>
+                      <div className="mt-2 text-sm text-slate-600">
+                        {savedPlacementPlan?.id ? "Saved to your ReferralMe profile." : "Saved locally on this device."}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {placementTasks.length ? (
+                  <Card className="border-slate-200/80">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">30-day roadmap</CardTitle>
+                      <CardDescription>Track the few actions that actually move placement outcomes.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-3 lg:grid-cols-2">
+                      {tasksByWeek.map((group) => (
+                        <div key={group.week} className="rounded-xl border bg-slate-50/70 p-3">
+                          <div className="mb-3 text-sm font-semibold text-slate-900">Week {group.week}</div>
+                          <div className="space-y-2">
+                            {group.tasks.map((task) => (
+                              <button
+                                key={task.id}
+                                type="button"
+                                onClick={() => togglePlacementTask(task.id)}
+                                className="flex w-full gap-3 rounded-lg border bg-white p-3 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
+                              >
+                                <CheckCircle2
+                                  className={[
+                                    "mt-0.5 h-4 w-4 shrink-0",
+                                    task.done ? "text-emerald-600" : "text-slate-300",
+                                  ].join(" ")}
+                                />
+                                <span>
+                                  <span className="block text-sm font-medium text-slate-900">{task.title}</span>
+                                  <span className="mt-1 block text-xs leading-relaxed text-slate-600">{task.description}</span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ) : null}
+
+                <Card className="border-slate-200/80">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">AI mentor guidance</CardTitle>
+                    <CardDescription>Use this as your detailed playbook, then continue in chat for follow-up questions.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="whitespace-pre-wrap rounded-xl border bg-white p-4 text-sm leading-relaxed text-slate-900">{planText}</div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" onClick={() => setTab("chat")}>
+                        Continue in chat
+                      </Button>
+                      <Button variant="outline" onClick={() => planText && copyText(planText)} className="gap-2">
+                        <Copy className="h-4 w-4" />
+                        Copy plan
+                      </Button>
+                      <Button onClick={bookMentor} disabled={!onBookMentor || !intakeComplete}>
+                        Book mentor review
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             ) : null}
           </div>
         ) : null}

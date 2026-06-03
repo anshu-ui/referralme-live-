@@ -74,61 +74,44 @@ export function generateLitePlan(input: Intake) {
     ],
   };
 
-  const week: Array<{ day: string; tasks: string[] }> = [
+  const roadmap: Array<{ phase: string; tasks: string[] }> = [
     {
-      day: "Day 1 (Setup + targeting)",
+      phase: "Week 1 (Positioning + resume foundation)",
       tasks: [
         `Finalize target: ${targetRole}${dream ? ` (targets: ${dream})` : ""}.`,
-        "Create a tracking sheet: applications, referrals, responses, interviews.",
         "Collect 20 target job descriptions and note repeated keywords.",
-      ],
-    },
-    {
-      day: "Day 2 (Resume + ATS basics)",
-      tasks: [
         "Rewrite top section: 2-line headline + 3 bullets (impact + stack + domain).",
         "Add quantified outcomes to 3 bullets (numbers, %).",
         "Tailor resume once for your target role using job keywords (no stuffing).",
       ],
     },
     {
-      day: "Day 3 (Portfolio / proof of work)",
+      phase: "Week 2 (Proof of work + skill gaps)",
       tasks: [
         roleTasks[track][0],
+        roleTasks[track][1],
         "Update LinkedIn headline + About (clear role + proof + keywords).",
         "Create 1 featured post: project/case study + what you learned.",
+        "Create a mistakes log for weak concepts and revise it twice this week.",
       ],
     },
     {
-      day: "Day 4 (Interview prep sprint)",
+      phase: "Week 3 (Interview readiness)",
       tasks: [
-        roleTasks[track][1],
-        "Do 2 mock questions (record yourself, write improved answers).",
+        roleTasks[track][2],
+        "Do 2 mock interviews (record yourself, write improved answers).",
         "Prepare 6 STAR stories: conflict, ownership, failure, leadership, learning, impact.",
+        "Prepare a 90-second project pitch with problem, solution, tradeoffs, and result.",
       ],
     },
     {
-      day: "Day 5 (Referral outreach, ethical + high-signal)",
+      phase: "Week 4 (Applications + mentor review)",
       tasks: [
+        "Create a tracking sheet: applications, referrals, responses, interviews.",
         "Build a list of 30 people: alumni, seniors, same college/company, mutuals.",
         "Send 10 high-quality messages (template below).",
-        "Follow up: reply with resume + 2 bullets of fit + specific job link.",
-      ],
-    },
-    {
-      day: "Day 6 (Apply smart, not spam)",
-      tasks: [
-        "Apply to 8 roles max, but tailor each application (headline + keywords).",
         "For each role: send 1 referral request to a relevant person with job link.",
-        "Track outcomes and improve your message based on response rate.",
-      ],
-    },
-    {
-      day: "Day 7 (Review + iterate)",
-      tasks: [
-        "Review: responses, interviews, weak points, what to fix next week.",
-        "Upgrade 1 resume section and 1 portfolio artifact.",
-        "Plan next 7 days based on what actually moved the needle.",
+        "Review: responses, interviews, weak points, ATS score, and next 30-day focus.",
       ],
     },
   ];
@@ -162,10 +145,10 @@ export function generateLitePlan(input: Intake) {
   if (blocker) outputLines.push(`Biggest blocker: ${limitedText(blocker, 240)}`);
   outputLines.push(resumeNote, "");
 
-  outputLines.push("7-DAY PLAN");
-  for (const d of week) {
-    outputLines.push(d.day.toUpperCase());
-    outputLines.push(...bulletLines(d.tasks));
+  outputLines.push("30-DAY PLACEMENT ROADMAP");
+  for (const phase of roadmap) {
+    outputLines.push(phase.phase.toUpperCase());
+    outputLines.push(...bulletLines(phase.tasks));
     outputLines.push("");
   }
 
@@ -272,7 +255,7 @@ export function generateLiteChat(args: {
       "Current status: (apps/interviews/projects in last 2 weeks)",
     ]));
     lines.push("");
-    lines.push("Then I’ll give you a tight 7-day plan plus an interview checklist.");
+    lines.push("Then I’ll give you a focused 30-day placement roadmap plus an interview checklist.");
     return lines.join("\n");
   }
 
@@ -343,7 +326,7 @@ export function generateLiteChat(args: {
       ...bullets([
         `Confirm your target role: ${targetRole} (or tell me the right one).`,
         "Share: experience level + 2 skills + 1 project + what’s blocking you right now.",
-        "I’ll respond with: a 7-day plan + resume fixes + interview checklist.",
+        "I’ll respond with: a 30-day placement roadmap + resume fixes + interview checklist.",
       ]),
     ],
   };

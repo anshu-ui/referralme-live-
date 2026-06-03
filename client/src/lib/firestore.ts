@@ -75,6 +75,30 @@ export interface MentorshipService {
   isActive: boolean;
 }
 
+export interface PlacementPlanTask {
+  id: string;
+  week: number;
+  title: string;
+  description: string;
+  done: boolean;
+}
+
+export interface PlacementPlan {
+  id?: string;
+  userId: string;
+  targetRole: string;
+  dreamCompanies?: string;
+  experience?: string;
+  location?: string;
+  currentStatus?: string;
+  biggestBlocker?: string;
+  resumeTextPreview?: string;
+  planText: string;
+  tasks: PlacementPlanTask[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface JobPosting {
   id?: string;
   title: string;
@@ -1363,6 +1387,59 @@ export const subscribeToMentorshipSessions = (userId: string, role: "mentor" | "
     });
   } catch (error) {
     console.error("Error setting up mentorship sessions subscription:", error);
+    throw error;
+  }
+};
+
+// Placement Plan operations
+export const savePlacementPlan = async (
+  planData: Omit<PlacementPlan, "id" | "createdAt" | "updatedAt">,
+) => {
+  try {
+    const docRef = await addDoc(collection(db, "placementPlans"), sanitizeFirestorePayload({
+      ...planData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+
+    return docRef.id;
+  } catch (error) {
+    console.error("Error saving placement plan:", error);
+    throw error;
+  }
+};
+
+export const getLatestPlacementPlan = async (userId: string): Promise<PlacementPlan | null> => {
+  try {
+    const q = query(collection(db, "placementPlans"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    const plans = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as PlacementPlan[];
+
+    plans.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    return plans[0] || null;
+  } catch (error) {
+    console.error("Error loading latest placement plan:", error);
+    return null;
+  }
+};
+
+export const updatePlacementPlan = async (planId: string, updates: Partial<PlacementPlan>) => {
+  try {
+    const planRef = doc(db, "placementPlans", planId);
+    await updateDoc(planRef, sanitizeFirestorePayload({
+      ...updates,
+      updatedAt: serverTimestamp(),
+    }));
+  } catch (error) {
+    console.error("Error updating placement plan:", error);
     throw error;
   }
 };
