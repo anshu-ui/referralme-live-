@@ -631,6 +631,87 @@ export default function AdminDashboard() {
   const recentAtsScans = atsAnalyses.slice(0, 8);
   const recentAnnouncements = announcements.slice(0, 4);
 
+  const projectionFinance = useMemo(() => {
+    const inr = (amount: number) => `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)}`;
+    const revenueSources = [
+      {
+        source: "Student Pro subscriptions",
+        users: "500 students",
+        unit: "₹200/month",
+        amount: 100000,
+        note: "AI Mentor, ATS, placement plan, interview prep",
+      },
+      {
+        source: "Mentorship platform fee",
+        users: "50 bookings",
+        unit: "₹1,000 average booking x 20%",
+        amount: 10000,
+        note: "Platform keeps 20%, mentor payout handled separately",
+      },
+      {
+        source: "Premium resume review",
+        users: "60 reviews",
+        unit: "₹500 average",
+        amount: 30000,
+        note: "Advanced resume/ATS guidance package",
+      },
+      {
+        source: "College/internship cohort",
+        users: "20 seats",
+        unit: "₹500 average",
+        amount: 10000,
+        note: "Campus/internship prep partner revenue",
+      },
+    ];
+    const payoutSplit = [
+      { member: "Founder account", role: "Operations + product", amount: 70000 },
+      { member: "Family/member account 1", role: "Support allocation", amount: 30000 },
+      { member: "Family/member account 2", role: "Support allocation", amount: 20000 },
+      { member: "Internship/support person", role: "Marketing + operations", amount: 15000 },
+      { member: "Growth reserve", role: "Ads, tools, refunds buffer", amount: 15000 },
+      { member: "Platform buffer", role: "Hosting, email, AI API, misc.", amount: 0 },
+    ];
+    const monthlyTrend = [
+      { month: "Oct 2025", freeUsers: 180, paidUsers: 20, atsScans: 260, aiChats: 420, mentorshipBookings: 3, subscriptions: 4000, mentorship: 1000, services: 3000 },
+      { month: "Nov 2025", freeUsers: 310, paidUsers: 45, atsScans: 540, aiChats: 980, mentorshipBookings: 7, subscriptions: 9000, mentorship: 2000, services: 7000 },
+      { month: "Dec 2025", freeUsers: 520, paidUsers: 85, atsScans: 920, aiChats: 1700, mentorshipBookings: 13, subscriptions: 17000, mentorship: 4000, services: 14000 },
+      { month: "Jan 2026", freeUsers: 760, paidUsers: 145, atsScans: 1420, aiChats: 2600, mentorshipBookings: 20, subscriptions: 29000, mentorship: 6000, services: 23000 },
+      { month: "Feb 2026", freeUsers: 1080, paidUsers: 220, atsScans: 2200, aiChats: 4100, mentorshipBookings: 29, subscriptions: 44000, mentorship: 8000, services: 30000 },
+      { month: "Mar 2026", freeUsers: 1460, paidUsers: 315, atsScans: 3350, aiChats: 6100, mentorshipBookings: 38, subscriptions: 63000, mentorship: 10000, services: 35000 },
+      { month: "Apr 2026", freeUsers: 1880, paidUsers: 420, atsScans: 4700, aiChats: 8200, mentorshipBookings: 45, subscriptions: 84000, mentorship: 12000, services: 36000 },
+      { month: "May 2026", freeUsers: 2350, paidUsers: 500, atsScans: 6200, aiChats: 10800, mentorshipBookings: 50, subscriptions: 100000, mentorship: 10000, services: 40000 },
+    ];
+    const monthlyGrowthSheet = monthlyTrend.map((item) => ({
+      ...item,
+      total: item.subscriptions + item.mentorship + item.services,
+      conversionRate: Number(((item.paidUsers / Math.max(1, item.freeUsers + item.paidUsers)) * 100).toFixed(1)),
+    }));
+    const latestMonth = monthlyGrowthSheet[monthlyGrowthSheet.length - 1];
+    const totalRevenue = revenueSources.reduce((sum, item) => sum + item.amount, 0);
+    const totalPayout = payoutSplit.reduce((sum, item) => sum + item.amount, 0);
+    const sourceChartData = revenueSources.map((item) => ({
+      name: item.source.replace("Student ", "").replace("platform ", ""),
+      value: item.amount,
+    }));
+    const payoutChartData = payoutSplit.map((item) => ({
+      name: item.member,
+      value: item.amount,
+    }));
+
+    return {
+      inr,
+      totalRevenue,
+      totalPayout,
+      revenueSources,
+      payoutSplit,
+      monthlyTrend,
+      monthlyGrowthSheet,
+      latestMonth,
+      sourceChartData,
+      payoutChartData,
+    };
+  }, []);
+
   const atsScansToday = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -1136,6 +1217,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="jobs">Jobs</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
             <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
+            <TabsTrigger value="projection">Projection</TabsTrigger>
             <TabsTrigger value="comms">Comms</TabsTrigger>
             <TabsTrigger value="controls">Controls</TabsTrigger>
           </TabsList>
@@ -1883,6 +1965,192 @@ export default function AdminDashboard() {
 	                </Table>
 	              </CardContent>
 	            </Card>
+          </TabsContent>
+
+          <TabsContent value="projection" className="space-y-4">
+            <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-white via-blue-50 to-slate-50 p-5 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+                    Internal Growth Scenario
+                  </div>
+                  <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950">Finance & Growth Snapshot</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                    Scenario model for internal planning across subscriptions, mentorship, ATS usage, AI mentor activity, premium services, and member allocation.
+                  </p>
+                </div>
+                <Badge variant="outline" className="w-fit border-blue-200 bg-white px-3 py-2 text-blue-700">
+                  Oct 2025 - May 2026
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <MetricCard
+                title="May Revenue"
+                value={projectionFinance.inr(projectionFinance.totalRevenue)}
+                hint="Subscription + mentorship + services"
+                icon={TrendingUp}
+              />
+              <MetricCard title="Paid Users" value={projectionFinance.latestMonth.paidUsers} hint="Students at ₹200/month" icon={Users} />
+              <MetricCard title="AI Mentor Chats" value={projectionFinance.latestMonth.aiChats.toLocaleString("en-IN")} hint="Monthly guidance conversations" icon={Activity} />
+              <MetricCard
+                title="Planned Split"
+                value={projectionFinance.inr(projectionFinance.totalPayout)}
+                hint="Allocation model across members"
+                icon={PieChartIcon}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-4">
+              <MetricCard title="Free Users" value={projectionFinance.latestMonth.freeUsers.toLocaleString("en-IN")} hint="Top-of-funnel users" icon={UserCheck} />
+              <MetricCard title="ATS Scans" value={projectionFinance.latestMonth.atsScans.toLocaleString("en-IN")} hint="Resume scans in May" icon={FileText} />
+              <MetricCard title="Mentorship Bookings" value={projectionFinance.latestMonth.mentorshipBookings} hint="May session bookings" icon={CheckSquare} />
+              <MetricCard title="Paid Conversion" value={`${projectionFinance.latestMonth.conversionRate}%`} hint="Paid users / total users" icon={Target} />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>Where Money Comes From</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectionFinance.sourceChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                      <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                      <Tooltip formatter={(value: number) => projectionFinance.inr(Number(value))} />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="#2563eb" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>October to May Growth Story</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={projectionFinance.monthlyTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                        <Tooltip formatter={(value: number) => projectionFinance.inr(Number(value))} />
+                        <Area type="monotone" dataKey="subscriptions" stackId="1" stroke="#2563eb" fill="#93c5fd" />
+                        <Area type="monotone" dataKey="mentorship" stackId="1" stroke="#0f766e" fill="#5eead4" />
+                        <Area type="monotone" dataKey="services" stackId="1" stroke="#f97316" fill="#fdba74" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 text-sm font-semibold text-slate-900">Month-wise growth sheet</div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Month</TableHead>
+                            <TableHead className="text-right">Free Users</TableHead>
+                            <TableHead className="text-right">Paid Users</TableHead>
+                            <TableHead className="text-right">ATS Scans</TableHead>
+                            <TableHead className="text-right">AI Chats</TableHead>
+                            <TableHead className="text-right">Mentorship</TableHead>
+                            <TableHead className="text-right">Conversion</TableHead>
+                            <TableHead className="text-right">Total Revenue</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {projectionFinance.monthlyGrowthSheet.map((row) => (
+                            <TableRow key={row.month}>
+                              <TableCell className="font-medium text-slate-900">{row.month}</TableCell>
+                              <TableCell className="text-right">{row.freeUsers.toLocaleString("en-IN")}</TableCell>
+                              <TableCell className="text-right">{row.paidUsers}</TableCell>
+                              <TableCell className="text-right">{row.atsScans.toLocaleString("en-IN")}</TableCell>
+                              <TableCell className="text-right">{row.aiChats.toLocaleString("en-IN")}</TableCell>
+                              <TableCell className="text-right">{row.mentorshipBookings} bookings</TableCell>
+                              <TableCell className="text-right">{row.conversionRate}%</TableCell>
+                              <TableCell className="text-right font-semibold text-slate-950">{projectionFinance.inr(row.total)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>Revenue Source Sheet</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Users / Volume</TableHead>
+                        <TableHead>Unit Model</TableHead>
+                        <TableHead className="text-right">Projected</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projectionFinance.revenueSources.map((row) => (
+                        <TableRow key={row.source}>
+                          <TableCell>
+                            <div className="font-medium text-slate-900">{row.source}</div>
+                            <div className="text-xs text-slate-500">{row.note}</div>
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">{row.users}</TableCell>
+                          <TableCell className="text-sm text-slate-600">{row.unit}</TableCell>
+                          <TableCell className="text-right font-semibold text-slate-950">{projectionFinance.inr(row.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card className={ADMIN_SURFACE}>
+                <CardHeader>
+                  <CardTitle>Projected Member Allocation</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={projectionFinance.payoutChartData.filter((item) => item.value > 0)} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85}>
+                          {projectionFinance.payoutChartData.map((_, index) => (
+                            <Cell key={`projection-payout-${index}`} fill={["#2563eb", "#0f766e", "#f97316", "#7c3aed", "#dc2626", "#64748b"][index % 6]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => projectionFinance.inr(Number(value))} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Member / Bucket</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-right">Projected Split</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projectionFinance.payoutSplit.map((row) => (
+                        <TableRow key={row.member}>
+                          <TableCell className="font-medium text-slate-900">{row.member}</TableCell>
+                          <TableCell className="text-sm text-slate-600">{row.role}</TableCell>
+                          <TableCell className="text-right font-semibold text-slate-950">{projectionFinance.inr(row.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="comms" className="space-y-4">
