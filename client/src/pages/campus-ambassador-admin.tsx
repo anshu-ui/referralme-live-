@@ -57,6 +57,20 @@ import {
 } from "../lib/emailService";
 
 type CampusSection = CampusAmbassadorShowcaseItem["section"];
+type ShowcaseItemForm = {
+  section: CampusSection;
+  title: string;
+  subtitle: string;
+  description: string;
+  badge: string;
+  accent: string;
+  initials: string;
+  metric: string;
+  imageUrl: string;
+  galleryImageUrlsText: string;
+  imageAlt: string;
+  order: string;
+};
 
 const PANEL =
   "admin-panel border border-slate-200/80 bg-white/90 shadow-[0_20px_60px_-32px_rgba(37,99,235,0.34)] backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:opacity-100 hover:shadow-[0_26px_70px_-34px_rgba(37,99,235,0.42)]";
@@ -353,7 +367,7 @@ export default function CampusAmbassadorAdminPage() {
     audienceCollege: "",
     isActive: true,
   });
-  const [itemForm, setItemForm] = useState({
+  const [itemForm, setItemForm] = useState<ShowcaseItemForm>({
     section: "highlight" as CampusSection,
     title: "",
     subtitle: "",
@@ -2206,7 +2220,7 @@ export default function CampusAmbassadorAdminPage() {
                             </div>
                             <p className="mt-1 text-xs text-slate-500">{itemForm.subtitle || itemForm.badge || "Preview subtitle"}</p>
                             <p className="mt-2 text-sm leading-6 text-slate-600">{itemForm.description || "Description preview will appear here."}</p>
-                            {itemForm.section === "campus_moment" && itemForm.galleryImageUrlsText.trim() ? (
+                            {(itemForm.section as CampusSection) === "campus_moment" && itemForm.galleryImageUrlsText.trim() ? (
                               <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
                                 {itemForm.galleryImageUrlsText.split("\n").map((value) => value.trim()).filter(Boolean).length} gallery images added
                               </p>

@@ -30,7 +30,7 @@ export default function ReferralRequestFormModal({
     seekerPhone: user.phoneNumber || "",
     resumeText: "",
     resumeUrl: "",
-    linkedinUrl: user.linkedin || "",
+    linkedinUrl: user.linkedinUrl || user.linkedin || "",
     coverLetter: "",
   });
 
@@ -49,8 +49,11 @@ export default function ReferralRequestFormModal({
     try {
       const referralRequest = {
         jobPostingId: job.id!,
+        jobTitle: job.title,
         seekerId: user.uid,
         referrerId: job.referrerId,
+        referrerName: job.referrerName,
+        referrerEmail: job.referrerEmail,
         status: "pending" as const,
         ...requestData,
       };

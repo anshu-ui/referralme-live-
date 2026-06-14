@@ -19,13 +19,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import ApplicationFormModal from "../components/application-form-modal";
 import ATSAnalyzer from "../components/ats-analyzer";
 import ApplicationTrendsChart from "../components/application-trends-chart";
-import CommunityPosts from "../components/community-posts";
-import AIJobMatcher from "../components/ai-job-matcher";
+import AiCareerAgent from "../components/ai-career-agent";
 import MentorshipMarketplace from "../components/mentorship-marketplace";
 import AiMentorChat from "../components/ai-mentor-chat";
 
-import ReferralSystem from "../components/referral-system";
-import ComingSoonBadge from "../components/coming-soon-badge";
 import DiscoverReferrers from "../components/discover-referrers";
 import ReferrerProfileModal from "../components/referrer-profile-modal";
 import AutoAchievementSystem from "../components/auto-achievement-system";
@@ -57,7 +54,7 @@ import {
 export default function CleanSeekerDashboard() {
   const { user, logout } = useFirebaseAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("career-agent");
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
   const [isATSAnalyzerOpen, setIsATSAnalyzerOpen] = useState(false);
@@ -70,7 +67,6 @@ export default function CleanSeekerDashboard() {
     experience: "all"
   });
   const [atsAnalysisResult, setAtsAnalysisResult] = useState<any>(null);
-  const [showCommunity, setShowCommunity] = useState(false);
   const [selectedReferrer, setSelectedReferrer] = useState<any>(null);
   const [isReferrerProfileOpen, setIsReferrerProfileOpen] = useState(false);
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
@@ -262,10 +258,29 @@ export default function CleanSeekerDashboard() {
     }
   };
 
+  const handleSharePublicProfile = async () => {
+    if (!user?.uid) return;
+    const profileUrl = `${window.location.origin}/seeker/${user.uid}`;
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      toast({
+        title: "Public profile copied",
+        description: "Share this profile with mentors, referrers, and your network.",
+      });
+    } catch (error) {
+      console.error("Error copying seeker public profile:", error);
+      toast({
+        title: "Copy failed",
+        description: "Please copy the profile link from your browser.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in-up">
+    <div className="dashboard-surface dashboard-shell">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+      <header className="dashboard-glass-header sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center hover-scale">
@@ -277,6 +292,16 @@ export default function CleanSeekerDashboard() {
             </div>
             
             <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
+              <Link href="/leaderboard">
+                <Button variant="outline" size="sm" className="hidden lg:flex hover-lift">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Leaderboard
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" onClick={handleSharePublicProfile} className="hidden md:flex hover-lift">
+                <Copy className="h-4 w-4 mr-2" />
+                Public Profile
+              </Button>
               <Button variant="ghost" size="sm" className="hidden md:flex hover-lift">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -310,6 +335,13 @@ export default function CleanSeekerDashboard() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="overflow-x-auto tab-scroll-container scrollbar-hide">
                 <TabsList className="flex min-w-max gap-0 p-2 bg-transparent border-none h-auto">
+                  <TabsTrigger value="career-agent" className="professional-tab">
+                    <div className="professional-tab-content">
+                      <Sparkles className="h-4 w-4 professional-tab-icon" />
+                      <span className="hidden sm:inline">Career Agent</span>
+                      <span className="sm:hidden">Agent</span>
+                    </div>
+                  </TabsTrigger>
                   <TabsTrigger value="overview" className="professional-tab">
                     <div className="professional-tab-content">
                       <BarChart3 className="h-4 w-4 professional-tab-icon" />
@@ -342,19 +374,6 @@ export default function CleanSeekerDashboard() {
                     </div>
                   </TabsTrigger>
 
-                  <TabsTrigger value="analytics" className="professional-tab">
-                    <div className="professional-tab-content">
-                      <TrendingUp className="h-4 w-4 professional-tab-icon" />
-                      <span>Grow</span>
-                    </div>
-                  </TabsTrigger>
-                  <TabsTrigger value="ai-matching" className="professional-tab">
-                    <div className="professional-tab-content">
-                      <Bot className="h-4 w-4 professional-tab-icon" />
-                      <span className="hidden sm:inline">AI Match</span>
-                      <span className="sm:hidden">AI</span>
-                    </div>
-                  </TabsTrigger>
                   <TabsTrigger value="tools" className="professional-tab">
                     <div className="professional-tab-content">
                       <Target className="h-4 w-4 professional-tab-icon" />
@@ -366,7 +385,55 @@ export default function CleanSeekerDashboard() {
             </div>
           </div>
           
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 dashboard-section-enter">
+            <Card className="dashboard-hero-strip mb-6 rounded-3xl">
+              <CardContent className="relative z-10 p-6 sm:p-8">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <Badge className="mb-3 border border-white/20 bg-white/10 text-blue-100 hover:bg-white/10">
+                      AI Career Workspace
+                    </Badge>
+                    <h2 className="max-w-3xl text-2xl font-bold tracking-tight sm:text-4xl">
+                      Build your placement path from real resume, referral, and mentorship signals.
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+                      Scores are calculated from your ATS result, profile completion, applications, and ReferralMe activity. They are guidance signals, not guaranteed outcomes.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 lg:min-w-[360px]">
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                      <p className="text-2xl font-bold">{realStats.atsScore || 0}</p>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">ATS</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                      <p className="text-2xl font-bold">{realStats.totalApplications}</p>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Apps</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                      <p className="text-2xl font-bold">{jobPostings?.length || 0}</p>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Jobs</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+          {/* AI Career Agent Tab */}
+          <TabsContent value="career-agent" className="space-y-6">
+            {user ? (
+              <AiCareerAgent
+                user={user as any}
+                jobs={jobPostings || []}
+                applications={applications || []}
+                jobsLoading={jobsLoading}
+                latestAtsScore={realStats.atsScore}
+                onRunAts={() => setIsATSAnalyzerOpen(true)}
+                onOpenAiMentor={() => setActiveTab("ai-mentor")}
+                onOpenMentorship={() => setActiveTab("mentorship")}
+                onApplyToJob={handleApplyToJob}
+              />
+            ) : null}
+          </TabsContent>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
@@ -1011,415 +1078,6 @@ export default function CleanSeekerDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Grow Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="space-y-6">
-              {/* Community Access */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-blue-600" />
-                        Professional Community
-                      </CardTitle>
-                      <CardDescription>Connect with industry professionals and peers</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Join Community
-                        <ComingSoonBadge size="sm" variant="default" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    Connect with other job seekers and industry professionals. Share experiences, get advice, and grow together.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Career Tools Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ATS Resume Analyzer */}
-                <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-blue-100 rounded-xl">
-                        <FileText className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">ATS Resume Analyzer</CardTitle>
-                        <CardDescription>AI-powered resume optimization</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Get instant feedback on your resume's ATS compatibility and receive personalized suggestions for improvement.
-                    </p>
-                    <Button 
-                      className="w-full mb-3"
-                      onClick={() => setIsATSAnalyzerOpen(true)}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Analyze Resume
-                    </Button>
-                    {atsAnalysisResult && (
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Overall Score:</span>
-                          <Badge variant="secondary" className="text-blue-700">
-                            {atsAnalysisResult.overallScore}/100
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Last analyzed: Just now
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Application Tracker */}
-                <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-green-200">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-green-100 rounded-xl">
-                        <BarChart3 className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Application Tracker</CardTitle>
-                        <CardDescription>Track your job applications</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Monitor all your applications, response rates, and interview progress in one place.
-                    </p>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Total Applications</span>
-                        <Badge variant="outline">{realStats.totalApplications}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Pending</span>
-                        <Badge variant="outline">{realStats.pending}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Interviews</span>
-                        <Badge variant="outline">{realStats.interviews}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Success Rate</span>
-                        <Badge variant="outline" className="text-green-600">
-                          {realStats.totalApplications > 0 ? Math.round((realStats.interviews / realStats.totalApplications) * 100) : 0}%
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Pro Tips Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-yellow-600" />
-                    Pro Tips for Job Seekers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Tailor your resume for each application using relevant keywords</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Network actively and maintain professional relationships</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Follow up on applications with personalized messages</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Research companies thoroughly before interviews</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Practice your elevator pitch and common interview questions</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <p className="text-sm text-gray-700">Keep learning new skills relevant to your target roles</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* AI Matching Tab */}
-          <TabsContent value="ai-matching" className="space-y-6">
-            <div className="space-y-6">
-              {/* Profile-Based Matching Card */}
-              <Card className="border-2 border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-blue-600" />
-                    Profile Analysis Complete
-                  </CardTitle>
-                  <CardDescription>
-                    Based on your applications and profile, here are the best matches from our platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Skills Analyzed</p>
-                        <p className="text-xs text-gray-600">React, TypeScript, Node.js</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Target className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Experience Level</p>
-                        <p className="text-xs text-gray-600">3+ years frontend</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <Users className="h-5 w-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Platform Jobs</p>
-                        <p className="text-xs text-gray-600">{jobPostings.length} available</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* AI Recommended Jobs from Platform */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-yellow-500" />
-                  AI Match Analysis
-                </h3>
-                
-                {jobPostings.length > 0 ? (
-                  <div className="grid gap-4">
-                    {jobPostings.slice(0, 3).map((job, index) => {
-                      const matchScore = Math.max(75, 95 - (index * 10));
-                      const matchReasons = [
-                        "Skills alignment with requirements",
-                        "Experience level matches perfectly",
-                        "Location preference compatibility",
-                        "Salary range alignment"
-                      ];
-                      
-                      return (
-                        <Card key={job.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-green-500">
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <CardTitle className="text-lg">{job.title}</CardTitle>
-                                  <Badge variant="secondary" className="text-green-700 bg-green-100">
-                                    {matchScore}% Match
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <div className="flex items-center gap-1">
-                                    <Building className="h-4 w-4" />
-                                    <span>{job.company}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="h-4 w-4" />
-                                    <span>{job.location}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <IndianRupee className="h-4 w-4" />
-                                    <span>{job.salary?.replace(/\$/g, '₹')}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <Badge variant="outline" className="mb-2">
-                                  Platform Job
-                                </Badge>
-                                <p className="text-xs text-gray-500">
-                                  {job.createdAt?.toDate ? `Posted ${new Date(job.createdAt.toDate()).toLocaleDateString()}` : "Recently posted"}
-                                </p>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              <div>
-                                <p className={`text-sm text-gray-700 whitespace-pre-wrap ${job.id && expandedJobs.has(job.id) ? '' : 'line-clamp-3'}`}>
-                                  {job.description}
-                                </p>
-                                {job.description && job.description.length > 150 && job.id && (
-                                  <button
-                                    onClick={() => toggleJobExpanded(job.id!)}
-                                    className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                                    data-testid={`button-toggle-ai-description-${job.id}`}
-                                  >
-                                    {expandedJobs.has(job.id) ? (
-                                      <>
-                                        <ChevronUp className="w-4 h-4" />
-                                        Show Less
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ChevronDown className="w-4 h-4" />
-                                        Read More
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                              
-                              {/* Match Analysis */}
-                              <div className="p-3 bg-green-50 rounded-lg">
-                                <h5 className="text-sm font-medium text-green-800 mb-2 flex items-center gap-1">
-                                  <Brain className="h-4 w-4" />
-                                  Why this matches your profile:
-                                </h5>
-                                <ul className="text-xs text-green-700 space-y-1">
-                                  {matchReasons.slice(0, 2).map((reason, idx) => (
-                                    <li key={idx} className="flex items-center gap-1">
-                                      <CheckCircle className="h-3 w-3" />
-                                      {reason}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-
-                              {/* Skills Match */}
-                              <div className="space-y-2">
-                                <h5 className="text-sm font-medium text-gray-800">Required Skills:</h5>
-                                <div className="flex flex-wrap gap-1">
-                                  {(job as any).skills?.slice(0, 4).map((skill: string) => (
-                                    <Badge key={skill} variant="outline" className="text-xs">
-                                      {skill}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-full bg-gray-200 rounded-full h-2 max-w-[100px]">
-                                    <div 
-                                      className="bg-green-500 h-2 rounded-full transition-all duration-300" 
-                                      style={{ width: `${matchScore}%` }}
-                                    ></div>
-                                  </div>
-                                  <span className="text-xs text-gray-600">{matchScore}% match</span>
-                                </div>
-                                <Button 
-                                  onClick={() => {
-                                    setSelectedJob(job);
-                                    setIsApplicationModalOpen(true);
-                                  }}
-                                  size="sm"
-                                  className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
-                                >
-                                  Apply Now
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Jobs Available Yet</h3>
-                      <p className="text-gray-600 mb-4">
-                        There are currently no job postings from referrers on our platform.
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Check back soon as new opportunities are posted regularly!
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* AI Insights Card */}
-              <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-purple-600" />
-                    AI Career Insights
-                  </CardTitle>
-                  <CardDescription>
-                    Personalized recommendations to improve your job search success
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <h5 className="font-medium text-gray-900">Profile Strengths</h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Strong technical skill set</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Relevant experience level</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Active application history</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h5 className="font-medium text-gray-900">Improvement Areas</h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Target className="h-4 w-4 text-blue-500" />
-                          <span>Consider adding cloud skills</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Target className="h-4 w-4 text-blue-500" />
-                          <span>Expand to mobile development</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Target className="h-4 w-4 text-blue-500" />
-                          <span>Network with more referrers</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
           {/* Mentorship Tab */}
           <TabsContent value="mentorship" className="space-y-6">
             {user ? <MentorshipMarketplace user={user as any} /> : null}
@@ -1444,117 +1102,52 @@ export default function CleanSeekerDashboard() {
             ) : null}
           </TabsContent>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="space-y-6">
-
-
-
-
-              {/* Discover Top Referrers Section */}
-              <Card className="border-2 border-gradient-to-r from-green-200 to-emerald-200 bg-gradient-to-r from-green-50 to-emerald-50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Network className="h-5 w-5 text-green-600" />
-                        Discover Top Referrers
-                        <Badge variant="secondary" className="text-green-700 bg-green-100">Featured</Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        Connect with industry professionals who are actively helping careers grow
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <Trophy className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Professional Recognition</p>
-                          <p className="text-xs text-gray-600">Build your career network</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Award className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Verified Success Stories</p>
-                          <p className="text-xs text-gray-600">Real career transformations</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                          <Star className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Rating & Reviews</p>
-                          <p className="text-xs text-gray-600">Community feedback</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Preview of Top Referrers */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-gray-900">Quick Preview</h4>
-                      <div className="text-center py-6 bg-white rounded-lg border">
-                        <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mb-4">
-                          <Network className="h-8 w-8 text-white" />
-                        </div>
-                        <p className="text-gray-900 font-medium mb-1">245+ Active Referrers</p>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Connect with verified professionals from top companies
-                        </p>
-                        <Button 
-                          onClick={() => setActiveTab("discover-referrers")}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Network className="h-4 w-4 mr-2" />
-                          Explore All Referrers
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Referral Tab */}
-          <TabsContent value="referrals" className="space-y-6">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Referral Program</h2>
-                  <p className="text-gray-600">Earn rewards by inviting friends to join ReferralMe</p>
-                </div>
-                <Badge variant="secondary" className="text-sm">
-                  Free Platform Phase
-                </Badge>
-              </div>
-
-              {/* Referral System Component */}
-              {user && <ReferralSystem user={user} userRole="seeker" />}
-            </div>
-          </TabsContent>
-
           {/* Tools Tab */}
           <TabsContent value="tools" className="space-y-6">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Career Tools</h2>
-                  <p className="text-gray-600">Professional tools to accelerate your job search success</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Career Utilities</h2>
+                  <p className="text-gray-600">Quick actions for resume checks, AI guidance, mentor help, and application tracking.</p>
                 </div>
                 <Badge variant="secondary" className="text-sm">
                   {realStats.totalApplications} Applications Tracked
                 </Badge>
               </div>
+
+              <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <Badge className="mb-3 border border-white/20 bg-white/10 text-blue-100 hover:bg-white/10">
+                        Recommended workflow
+                      </Badge>
+                      <h3 className="text-xl font-semibold">Use tools only when they move your next application forward.</h3>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
+                        Run ATS first, let Career Agent match jobs and mentors, then use AI Mentor or human mentorship for the weak areas.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:w-[420px]">
+                      <Button onClick={() => setActiveTab("career-agent")} className="bg-white text-slate-950 hover:bg-blue-50">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Open Career Agent
+                      </Button>
+                      <Button onClick={() => setIsATSAnalyzerOpen(true)} variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Run ATS
+                      </Button>
+                      <Button onClick={() => setActiveTab("ai-mentor")} variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                        <Brain className="mr-2 h-4 w-4" />
+                        Ask AI Mentor
+                      </Button>
+                      <Button onClick={() => setActiveTab("mentorship")} variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                        <Users className="mr-2 h-4 w-4" />
+                        Find Mentor
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Quick Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -1696,15 +1289,15 @@ export default function CleanSeekerDashboard() {
                 </Card>
               </div>
 
-              {/* Career Analytics Section */}
+              {/* Career Utilities Summary */}
               <Card className="mt-8">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-600" />
-                    Career Analytics Dashboard
+                    Utility Summary
                   </CardTitle>
                   <CardDescription>
-                    Comprehensive insights into your job search performance and career progression
+                    Real signals from your current ReferralMe activity.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1715,11 +1308,11 @@ export default function CleanSeekerDashboard() {
                       <div className="space-y-3">
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-sm font-medium">Application Quality Score</span>
-                            <span className="text-sm text-gray-600">85%</span>
+                            <span className="text-sm font-medium">ATS Readiness</span>
+                            <span className="text-sm text-gray-600">{realStats.atsScore || 0}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-green-500 h-2 rounded-full" style={{ width: "85%" }}></div>
+                            <div className="bg-green-500 h-2 rounded-full" style={{ width: `${realStats.atsScore || 0}%` }}></div>
                           </div>
                         </div>
                         <div>
@@ -1749,28 +1342,34 @@ export default function CleanSeekerDashboard() {
 
                     {/* Career Insights */}
                     <div className="space-y-4">
-                      <h4 className="font-semibold text-gray-900">Career Growth Insights</h4>
+                      <h4 className="font-semibold text-gray-900">Next Best Moves</h4>
                       <div className="space-y-3">
                         <div className="p-3 bg-blue-50 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <TrendingUp className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium">Skills Assessment</span>
+                            <span className="text-sm font-medium">Resume Readiness</span>
                           </div>
-                          <p className="text-xs text-gray-600">Your technical skills are 92% aligned with market demand</p>
+                          <p className="text-xs text-gray-600">
+                            {realStats.atsScore >= 70 ? "Your latest ATS signal is strong enough to apply with confidence." : "Run ATS and improve missing keywords before sending referral requests."}
+                          </p>
                         </div>
                         <div className="p-3 bg-green-50 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <Target className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium">Market Position</span>
+                            <span className="text-sm font-medium">Application Focus</span>
                           </div>
-                          <p className="text-xs text-gray-600">You're in the top 15% of candidates in your field</p>
+                          <p className="text-xs text-gray-600">
+                            {realStats.totalApplications > 0 ? `You have ${realStats.totalApplications} tracked applications. Focus on follow-ups and interview prep.` : "Start with Career Agent matches before applying randomly."}
+                          </p>
                         </div>
                         <div className="p-3 bg-purple-50 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <Award className="h-4 w-4 text-purple-600" />
-                            <span className="text-sm font-medium">Career Trajectory</span>
+                            <span className="text-sm font-medium">Mentor Signal</span>
                           </div>
-                          <p className="text-xs text-gray-600">On track for senior-level positions within 12 months</p>
+                          <p className="text-xs text-gray-600">
+                            {realStats.atsScore && realStats.atsScore < 60 ? "A mentor review is recommended before heavy applying." : "Use mentorship when you need role-specific feedback or mock interview practice."}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1785,19 +1384,19 @@ export default function CleanSeekerDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                        <p className="text-sm text-gray-700">Update your resume with recent project achievements</p>
+                        <p className="text-sm text-gray-700">Open Career Agent and generate a kit for your strongest job match.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                        <p className="text-sm text-gray-700">Consider learning React Native for mobile development</p>
+                        <p className="text-sm text-gray-700">Run ATS when you change your resume or target job description.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                        <p className="text-sm text-gray-700">Network with 3 new professionals this week</p>
+                        <p className="text-sm text-gray-700">Use AI Mentor for a 7-day plan before applying to weak-fit roles.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                        <p className="text-sm text-gray-700">Apply to 5 more positions matching your profile</p>
+                        <p className="text-sm text-gray-700">Book human mentorship when ATS or job-fit score is low.</p>
                       </div>
                     </div>
                   </div>
@@ -1860,28 +1459,6 @@ export default function CleanSeekerDashboard() {
           setActiveTab("mentorship");
         }}
       />
-
-      {/* Community Posts Modal */}
-      {showCommunity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Community Hub</h2>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowCommunity(false)}
-              >
-                <XCircle className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="p-6">
-              <CommunityPosts userRole="seeker" />
-            </div>
-          </div>
-        </div>
-      )}
-
 
       {/* Referrer Profile Modal */}
       {selectedReferrer && (

@@ -29,6 +29,7 @@ export interface FirestoreUser {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  phone?: string;
   experience?: string;
   designation?: string;
   company?: string;
@@ -36,6 +37,7 @@ export interface FirestoreUser {
   bio?: string;
   skills?: string[];
   linkedinUrl?: string;
+  linkedin?: string;
   githubUrl?: string;
   websiteUrl?: string;
   profileImageUrl?: string;
@@ -62,6 +64,12 @@ export interface FirestoreUser {
   };
   // Payment system fields
   razorpayAccountId?: string;
+  razorpayKeyId?: string;
+  upiId?: string;
+  paymentMethod?: "upi" | "razorpay" | "manual" | "both";
+  paymentSetupCompleted?: boolean;
+  accessToken?: string;
+  getIdToken?: () => Promise<string>;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -95,6 +103,38 @@ export interface PlacementPlan {
   resumeTextPreview?: string;
   planText: string;
   tasks: PlacementPlanTask[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type CareerReferralKitStatus = "draft" | "sent" | "replied";
+
+export interface CareerInterviewPrep {
+  roleFocus: string;
+  technicalQuestions: string[];
+  hrQuestions: string[];
+  projectQuestions: string[];
+  prepPlan: string[];
+  generatedAt: number;
+}
+
+export interface CareerReferralKit {
+  id?: string;
+  userId: string;
+  jobId: string;
+  jobTitle: string;
+  company: string;
+  referrerId?: string;
+  referrerName: string;
+  matchScore: number;
+  intro: string;
+  referralMessage: string;
+  followUpMessage: string;
+  fitBullets: string[];
+  resumeNotes: string[];
+  interviewPrep?: CareerInterviewPrep;
+  status: CareerReferralKitStatus;
+  followUpDate: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -190,11 +230,15 @@ export interface ReferralRequest {
   seekerName: string;
   seekerEmail: string;
   seekerPhone: string;
+  fullName?: string;
+  phoneNumber?: string;
   resumeText: string;
   resumeUrl?: string;
   resumeFileName?: string;
   linkedinUrl?: string;
+  profileUrl?: string;
   coverLetter?: string;
+  atsScore?: number | null;
   screeningAnswers?: ScreeningAnswer[];
   screeningScore?: number;
   matchScore?: number;
@@ -1442,6 +1486,72 @@ export const updatePlacementPlan = async (planId: string, updates: Partial<Place
     console.error("Error updating placement plan:", error);
     throw error;
   }
+};
+
+const careerReferralKitDocId = (userId: string, jobId: string) =>
+  `${userId}_${jobId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 140);
+
+// Career Agent operations
+export const upsertCareerReferralKit = async (
+  kitData: Omit<CareerReferralKit, "id" | "createdAt" | "updatedAt">,
+) => {
+  try {
+    const kitRef = doc(db, "careerReferralKits", careerReferralKitDocId(kitData.userId, kitData.jobId));
+    const kitSnap = await getDoc(kitRef);
+
+    await setDoc(kitRef, sanitizeFirestorePayload({
+      ...kitData,
+      ...(kitSnap.exists() ? {} : { createdAt: serverTimestamp() }),
+      updatedAt: serverTimestamp(),
+    }), { merge: true });
+
+    return kitRef.id;
+  } catch (error) {
+    console.error("Error upserting career referral kit:", error);
+    throw error;
+  }
+};
+
+export const updateCareerReferralKit = async (
+  kitId: string,
+  updates: Partial<CareerReferralKit>,
+) => {
+  try {
+    const kitRef = doc(db, "careerReferralKits", kitId);
+    await updateDoc(kitRef, sanitizeFirestorePayload({
+      ...updates,
+      updatedAt: serverTimestamp(),
+    }));
+  } catch (error) {
+    console.error("Error updating career referral kit:", error);
+    throw error;
+  }
+};
+
+export const subscribeToCareerReferralKits = (
+  userId: string,
+  callback: (kits: CareerReferralKit[]) => void,
+  onError?: (error: Error) => void,
+) => {
+  const q = query(collection(db, "careerReferralKits"), where("userId", "==", userId));
+
+  return onSnapshot(q, (querySnapshot) => {
+    const kits = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as CareerReferralKit[];
+
+    kits.sort((a, b) => {
+      const aTime = a.updatedAt?.toDate?.() || new Date(0);
+      const bTime = b.updatedAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    callback(kits);
+  }, (error) => {
+    console.error("Error subscribing to career referral kits:", error);
+    onError?.(error);
+  });
 };
 
 // Mentorship Profile operations

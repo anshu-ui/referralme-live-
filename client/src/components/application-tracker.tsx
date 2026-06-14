@@ -22,6 +22,14 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 
+type TrackedApplication = {
+  status?: string;
+  jobPosting?: {
+    title?: string;
+    company?: string;
+  };
+};
+
 interface ApplicationTrackerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,13 +40,13 @@ export default function ApplicationTracker({ isOpen, onClose }: ApplicationTrack
   const [statusFilter, setStatusFilter] = useState("all");
 
   // Fetch my applications/referral requests
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading } = useQuery<TrackedApplication[]>({
     queryKey: ["/api/referral-requests/my"],
     retry: false,
   });
 
   // Filter applications based on search and status
-  const filteredApplications = applications.filter((app: any) => {
+  const filteredApplications = applications.filter((app) => {
     const matchesSearch = searchQuery === "" || 
       app.jobPosting?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.jobPosting?.company?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -51,12 +59,12 @@ export default function ApplicationTracker({ isOpen, onClose }: ApplicationTrack
   // Calculate statistics
   const stats = {
     total: applications.length,
-    pending: applications.filter((app: any) => app.status === "pending").length,
-    accepted: applications.filter((app: any) => app.status === "accepted" || app.status === "sent_to_hr").length,
-    interview: applications.filter((app: any) => 
+    pending: applications.filter((app) => app.status === "pending").length,
+    accepted: applications.filter((app) => app.status === "accepted" || app.status === "sent_to_hr").length,
+    interview: applications.filter((app) => 
       app.status === "interview_scheduled" || app.status === "interview_completed"
     ).length,
-    rejected: applications.filter((app: any) => app.status === "rejected").length,
+    rejected: applications.filter((app) => app.status === "rejected").length,
   };
 
   const getStatusInfo = (status: string) => {

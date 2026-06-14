@@ -21,6 +21,8 @@ import ProfileEdit from "./pages/profile-edit";
 import CreateJobPosting from "./pages/create-job-posting";
 import JobDetails from "./pages/job-details";
 import PublicReferrerProfile from "./pages/public-referrer-profile";
+import PublicSeekerProfile from "./pages/public-seeker-profile";
+import PublicLeaderboard from "./pages/public-leaderboard";
 import JobPostingPage from "./pages/job-posting-page";
 import PaymentSetup from "./pages/payment-setup";
 import PrivacyPolicy from "./pages/privacy-policy";
@@ -377,6 +379,8 @@ function Router() {
       <Route path="/campus-ambassador/apply" component={CampusAmbassadorApplyPage} />
       <Route path="/job/:id" component={({ params }) => <JobDetails jobId={params.id} />} />
       <Route path="/referrer/:id" component={({ params }) => <PublicReferrerProfile referrerId={params.id} />} />
+      <Route path="/seeker/:id" component={({ params }) => <PublicSeekerProfile seekerId={params.id} />} />
+      <Route path="/leaderboard" component={PublicLeaderboard} />
       
       {/* ROOT PATH - ALWAYS SHOW LANDING PAGE (MUST BE LAST TO AVOID CONFLICTS) */}
       <Route path="/" component={NewLanding} />

@@ -31,7 +31,7 @@ export default function MentorAccountSetup({
   const [upiId, setUpiId] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<"razorpay" | "upi">("upi");
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<"select" | "setup" | "success">("select");
+  const [step, setStep] = useState<"select" | "info" | "setup" | "success">("select");
   const [validationError, setValidationError] = useState("");
 
   const handleSetupAccount = async () => {

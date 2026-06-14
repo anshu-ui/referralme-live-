@@ -51,7 +51,24 @@ const defaultPillars = [
   },
 ];
 
-const defaultHighlights = [
+type CampusHighlightCard = {
+  name: string;
+  college: string;
+  title: string;
+  accent: string;
+  initials: string;
+  imageUrl?: string;
+  imageAlt?: string;
+};
+
+type CampusGalleryCard = {
+  title: string;
+  accent: string;
+  imageUrl?: string;
+  imageAlt?: string;
+};
+
+const defaultHighlights: CampusHighlightCard[] = [
   {
     name: "Aarav Sharma",
     college: "DTU",
@@ -87,7 +104,7 @@ const defaultMissions = [
   { title: "Submit proof", meta: "Track work, earn points, and build visibility." },
 ];
 
-const defaultGallery = [
+const defaultGallery: CampusGalleryCard[] = [
   {
     title: "ReferralMe campus rewards",
     accent: "from-[#e2ebff] to-[#ffffff]",
@@ -333,8 +350,9 @@ export default function CampusAmbassadorLanding() {
 
   const pageCampusMoments = useMemo(() => {
     const items = getSectionItems("campus_moment");
-    const source = items.length ? [items[0]] : [defaultMoments[0]];
-    return source.map((item) => ({
+    if (!items.length) return [defaultMoments[0]];
+
+    return [items[0]].map((item) => ({
       title: item.title,
       description: item.description || item.subtitle || "",
       tone: item.accent || "from-[#dfe7ff] to-[#ffffff]",

@@ -12,6 +12,27 @@ import ApplicationTracker from "../components/application-tracker";
 import ResumeAnalysisHistory from "../components/resume-analysis-history";
 import { motion, AnimatePresence } from "framer-motion";
 
+type LegacyReferralJob = {
+  id: number;
+  title?: string;
+  company?: string;
+  location?: string;
+  salary?: string;
+  description?: string;
+  requirements?: string;
+  referrer?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+};
+
+type LegacyReferralRequest = {
+  id: number;
+  status?: string;
+  jobPosting?: LegacyReferralJob;
+};
+
 export default function SeekerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
@@ -23,7 +44,7 @@ export default function SeekerDashboard() {
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
 
   // Fetch available referrals
-  const { data: referrals = [], isLoading: referralsLoading } = useQuery({
+  const { data: referrals = [], isLoading: referralsLoading } = useQuery<LegacyReferralJob[]>({
     queryKey: ["/api/job-postings", { 
       search: searchQuery || undefined, 
       company: companyFilter === "all" ? undefined : companyFilter, 
@@ -33,7 +54,7 @@ export default function SeekerDashboard() {
   });
 
   // Fetch my requests
-  const { data: myRequests = [], isLoading: requestsLoading } = useQuery({
+  const { data: myRequests = [], isLoading: requestsLoading } = useQuery<LegacyReferralRequest[]>({
     queryKey: ["/api/referral-requests/my"],
     retry: false,
   });

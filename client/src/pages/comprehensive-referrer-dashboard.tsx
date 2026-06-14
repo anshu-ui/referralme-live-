@@ -54,10 +54,11 @@ import {
   isJobExpired,
   initializeReferralCode,
   subscribeToReferrerJobPostings,
+  subscribeToMentorshipSessions,
   updateReferralRequestStatus,
   deleteJobPosting,
 } from "../lib/firestore";
-import type { FirestoreUser } from "../lib/firestore";
+import type { FirestoreUser, MentorshipSession } from "../lib/firestore";
 // import MentorAccountSetup from "../components/mentor-account-setup";
 // import DualPaymentSetup from "../components/dual-payment-setup";
 import {
@@ -108,6 +109,7 @@ export default function ComprehensiveReferrerDashboard() {
   const [isMentorAccountSetupOpen, setIsMentorAccountSetupOpen] = useState(false);
   const [isDualPaymentSetupOpen, setIsDualPaymentSetupOpen] = useState(false);
   const [managedJobPostings, setManagedJobPostings] = useState<any[]>([]);
+  const [mentorshipSessions, setMentorshipSessions] = useState<MentorshipSession[]>([]);
   const [linkedInShareDraft, setLinkedInShareDraft] = useState<{ job: any; content: string; url: string } | null>(null);
 
   // Real data from Firebase using the subscription-based hooks
@@ -129,6 +131,16 @@ export default function ComprehensiveReferrerDashboard() {
       setManagedJobPostings(jobs);
     });
 
+    return unsubscribe;
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setMentorshipSessions([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToMentorshipSessions(user.uid, "mentor", setMentorshipSessions);
     return unsubscribe;
   }, [user?.uid]);
 
@@ -545,16 +557,16 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="dashboard-surface dashboard-shell">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
+      <header className="dashboard-glass-header">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <img src={"/logo.png"} alt="ReferralMe" className="h-10 w-10" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Referrer Dashboard</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <h1 className="text-2xl font-bold text-gray-900">Referrer Dashboard</h1>
+                <p className="text-sm text-gray-500">
                   {user?.firstName && user?.lastName 
                     ? `${user.firstName} ${user.lastName}` 
                     : user?.displayName || user?.email?.split('@')[0] || "Referrer"}
@@ -565,12 +577,12 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
               {/* User Profile Section */}
               <div className="flex items-center space-x-2 md:space-x-3">
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-gray-900">
                     {user?.firstName && user?.lastName ? 
                       `${user.firstName} ${user.lastName}` : 
                       user?.displayName || 'User'}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Referrer</span>
+                  <span className="text-xs text-gray-500">Referrer</span>
                 </div>
                 <Avatar 
                   className="cursor-pointer h-8 w-8 md:h-10 md:w-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all" 
@@ -592,6 +604,15 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
                 <Share2 className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                 <span className="hidden md:inline">Share Profile</span>
                 <span className="md:hidden">Share</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/leaderboard")}
+                className="hidden lg:flex text-xs md:text-sm hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-colors"
+              >
+                <Trophy className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                Leaderboard
               </Button>
               <Button variant="outline" size="sm" onClick={handleSignOut} className="text-xs md:text-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors">
                 <span className="hidden md:inline">Sign Out</span>
@@ -622,11 +643,42 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 dashboard-section-enter">
         <Tabs value={activeTab} onValueChange={(tab) => {
           setActiveTab(tab);
           trackTabSwitch(tab, 'referrer');
         }} className="space-y-6">
+          <Card className="dashboard-hero-strip rounded-3xl">
+            <CardContent className="relative z-10 p-6 sm:p-8">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <Badge className="mb-3 border border-white/20 bg-white/10 text-blue-100 hover:bg-white/10">
+                    Referrer Operating Panel
+                  </Badge>
+                  <h2 className="max-w-3xl text-2xl font-bold tracking-tight sm:text-4xl">
+                    Manage referrals, mentorship sessions, profile quality, and payouts from one place.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+                    The dashboard uses live job posts, referral requests, and mentorship sessions. Ranking and profile signals are guidance metrics from actual platform activity.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 lg:min-w-[360px]">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                    <p className="text-2xl font-bold">{realStats.activePosts}</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Active Jobs</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                    <p className="text-2xl font-bold">{realStats.pendingRequests}</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Pending</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center backdrop-blur">
+                    <p className="text-2xl font-bold">{mentorshipSessions.length}</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Sessions</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <div className="w-full professional-tabs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="overflow-x-auto tab-scroll-container scrollbar-hide">
@@ -689,6 +741,25 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
               <RecentActivity jobs={myJobPostings} requests={requests} />
               <QuickActions 
                 onCreateJob={() => navigate("/create-job")}
+                onOpenRequests={() => setActiveTab("requests")}
+                onOpenMentorship={() => setActiveTab("mentorship")}
+                onOpenAnalytics={() => setActiveTab("analytics")}
+              />
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <ReferralMentorshipInbox
+                requests={requests || []}
+                sessions={mentorshipSessions}
+                onOpenRequests={() => setActiveTab("requests")}
+                onOpenMentorship={() => setActiveTab("mentorship")}
+              />
+              <ProfileQualityPanel
+                user={user}
+                jobs={myJobPostings}
+                requests={requests || []}
+                sessions={mentorshipSessions}
+                onEditProfile={() => setIsProfileEditOpen(true)}
+                onOpenMentorship={() => setActiveTab("mentorship")}
               />
             </div>
           </TabsContent>
@@ -738,7 +809,7 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
 
           {/* Earnings Tab */}
           <TabsContent value="earnings" className="space-y-6">
-            <EarningsSection />
+            <EarningsSection sessions={mentorshipSessions} onOpenMentorship={() => setActiveTab("mentorship")} />
           </TabsContent>
 
 
@@ -1251,7 +1322,182 @@ function RecentActivity({ jobs, requests }: { jobs?: any[], requests?: any[] }) 
   );
 }
 
-function QuickActions({ onCreateJob }: { onCreateJob: () => void }) {
+function ReferralMentorshipInbox({
+  requests,
+  sessions,
+  onOpenRequests,
+  onOpenMentorship,
+}: {
+  requests: any[];
+  sessions: MentorshipSession[];
+  onOpenRequests: () => void;
+  onOpenMentorship: () => void;
+}) {
+  const pendingRequests = (requests || []).filter((req) => req.status === "pending");
+  const actionSessions = (sessions || []).filter((session) =>
+    ["pending", "confirmed", "in_progress"].includes(session.status)
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-blue-600" />
+          Referral & Mentorship Inbox
+        </CardTitle>
+        <CardDescription>Pending referral requests and active mentorship sessions.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Referral requests</p>
+              <p className="text-sm text-muted-foreground">
+                {pendingRequests.length
+                  ? `${pendingRequests.length} candidate${pendingRequests.length > 1 ? "s" : ""} waiting for review`
+                  : "No pending referral requests"}
+              </p>
+            </div>
+            <Badge variant="secondary">{pendingRequests.length}</Badge>
+          </div>
+          {pendingRequests.slice(0, 2).map((request) => (
+            <div key={request.id} className="mt-3 rounded-lg border bg-white p-3 text-sm">
+              <p className="font-medium text-slate-900">
+                {request.seekerName || request.seeker?.firstName || "Candidate"}
+              </p>
+              <p className="text-muted-foreground">
+                {request.jobTitle || request.job?.title || "Referral request"}
+              </p>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="mt-3" onClick={onOpenRequests}>
+            Review requests
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+
+        <div className="rounded-xl border bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Mentorship sessions</p>
+              <p className="text-sm text-muted-foreground">
+                {actionSessions.length
+                  ? `${actionSessions.length} active session${actionSessions.length > 1 ? "s" : ""} need attention`
+                  : "No active mentorship sessions"}
+              </p>
+            </div>
+            <Badge variant="secondary">{actionSessions.length}</Badge>
+          </div>
+          {actionSessions.slice(0, 2).map((session) => (
+            <div key={session.id} className="mt-3 rounded-lg border bg-white p-3 text-sm">
+              <p className="font-medium text-slate-900">{session.title}</p>
+              <p className="text-muted-foreground">
+                {session.menteeName} · {session.status.replace("_", " ")}
+              </p>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="mt-3" onClick={onOpenMentorship}>
+            Open mentorship
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProfileQualityPanel({
+  user,
+  jobs,
+  requests,
+  sessions,
+  onEditProfile,
+  onOpenMentorship,
+}: {
+  user: any;
+  jobs: any[];
+  requests: any[];
+  sessions: MentorshipSession[];
+  onEditProfile: () => void;
+  onOpenMentorship: () => void;
+}) {
+  const profileChecks = [
+    { label: "Basic profile complete", done: !!(user?.firstName && user?.lastName && user?.bio) },
+    { label: "Company & designation added", done: !!(user?.company && user?.designation) },
+    { label: "LinkedIn or professional link", done: !!(user?.linkedinUrl || user?.linkedin) },
+    { label: "At least one job posted", done: (jobs || []).length > 0 },
+    { label: "Mentorship profile enabled", done: !!user?.isMentorshipEnabled },
+    { label: "Payment setup complete", done: !!user?.paymentSetupCompleted },
+  ];
+  const completedCount = profileChecks.filter((check) => check.done).length;
+  const score = Math.round((completedCount / profileChecks.length) * 100);
+  const completedSessions = (sessions || []).filter((session) => session.status === "completed").length;
+  const acceptedReferrals = (requests || []).filter((request) => request.status === "accepted").length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Target className="h-5 w-5 text-emerald-600" />
+          Profile Quality
+        </CardTitle>
+        <CardDescription>Improve visibility to seekers and referral match quality.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Profile strength</p>
+              <p className="text-2xl font-semibold text-emerald-700">{score}%</p>
+            </div>
+            <div className="text-right text-sm text-muted-foreground">
+              <p>{acceptedReferrals} accepted referrals</p>
+              <p>{completedSessions} mentorship sessions completed</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {profileChecks.map((check) => (
+            <div key={check.label} className="flex items-center gap-2 text-sm">
+              {check.done ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              )}
+              <span className={check.done ? "text-slate-700" : "text-slate-900"}>{check.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onEditProfile}>
+            <Edit3 className="h-4 w-4 mr-2" />
+            Edit profile
+          </Button>
+          {!user?.isMentorshipEnabled ? (
+            <Button variant="outline" size="sm" onClick={onOpenMentorship}>
+              <BookOpen className="h-4 w-4 mr-2" />
+              Enable mentorship
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuickActions({
+  onCreateJob,
+  onOpenRequests,
+  onOpenMentorship,
+  onOpenAnalytics,
+}: {
+  onCreateJob: () => void;
+  onOpenRequests: () => void;
+  onOpenMentorship: () => void;
+  onOpenAnalytics: () => void;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -1271,15 +1517,15 @@ function QuickActions({ onCreateJob }: { onCreateJob: () => void }) {
             Update Profile
           </Button>
         </Link>
-        <Button variant="outline" className="w-full justify-start">
-          <MessageCircle className="h-4 w-4 mr-2" />
-          Create Community Post
+        <Button variant="outline" className="w-full justify-start" onClick={onOpenRequests}>
+          <FileText className="h-4 w-4 mr-2" />
+          Review Requests
         </Button>
-        <Button variant="outline" className="w-full justify-start">
+        <Button variant="outline" className="w-full justify-start" onClick={onOpenMentorship}>
           <Calendar className="h-4 w-4 mr-2" />
           Schedule Mentorship
         </Button>
-        <Button variant="outline" className="w-full justify-start">
+        <Button variant="outline" className="w-full justify-start" onClick={onOpenAnalytics}>
           <BarChart3 className="h-4 w-4 mr-2" />
           View Analytics
         </Button>
@@ -2344,29 +2590,74 @@ function AchievementsSection({ stats, user, toast }: { stats: any, user: any, to
 }
 
 // Earnings Section
-function EarningsSection() {
+function EarningsSection({
+  sessions,
+  onOpenMentorship,
+}: {
+  sessions: MentorshipSession[];
+  onOpenMentorship: () => void;
+}) {
+  const paidSessions = (sessions || []).filter((session) => session.paymentStatus === "paid");
+  const completedPaidSessions = paidSessions.filter((session) => session.status === "completed");
+  const pendingPayoutSessions = paidSessions.filter((session) =>
+    ["pending", "confirmed", "in_progress"].includes(session.status)
+  );
+  const totalEarned = completedPaidSessions.reduce((sum, session) => sum + (session.price || 0), 0);
+  const pendingEarnings = pendingPayoutSessions.reduce((sum, session) => sum + (session.price || 0), 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Earnings Dashboard</h2>
-        <Badge className="bg-blue-100 text-blue-800">Coming Soon</Badge>
+        <Badge className="bg-emerald-100 text-emerald-800">Mentorship earnings live</Badge>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Completed earnings</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{totalEarned}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Pending from active sessions</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{pendingEarnings}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Paid sessions</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{paidSessions.length}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardContent className="p-12 text-center">
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
-              <IndianRupee className="h-12 w-12 text-blue-600" />
+        <CardHeader>
+          <CardTitle>Recent mentorship payments</CardTitle>
+          <CardDescription>Referral bonus tracking is still rolling out. Mentorship payouts are shown here first.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {paidSessions.length ? paidSessions.slice(0, 5).map((session) => (
+            <div key={session.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+              <div>
+                <p className="font-medium text-slate-900">{session.title}</p>
+                <p className="text-muted-foreground">
+                  {session.menteeName} · {session.status.replace("_", " ")}
+                </p>
+              </div>
+              <p className="font-semibold text-slate-900">₹{session.price || 0}</p>
             </div>
-            <h3 className="text-xl font-semibold">Earnings Feature Coming Soon!</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Track your referral bonuses, view payment history, and manage your rewards.
-            </p>
-            <Button variant="outline" className="w-full">
-              <Bell className="h-4 w-4 mr-2" />
-              Notify Me When Available
-            </Button>
-          </div>
+          )) : (
+            <div className="rounded-lg border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
+              No paid mentorship sessions yet. Turn on mentorship to start earning from sessions.
+            </div>
+          )}
+          <Button variant="outline" onClick={onOpenMentorship}>
+            <BookOpen className="h-4 w-4 mr-2" />
+            Manage mentorship
+          </Button>
         </CardContent>
       </Card>
     </div>

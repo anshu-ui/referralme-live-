@@ -4,7 +4,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Button } from "../components/ui/button";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
@@ -25,13 +25,16 @@ export default function ReferralRequestModal({ isOpen, onClose, referral }: Refe
   const queryClient = useQueryClient();
 
   const form = useForm<ReferralRequestFormData>({
-    resolver: zodResolver(insertReferralRequestSchema.omit({ seekerId: true })),
+    resolver: zodResolver(insertReferralRequestSchema.omit({ seekerId: true })) as any,
     defaultValues: {
       jobPostingId: 0,
       referrerId: "",
+      fullName: "",
+      phoneNumber: "",
       experienceLevel: "mid",
       motivation: "",
-      profileUrl: "",
+      resumeText: "",
+      resumeUrl: "",
       notes: "",
     },
   });
@@ -55,7 +58,7 @@ export default function ReferralRequestModal({ isOpen, onClose, referral }: Refe
     },
   });
 
-  const onSubmit = (data: ReferralRequestFormData) => {
+  const onSubmit: SubmitHandler<ReferralRequestFormData> = (data) => {
     if (!referral) return;
     
     const requestData = {
@@ -136,7 +139,7 @@ export default function ReferralRequestModal({ isOpen, onClose, referral }: Refe
             
             <FormField
               control={form.control}
-              name="profileUrl"
+              name="resumeUrl"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Resume/LinkedIn Profile</FormLabel>
@@ -144,7 +147,8 @@ export default function ReferralRequestModal({ isOpen, onClose, referral }: Refe
                     <Input 
                       type="url" 
                       placeholder="https://linkedin.com/in/yourprofile" 
-                      {...field} 
+                      {...field}
+                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -162,7 +166,8 @@ export default function ReferralRequestModal({ isOpen, onClose, referral }: Refe
                     <Textarea 
                       rows={3} 
                       placeholder="Any additional information you'd like to share..." 
-                      {...field} 
+                      {...field}
+                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />

@@ -263,7 +263,7 @@ export default function ReferrerProfileModal({ isOpen, onClose, referrer }: Refe
                 
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {stats.totalReferrals || 0}
+                    {stats.referralsGiven || 0}
                   </div>
                   <div className="text-xs text-gray-600">Total Referrals</div>
                 </div>

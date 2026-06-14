@@ -40,8 +40,8 @@ export default function UPIPaymentModal({
       
       // Generate QR code image
       QRCode.toDataURL(qr, { width: 200, margin: 2 })
-        .then(url => setQrCodeUrl(url))
-        .catch(err => console.error('Error generating QR code:', err));
+        .then((url: string) => setQrCodeUrl(url))
+        .catch((err: Error) => console.error('Error generating QR code:', err));
     }
   }, [isOpen, paymentData]);
 

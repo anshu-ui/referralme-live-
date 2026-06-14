@@ -1,58 +1,61 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import {
+  ArrowLeft,
+  Award,
+  Briefcase,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Github,
+  Globe,
+  IndianRupee,
+  Linkedin,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Send,
+  Share2,
+  Sparkles,
+  Star,
+  Target,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Progress } from "../components/ui/progress";
 import { Separator } from "../components/ui/separator";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { getUserProfile, getJobPostingsByReferrer } from "../lib/firestore";
 import { useToast } from "../hooks/use-toast";
 import ApplicationFormModal from "../components/application-form-modal";
-
-import { 
-  ArrowLeft, MapPin, DollarSign, Calendar, Users, Clock, 
-  Building, Star, Share2, Bookmark, Send, Edit, Trash2,
-  Eye, MessageCircle, ExternalLink, Briefcase, Target,
-  Loader2, LogIn, Linkedin, Github, Globe, Trophy, Crown, Shield, Award
-} from "lucide-react";
+import {
+  getJobPostingsByReferrer,
+  getMentorshipSessions,
+  getReferralRequestsByReferrer,
+  getUserProfile,
+} from "../lib/firestore";
+import type { FirestoreUser, MentorshipSession, ReferralRequest } from "../lib/firestore";
+import { getProfileBadge, getProfileCompletionScore, getUserDisplayName, parseSkills } from "../lib/publicRanking";
 
 interface PublicReferrerProfileProps {
   referrerId?: string;
 }
 
-const REPUTATION_CONFIG = {
-  newcomer: { 
-    label: 'Newcomer', 
-    color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300', 
-    icon: Users 
-  },
-  helper: { 
-    label: 'Helper', 
-    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', 
-    icon: Shield 
-  },
-  expert: { 
-    label: 'Expert', 
-    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', 
-    icon: Award 
-  },
-  legend: { 
-    label: 'Legend', 
-    color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300', 
-    icon: Crown 
-  }
-};
-
 export default function PublicReferrerProfile({ referrerId }: PublicReferrerProfileProps) {
   const [, setLocation] = useLocation();
-  const [referrerData, setReferrerData] = useState<any>(null);
+  const { user, firebaseUser } = useFirebaseAuth();
+  const { toast } = useToast();
+  const [referrerData, setReferrerData] = useState<FirestoreUser | null>(null);
   const [jobPostings, setJobPostings] = useState<any[]>([]);
+  const [requests, setRequests] = useState<ReferralRequest[]>([]);
+  const [sessions, setSessions] = useState<MentorshipSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
-  const { user, firebaseUser } = useFirebaseAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     const loadReferrerData = async () => {
@@ -62,28 +65,23 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
       }
 
       try {
-        // Load referrer profile data
-        const profile = await getUserProfile(referrerId);
-        if (profile) {
-          setReferrerData(profile);
-          
-          // Load their job postings
-          const jobs = await getJobPostingsByReferrer(referrerId);
-          const activeJobs = jobs.filter(job => job.isActive);
-          setJobPostings(activeJobs);
-        } else {
-          toast({
-            title: "Referrer not found",
-            description: "The referrer profile you're looking for doesn't exist.",
-            variant: "destructive"
-          });
-        }
+        const [profile, jobs, referralRequests, mentorshipSessions] = await Promise.all([
+          getUserProfile(referrerId),
+          getJobPostingsByReferrer(referrerId),
+          getReferralRequestsByReferrer(referrerId),
+          getMentorshipSessions(referrerId, "mentor"),
+        ]);
+
+        setReferrerData(profile);
+        setJobPostings(jobs.filter((job) => job.isActive));
+        setRequests(referralRequests);
+        setSessions(mentorshipSessions);
       } catch (error) {
-        console.error("Error loading referrer data:", error);
+        console.error("Error loading referrer public profile:", error);
         toast({
-          title: "Error loading profile",
-          description: "Failed to load referrer profile. Please try again.",
-          variant: "destructive"
+          title: "Profile could not load",
+          description: "Please try opening the profile again.",
+          variant: "destructive",
         });
       } finally {
         setIsLoading(false);
@@ -93,309 +91,289 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
     loadReferrerData();
   }, [referrerId, toast]);
 
-  const handleShare = () => {
-    const shareUrl = window.location.href;
-    navigator.clipboard.writeText(shareUrl).then(() => {
+  const stats = useMemo(() => {
+    if (!referrerData) {
+      return {
+        acceptedReferrals: 0,
+        completedSessions: 0,
+        paidSessions: 0,
+        profileCompletion: 0,
+        score: 0,
+        badge: "Trusted Referrer",
+      };
+    }
+
+    const acceptedReferrals = requests.filter((request) => request.status === "accepted").length;
+    const completedSessions = sessions.filter((session) => session.status === "completed").length;
+    const paidSessions = sessions.filter((session) => session.paymentStatus === "paid").length;
+    const profileCompletion = getProfileCompletionScore(referrerData);
+    const score =
+      profileCompletion +
+      acceptedReferrals * 35 +
+      requests.length * 8 +
+      completedSessions * 45 +
+      paidSessions * 15 +
+      Math.round((referrerData.mentorshipRating || 0) * 10);
+
+    return {
+      acceptedReferrals,
+      completedSessions,
+      paidSessions,
+      profileCompletion,
+      score,
+      badge: getProfileBadge(score, referrerData.isMentorshipEnabled ? "mentor" : "referrer"),
+    };
+  }, [referrerData, requests, sessions]);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
       toast({
-        title: "Link copied!",
-        description: "Referrer profile link has been copied to clipboard.",
+        title: "Profile link copied",
+        description: "Share this referrer profile with students or your network.",
       });
-    }).catch(() => {
-      // Fallback for browsers that don't support clipboard API
-      const textArea = document.createElement("textarea");
-      textArea.value = shareUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
+    } catch {
       toast({
-        title: "Link copied!",
-        description: "Referrer profile link has been copied to clipboard.",
+        title: "Copy failed",
+        description: "Please copy the URL from your browser.",
+        variant: "destructive",
       });
-    });
+    }
   };
 
   const handleApplyToJob = (job: any) => {
-    // Check if user is authenticated
     if (!firebaseUser) {
-      toast({
-        title: "Login required",
-        description: "Please sign in to apply for this job.",
-        variant: "destructive"
-      });
-      // Redirect to landing page with return URL
       const returnUrl = encodeURIComponent(window.location.pathname);
       setLocation(`/?returnTo=${returnUrl}`);
       return;
     }
 
-    // Check if user has a role
     if (!user?.role) {
-      toast({
-        title: "Profile setup required",
-        description: "Please complete your profile setup to apply.",
-        variant: "destructive"
-      });
       setLocation("/role-selection");
       return;
     }
 
-    // Open application modal
     setSelectedJob(job);
     setIsApplicationModalOpen(true);
   };
 
-  const handleViewJobDetails = (jobId: string) => {
-    setLocation(`/job/${jobId}`);
+  const handleBookMentorship = () => {
+    if (!firebaseUser) {
+      const returnUrl = encodeURIComponent(window.location.pathname);
+      setLocation(`/?returnTo=${returnUrl}`);
+      return;
+    }
+
+    setLocation(user?.role === "seeker" ? "/seeker-dashboard" : "/dashboard");
+    toast({
+      title: "Open mentorship marketplace",
+      description: "Go to the Mentorship tab and select this mentor from the marketplace.",
+    });
   };
 
-  // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading referrer profile...</span>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-slate-700">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading referrer profile...
         </div>
       </div>
     );
   }
 
-  // Show error state if referrer not found
   if (!referrerData) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Referrer Not Found</h1>
-          <p className="text-gray-600 mb-4">The referrer profile you're looking for doesn't exist.</p>
-          <Button onClick={() => setLocation("/")}>
-            Go to Homepage
-          </Button>
-        </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <Card className="max-w-md text-center">
+          <CardContent className="p-8">
+            <h1 className="text-2xl font-bold text-slate-900">Referrer not found</h1>
+            <p className="mt-2 text-slate-600">This public referrer profile is not available.</p>
+            <Button className="mt-5" onClick={() => setLocation("/")}>Go Home</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  const reputationLevel = (referrerData.reputationLevel as keyof typeof REPUTATION_CONFIG) || 'newcomer';
-  const reputationConfig = REPUTATION_CONFIG[reputationLevel];
-  const ReputationIcon = reputationConfig.icon;
+  const displayName = getUserDisplayName(referrerData);
+  const skills = parseSkills(referrerData.skills);
+  const activeServices = (referrerData.mentorshipServices || []).filter((service) => service.isActive);
+  const rating = referrerData.mentorshipRating || 0;
+  const ratingCount = referrerData.mentorshipRatingCount || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setLocation("/")}
-                className="flex items-center gap-1 sm:gap-2"
-                data-testid="button-back-home"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Back to Home</span>
-                <span className="sm:hidden">Back</span>
-              </Button>
-              <Separator orientation="vertical" className="h-6 hidden sm:block" />
-              <div className="flex items-center gap-2">
-                <img src={"/logo.png"} alt="ReferralMe" className="h-6 w-6 sm:h-8 sm:w-8" />
-                <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">ReferralMe</span>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleShare}
-                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
-                data-testid="button-share-profile"
-              >
-                <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Share Profile</span>
-                <span className="sm:hidden">Share</span>
-              </Button>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ccfbf1,transparent_30%),radial-gradient(circle_at_top_right,#dbeafe,transparent_34%),linear-gradient(180deg,#f8fafc,#eef2ff)]">
+      <header className="sticky top-0 z-20 border-b border-white/60 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Home
+            </Button>
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+            <div className="flex items-center gap-2 font-semibold text-slate-900">
+              <img src="/logo.png" alt="ReferralMe" className="h-7 w-7" />
+              Referrer Profile
             </div>
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setLocation("/leaderboard")}>
+              <Trophy className="mr-2 h-4 w-4" />
+              Leaderboard
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleShare}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content - Profile Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Profile Header */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                    <Avatar className="h-16 w-16 sm:h-20 sm:w-20 mx-auto sm:mx-0">
-                      <AvatarImage src={referrerData.profileImageUrl || referrerData.photoURL} />
-                      <AvatarFallback className="text-lg sm:text-xl">
-                        {referrerData.firstName?.charAt(0) || referrerData.displayName?.charAt(0) || referrerData.email?.charAt(0) || "R"}
-                      </AvatarFallback>
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <div className="grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
+          <section className="space-y-6">
+            <Card className="overflow-hidden border-white/70 shadow-sm">
+              <div className="h-36 bg-gradient-to-r from-slate-950 via-teal-950 to-blue-900" />
+              <CardContent className="-mt-16 p-6">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                    <Avatar className="h-28 w-28 border-4 border-white shadow-lg">
+                      <AvatarImage src={referrerData.profileImageUrl || referrerData.photoURL || ""} />
+                      <AvatarFallback className="bg-teal-700 text-2xl text-white">{displayName.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <div className="text-center sm:text-left">
-                      <CardTitle className="text-xl sm:text-2xl lg:text-3xl">
-                        {referrerData.firstName && referrerData.lastName 
-                          ? `${referrerData.firstName} ${referrerData.lastName}`
-                          : referrerData.displayName || "Professional Referrer"}
-                      </CardTitle>
-                      <CardDescription className="text-base sm:text-lg mt-1">
-                        {referrerData.designation && referrerData.company 
-                          ? `${referrerData.designation} at ${referrerData.company}`
-                          : referrerData.designation || referrerData.company || "Professional"}
-                      </CardDescription>
-                      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mt-3">
-                        <Badge className={`${reputationConfig.color} flex items-center gap-1 text-xs sm:text-sm`}>
-                          <ReputationIcon className="h-3 w-3" />
-                          {reputationConfig.label}
+                    <div className="pb-1">
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <Badge className="bg-emerald-100 text-emerald-800">
+                          <Award className="mr-1 h-3 w-3" />
+                          {stats.badge}
                         </Badge>
-                        {referrerData.location && (
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
-                            {referrerData.location}
-                          </div>
-                        )}
+                        {referrerData.isMentorshipEnabled ? <Badge variant="outline">Mentorship Open</Badge> : null}
+                        {rating ? (
+                          <Badge className="bg-amber-100 text-amber-800">
+                            <Star className="mr-1 h-3 w-3 fill-amber-500" />
+                            {rating.toFixed(1)} ({ratingCount})
+                          </Badge>
+                        ) : null}
                       </div>
+                      <h1 className="text-3xl font-bold text-slate-950">{displayName}</h1>
+                      <p className="mt-1 text-slate-600">
+                        {referrerData.designation && referrerData.company
+                          ? `${referrerData.designation} at ${referrerData.company}`
+                          : referrerData.designation || referrerData.company || "ReferralMe professional"}
+                      </p>
+                      {referrerData.location ? (
+                        <p className="mt-2 flex items-center gap-1 text-sm text-slate-500">
+                          <MapPin className="h-4 w-4" />
+                          {referrerData.location}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              
-              {referrerData.bio && (
-                <CardContent>
-                  <p className="text-gray-700 dark:text-gray-300">{referrerData.bio}</p>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* Social Links */}
-            {(referrerData.linkedinUrl || referrerData.githubUrl || referrerData.websiteUrl) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Connect with {referrerData.firstName || "them"}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                    {referrerData.linkedinUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(referrerData.linkedinUrl, '_blank')}
-                        className="flex items-center justify-center gap-2 text-xs sm:text-sm"
-                        data-testid="button-linkedin"
-                      >
-                        <Linkedin className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <div className="flex flex-wrap gap-2">
+                    {referrerData.linkedinUrl || referrerData.linkedin ? (
+                      <Button variant="outline" size="sm" onClick={() => window.open(referrerData.linkedinUrl || referrerData.linkedin, "_blank")}>
+                        <Linkedin className="mr-2 h-4 w-4" />
                         LinkedIn
                       </Button>
-                    )}
-                    {referrerData.githubUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(referrerData.githubUrl, '_blank')}
-                        className="flex items-center justify-center gap-2 text-xs sm:text-sm"
-                        data-testid="button-github"
-                      >
-                        <Github className="h-3 w-3 sm:h-4 sm:w-4" />
+                    ) : null}
+                    {referrerData.githubUrl ? (
+                      <Button variant="outline" size="sm" onClick={() => window.open(referrerData.githubUrl, "_blank")}>
+                        <Github className="mr-2 h-4 w-4" />
                         GitHub
                       </Button>
-                    )}
-                    {referrerData.websiteUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(referrerData.websiteUrl, '_blank')}
-                        className="flex items-center justify-center gap-2 text-xs sm:text-sm"
-                        data-testid="button-website"
-                      >
-                        <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
+                    ) : null}
+                    {referrerData.websiteUrl ? (
+                      <Button variant="outline" size="sm" onClick={() => window.open(referrerData.websiteUrl, "_blank")}>
+                        <Globe className="mr-2 h-4 w-4" />
                         Website
                       </Button>
-                    )}
+                    ) : null}
                   </div>
+                </div>
+                {referrerData.bio || referrerData.mentorshipBio ? (
+                  <p className="mt-6 max-w-3xl text-slate-700">{referrerData.mentorshipBio || referrerData.bio}</p>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <MetricCard label="Profile Score" value={stats.profileCompletion} suffix="%" icon={<Target className="h-5 w-5" />} />
+              <MetricCard label="Accepted Referrals" value={stats.acceptedReferrals} icon={<CheckCircle2 className="h-5 w-5" />} />
+              <MetricCard label="Mentorship Done" value={stats.completedSessions} icon={<Sparkles className="h-5 w-5" />} />
+              <MetricCard label="Active Jobs" value={jobPostings.length} icon={<Briefcase className="h-5 w-5" />} />
+            </div>
+
+            {activeServices.length ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-teal-700" />
+                    Mentorship Services
+                  </CardTitle>
+                  <CardDescription>Services and pricing are set by the mentor.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  {activeServices.map((service) => (
+                    <div key={service.id} className="rounded-2xl border bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-semibold text-slate-950">{service.title}</h3>
+                          <p className="mt-1 text-sm text-slate-600">{service.description}</p>
+                        </div>
+                        <Badge className="bg-teal-100 text-teal-800">
+                          <IndianRupee className="mr-1 h-3 w-3" />
+                          {service.price}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+                        <span>{service.duration} minutes</span>
+                        <Button size="sm" onClick={handleBookMentorship}>Book</Button>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
-            {/* Job Postings */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5" />
+                  <Briefcase className="h-5 w-5 text-blue-700" />
                   Current Job Openings ({jobPostings.length})
                 </CardTitle>
-                <CardDescription>
-                  Apply for these positions and get referred by {referrerData.firstName || "this professional"}
-                </CardDescription>
+                <CardDescription>Request referrals for active roles shared by this referrer.</CardDescription>
               </CardHeader>
               <CardContent>
-                {jobPostings.length > 0 ? (
+                {jobPostings.length ? (
                   <div className="space-y-4">
                     {jobPostings.map((job) => (
-                      <div key={job.id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg sm:text-xl">{job.title}</h3>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">{job.company} • {job.location}</p>
-                            {job.description && (
-                              <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 line-clamp-2">
-                                {job.description.substring(0, 150)}...
-                              </p>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 text-sm">
-                              {job.salaryMin && job.salaryMax && (
-                                <div className="flex items-center gap-1 text-green-600">
-                                  <DollarSign className="h-4 w-4" />
-                                  ₹{job.salaryMin} - ₹{job.salaryMax}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 text-orange-600">
-                                <Clock className="h-4 w-4" />
-                                {job.experienceLevel || 'Not specified'}
-                              </div>
-                              <div className="flex items-center gap-1 text-blue-600">
-                                <Calendar className="h-4 w-4" />
-                                Posted {job.createdAt ? 
-                                  new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 
-                                  'Recently'}
-                              </div>
+                      <div key={job.id} className="rounded-2xl border bg-white p-4 transition hover:border-blue-200 hover:shadow-sm">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-lg font-semibold text-slate-950">{job.title}</h3>
+                            <p className="text-sm text-slate-600">{job.company} • {job.location}</p>
+                            {job.quickSummary || job.description ? (
+                              <p className="mt-2 line-clamp-2 text-sm text-slate-600">{job.quickSummary || job.description}</p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                              {job.experienceLevel || job.experience ? <Badge variant="outline">{job.experienceLevel || job.experience}</Badge> : null}
+                              {job.minAtsScore ? <Badge variant="outline">ATS {job.minAtsScore}+</Badge> : null}
+                              {job.createdAt ? (
+                                <Badge variant="outline">
+                                  <Calendar className="mr-1 h-3 w-3" />
+                                  Posted {new Date(job.createdAt.seconds ? job.createdAt.seconds * 1000 : job.createdAt.toDate?.()).toLocaleDateString()}
+                                </Badge>
+                              ) : null}
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-col gap-2 sm:ml-4 w-full sm:w-auto">
-                            <Button 
-                              onClick={() => handleApplyToJob(job)}
-                              size="sm"
-                              data-testid={`button-apply-job-${job.id}`}
-                              className="w-full sm:w-auto text-xs sm:text-sm"
-                            >
-                              {!firebaseUser ? (
-                                <>
-                                  <LogIn className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                                  <span className="hidden sm:inline">Sign in to Apply</span>
-                                  <span className="sm:hidden">Sign in</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                                  <span className="hidden sm:inline">Request Referral</span>
-                                  <span className="sm:hidden">Apply</span>
-                                </>
-                              )}
+                          <div className="flex flex-col gap-2 sm:w-40">
+                            <Button size="sm" onClick={() => handleApplyToJob(job)}>
+                              {firebaseUser ? <Send className="mr-2 h-4 w-4" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+                              {firebaseUser ? "Request Referral" : "Sign in"}
                             </Button>
-                            <Button 
-                              variant="outline"
-                              onClick={() => handleViewJobDetails(job.id)}
-                              size="sm"
-                              data-testid={`button-view-job-${job.id}`}
-                              className="w-full sm:w-auto text-xs sm:text-sm"
-                            >
-                              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                              <span className="hidden sm:inline">View Details</span>
-                              <span className="sm:hidden">Details</span>
+                            <Button variant="outline" size="sm" onClick={() => setLocation(`/job/${job.id}`)}>
+                              View Job
                             </Button>
                           </div>
                         </div>
@@ -403,76 +381,73 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500">No active job openings at the moment.</p>
-                    <p className="text-sm text-gray-400 mt-1">Check back later for new opportunities!</p>
+                  <div className="rounded-2xl border bg-slate-50 p-8 text-center">
+                    <Briefcase className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                    <p className="font-medium text-slate-700">No active job openings right now.</p>
+                    <p className="mt-1 text-sm text-slate-500">You can still follow this profile or check back later.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
+          </section>
 
-          {/* Sidebar - Stats & Info */}
-          <div className="space-y-6">
-            {/* Referrer Stats */}
+          <aside className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Referrer Stats</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  Public Ranking
+                </CardTitle>
+                <CardDescription>Based on real ReferralMe activity.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-center p-3 bg-green-50 dark:bg-green-900 rounded-lg">
-                  <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                    {jobPostings.length}
-                  </div>
-                  <div className="text-xs text-green-600 dark:text-green-400">Active Job Postings</div>
+              <CardContent className="space-y-4">
+                <div className="rounded-2xl border bg-amber-50 p-4 text-center">
+                  <p className="text-sm text-amber-700">Reputation score</p>
+                  <p className="text-4xl font-black text-amber-900">{stats.score}</p>
+                  <Badge className="mt-2 bg-amber-200 text-amber-900">{stats.badge}</Badge>
                 </div>
-                
-                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                    {referrerData.experience || 'Professional'}
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-medium text-slate-700">Profile completeness</span>
+                    <span className="text-slate-500">{stats.profileCompletion}%</span>
                   </div>
-                  <div className="text-xs text-blue-600 dark:text-blue-400">Experience Level</div>
+                  <Progress value={stats.profileCompletion} />
                 </div>
-
-                {referrerData.skills && (
-                  <div>
-                    <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Skills</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {(Array.isArray(referrerData.skills) ? referrerData.skills : JSON.parse(referrerData.skills || '[]')).slice(0, 6).map((skill: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <Button className="w-full" variant="outline" onClick={() => setLocation("/leaderboard")}>
+                  View full leaderboard
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Contact Info */}
+            {skills.length ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Expertise</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {skills.slice(0, 12).map((skill) => (
+                    <Badge key={skill} variant="secondary">{skill}</Badge>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : null}
+
             <Card>
               <CardHeader>
-                <CardTitle>Get Referred</CardTitle>
+                <CardTitle>How scoring works</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-3">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Connect with {referrerData.firstName || "this referrer"} to get referred to amazing job opportunities.
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    Joined {referrerData.createdAt ? 
-                      new Date(referrerData.createdAt.seconds * 1000).getFullYear() : 
-                      'Recently'}
-                  </div>
-                </div>
+              <CardContent className="space-y-3 text-sm text-slate-600">
+                <ScoreLine text="Profile completion improves trust and discoverability." />
+                <ScoreLine text="Accepted referrals increase referrer ranking." />
+                <ScoreLine text="Completed mentorship sessions and ratings improve mentor ranking." />
+                <ScoreLine text="Scores are guidance signals, not guaranteed outcomes." />
               </CardContent>
             </Card>
-          </div>
+          </aside>
         </div>
-      </div>
+      </main>
 
-      {/* Application Modal */}
       {selectedJob && (
         <ApplicationFormModal
           isOpen={isApplicationModalOpen}
@@ -485,12 +460,35 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
             setIsApplicationModalOpen(false);
             setSelectedJob(null);
             toast({
-              title: "Application Submitted!",
+              title: "Application submitted",
               description: "Your referral request has been submitted successfully.",
             });
           }}
         />
       )}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon, suffix = "" }: { label: string; value: number; icon: React.ReactNode; suffix?: string }) {
+  return (
+    <Card className="border-white/70">
+      <CardContent className="flex items-center justify-between p-5">
+        <div>
+          <p className="text-sm text-slate-500">{label}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-950">{value}{suffix}</p>
+        </div>
+        <div className="rounded-2xl bg-teal-50 p-3 text-teal-700">{icon}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScoreLine({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+      <p>{text}</p>
     </div>
   );
 }

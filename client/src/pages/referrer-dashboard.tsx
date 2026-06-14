@@ -16,6 +16,25 @@ import { isUnauthorizedError } from "../lib/authUtils";
 import type { z } from "zod";
 
 type JobPostingFormData = z.infer<typeof insertJobPostingSchema>;
+type ReferrerStats = {
+  activePosts?: number;
+  pendingRequests?: number;
+  successfulReferrals?: number;
+};
+type ReferrerRequest = {
+  id: number;
+  status?: string | null;
+  seeker?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    profileImageUrl?: string | null;
+  };
+  jobPosting?: {
+    title?: string | null;
+    company?: string | null;
+  };
+};
 
 export default function ReferrerDashboard() {
   const queryClient = useQueryClient();
@@ -34,13 +53,13 @@ export default function ReferrerDashboard() {
   });
 
   // Fetch stats
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<ReferrerStats>({
     queryKey: ["/api/stats/referrer"],
     retry: false,
   });
 
   // Fetch requests
-  const { data: requests = [], isLoading: requestsLoading } = useQuery({
+  const { data: requests = [], isLoading: requestsLoading } = useQuery<ReferrerRequest[]>({
     queryKey: ["/api/referral-requests/my"],
     retry: false,
   });
@@ -175,7 +194,7 @@ export default function ReferrerDashboard() {
                         <FormItem>
                           <FormLabel>Salary Range</FormLabel>
                           <FormControl>
-                            <Input placeholder="$150K - $200K" {...field} />
+                            <Input placeholder="$150K - $200K" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -210,6 +229,7 @@ export default function ReferrerDashboard() {
                             placeholder="List the key requirements and qualifications..." 
                             rows={3}
                             {...field} 
+                            value={field.value || ""}
                           />
                         </FormControl>
                         <FormMessage />

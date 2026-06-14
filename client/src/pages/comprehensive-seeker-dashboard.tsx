@@ -43,8 +43,8 @@ export default function ComprehensiveSeekerDashboard() {
   });
 
   // Get real data from Firestore
-  const { data: jobPostings = [] } = useJobPostings();
-  const { data: referralRequests = [] } = useReferralRequests("seeker");
+  const { jobs: jobPostings = [] } = useJobPostings();
+  const { requests: referralRequests = [] } = useReferralRequests("seeker");
 
   // Mock data for comprehensive dashboard
   const mockStats = {
@@ -369,7 +369,7 @@ export default function ComprehensiveSeekerDashboard() {
               <ApplicationsSection 
                 applications={referralRequests} 
                 getStatusBadge={getStatusBadge}
-                onStatusUpdate={(application) => {
+                onStatusUpdate={(application: any) => {
                   console.log("🔵 Status update button clicked:", application);
                   setSelectedApplication(application);
                   setIsStatusUpdateOpen(true);

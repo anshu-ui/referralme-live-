@@ -21,22 +21,15 @@ export function useAuth() {
   const syncUserMutation = useMutation({
     mutationFn: async () => {
       if (!firebaseUser) return;
+      const token = firebaseUser.accessToken;
+      if (!token) return;
       
-      const token = await firebaseUser.getIdToken();
-      
-      return apiRequest("/api/auth/sync", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          firstName: firebaseUser.displayName?.split(' ')[0] || '',
-          lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
-          profileImageUrl: firebaseUser.photoURL,
-        }),
+      return apiRequest("POST", "/api/auth/sync", {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        firstName: firebaseUser.displayName?.split(' ')[0] || '',
+        lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+        profileImageUrl: firebaseUser.photoURL,
       });
     },
     onSuccess: () => {

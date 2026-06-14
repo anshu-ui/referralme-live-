@@ -196,8 +196,8 @@ export default function JobPostingModal({ isOpen, onClose, user, onJobPosted }: 
           {/* Job Description File Upload */}
           <div>
             <Label>Job Description Document (Optional)</Label>
-            <FileUpload
-              onFileUploaded={(fileUrl, fileName) => {
+            <FirebaseFileUpload
+              onFileUploaded={(fileUrl: string, fileName: string) => {
                 handleInputChange("jobDescriptionUrl", fileUrl);
               }}
               acceptedTypes=".pdf,.doc,.docx,.txt"

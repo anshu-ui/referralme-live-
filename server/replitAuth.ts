@@ -130,7 +130,7 @@ export async function setupAuth(app: Express) {
 export const verifyFirebaseToken: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  if (!req.verifyFirebaseToken() || !user.expires_at) {
+  if (!req.isAuthenticated?.() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 

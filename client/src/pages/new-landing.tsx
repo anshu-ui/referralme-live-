@@ -120,7 +120,7 @@ export default function NewLanding() {
 
   const roles = ["Software Engineer", "Product Manager", "Data Analyst", "UX Designer", "DevOps Engineer"];
   const typedRole = useTypewriter(roles);
-  const heroSignal = useRotatingLabel(["Mentorship", "Resume", "Interviews", "Career Momentum"]);
+  const heroSignal = useRotatingLabel(["AI Career Agent", "ATS", "Mentorship", "Public Profile"]);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function NewLanding() {
       setScrolled(window.scrollY > 30);
       const total = document.body.scrollHeight - window.innerHeight;
       setScrollProgress(total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0);
-      const sections = ["hero", "resume-scan", "features", "mentorship", "campus-program", "how-it-works", "live-jobs"];
+      const sections = ["hero", "resume-scan", "features", "public-profiles", "mentorship", "campus-program", "how-it-works", "live-jobs"];
       const pos = window.scrollY + 120;
       for (const s of sections) {
         const el = document.getElementById(s);
@@ -215,19 +215,19 @@ export default function NewLanding() {
   };
 
   const features = [
-    { icon: "🧠", title: "AI Mentor", desc: "Career guidance that feels like a real coach: plans, resume fixes, interview prep, and role-specific suggestions.", wide: true, highlight: true },
+    { icon: "🧠", title: "AI Career Agent", desc: "A connected workspace for resume readiness, job matching, referral kits, interview prep, and mentor suggestions.", wide: true, highlight: true },
     { icon: "📞", title: "1:1 Mentorship", desc: "Book sessions with experienced professionals. Pay first, get a meeting link, and track everything in the dashboard.", wide: false, highlight: false },
     { icon: "📊", title: "ATS Resume Analysis", desc: "Get an instant resume score with actionable feedback and keyword suggestions.", wide: false, highlight: false },
     { icon: "🎯", title: "Referral Support (Optional)", desc: "Where available, mentors may guide you on referrals and applications. Referrals are not guaranteed and depend on company policy.", wide: false, highlight: false },
-    { icon: "🤝", title: "Trust & Profiles", desc: "Mentors and referrers build reputations through verified profiles, session history, and ratings.", wide: false, highlight: false },
-    { icon: "🔐", title: "Data Control", desc: "You control what you share. We use secure infrastructure (Firebase) for authentication and data storage.", wide: true, highlight: false },
+    { icon: "🏆", title: "Public Profiles & Leaderboard", desc: "Seekers, mentors, and referrers can share public profiles and climb rankings through real platform activity.", wide: false, highlight: false },
+    { icon: "🔐", title: "Data Control", desc: "You control what you share. Scores are guidance signals, not guaranteed outcomes.", wide: true, highlight: false },
   ];
 
   const steps = [
     { num: "01", icon: "👤", title: "Create Your Profile", desc: "Sign up with Google in seconds. Set your role as a job seeker or a professional referrer." },
-    { num: "02", icon: "🔍", title: "Discover Opportunities", desc: "Browse live job openings from verified professionals at top companies across India." },
+    { num: "02", icon: "🧠", title: "Use Career Agent", desc: "Get job matches, referral kits, interview prep, and mentor suggestions from your profile signals." },
     { num: "03", icon: "📄", title: "Improve Your Resume", desc: "Run an ATS scan and get clear fixes: keywords, formatting, and impact bullets." },
-    { num: "04", icon: "🚀", title: "Get Job-Ready Faster", desc: "Use AI + 1:1 mentorship to plan, practice, and apply with confidence. Referral guidance may be available where appropriate." },
+    { num: "04", icon: "🏆", title: "Share Your Progress", desc: "Use your public profile and leaderboard position to show activity, credibility, and momentum." },
   ];
 
   const testimonials = [
@@ -252,13 +252,13 @@ export default function NewLanding() {
   }, [testimonials.length]);
 
   const activityFeed = [
-    { icon: "✅", text: "New mentorship session booked", time: "2 min ago" },
-    { icon: "📄", text: "Resume improved after ATS scan", time: "6 min ago" },
-    { icon: "🎤", text: "Mock interview scheduled", time: "14 min ago" },
-    { icon: "📊", text: "ATS report generated for SDE role", time: "22 min ago" },
-    { icon: "💼", text: "New roles added to the job board", time: "38 min ago" },
-    { icon: "🚀", text: "Candidate completed a 7-day plan", time: "1 hr ago" },
-    { icon: "⭐", text: "Mentor received a 5-star rating", time: "2 hr ago" },
+    { icon: "✅", text: "Mentorship bookings create tracked session records", time: "Event" },
+    { icon: "📄", text: "ATS scans update career readiness signals", time: "Signal" },
+    { icon: "🏆", text: "Leaderboard ranks real profile activity", time: "Ranking" },
+    { icon: "📊", text: "Career Agent connects jobs, mentors, and resume gaps", time: "Agent" },
+    { icon: "💼", text: "Referrers publish active job openings", time: "Jobs" },
+    { icon: "🚀", text: "Public profiles make progress shareable", time: "Profile" },
+    { icon: "⭐", text: "Session ratings improve mentor visibility", time: "Quality" },
   ];
 
   const trustBrands = [
@@ -294,8 +294,8 @@ export default function NewLanding() {
   return (
     <div className="lp-root">
       <SeoHead
-        title="ReferralMe | Mentorship, ATS Resume Scan, and Career Growth"
-        description="ReferralMe helps job seekers improve resumes with an ATS scan, get structured interview prep, and book 1:1 mentorship sessions."
+        title="ReferralMe | AI Career Agent, ATS, Mentorship, and Public Profiles"
+        description="ReferralMe helps job seekers improve resumes with ATS feedback, use an AI Career Agent, book mentorship, and share public career profiles."
         canonicalPath="/"
         image="https://referralme.in/logo.png"
         keywords="ReferralMe, mentorship, career guidance, ATS resume scan, interview prep, job search India, careers"
@@ -897,22 +897,22 @@ export default function NewLanding() {
           position: relative;
           z-index: 1;
         }
-        .lp-ats-fake-lines {
+        .lp-ats-preview-lines {
           display: grid;
           gap: 0.65rem;
           margin: 1rem 0 1.2rem;
         }
-        .lp-ats-fake-lines div {
+        .lp-ats-preview-lines div {
           height: 11px;
           border-radius: 999px;
           background: linear-gradient(90deg, #dbeafe, #eff6ff, #dbeafe);
           background-size: 200% 100%;
           animation: lpShimmer 1.8s linear infinite;
         }
-        .lp-ats-fake-lines div:nth-child(1) { width: 100%; }
-        .lp-ats-fake-lines div:nth-child(2) { width: 76%; }
-        .lp-ats-fake-lines div:nth-child(3) { width: 92%; }
-        .lp-ats-fake-lines div:nth-child(4) { width: 68%; }
+        .lp-ats-preview-lines div:nth-child(1) { width: 100%; }
+        .lp-ats-preview-lines div:nth-child(2) { width: 76%; }
+        .lp-ats-preview-lines div:nth-child(3) { width: 92%; }
+        .lp-ats-preview-lines div:nth-child(4) { width: 68%; }
         @keyframes lpShimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
@@ -985,6 +985,92 @@ export default function NewLanding() {
           background: var(--blue); color: white;
           padding: 0.25rem 0.7rem; border-radius: 20px;
           font-size: 0.72rem; font-weight: 700;
+        }
+
+        /* ── PUBLIC PROFILES SECTION ──────── */
+        .lp-profiles {
+          padding: 5.5rem 1.5rem;
+          background:
+            radial-gradient(circle at 15% 15%, rgba(20,184,166,0.12), transparent 34%),
+            radial-gradient(circle at 85% 5%, rgba(37,99,235,0.14), transparent 32%),
+            linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
+          border-top: 1px solid #e2e8f0;
+        }
+        .lp-profiles-wrap {
+          max-width: 1180px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 2rem;
+          align-items: center;
+        }
+        @media (min-width: 980px) { .lp-profiles-wrap { grid-template-columns: 0.92fr 1.08fr; } }
+        .lp-profile-copy { text-align: left; }
+        .lp-profile-pills { display: flex; flex-wrap: wrap; gap: 0.65rem; margin: 1.25rem 0 1.5rem; }
+        .lp-profile-pills span {
+          border: 1px solid #bfdbfe;
+          background: rgba(255,255,255,0.78);
+          color: #1e40af;
+          border-radius: 999px;
+          padding: 0.55rem 0.8rem;
+          font-size: 0.82rem;
+          font-weight: 700;
+        }
+        .lp-profile-board {
+          border: 1px solid rgba(148,163,184,0.22);
+          border-radius: 32px;
+          background: rgba(255,255,255,0.86);
+          box-shadow: 0 30px 80px rgba(15,23,42,0.10);
+          padding: 1rem;
+          position: relative;
+          overflow: hidden;
+        }
+        .lp-profile-board::before {
+          content: "";
+          position: absolute;
+          width: 260px;
+          height: 260px;
+          right: -120px;
+          top: -120px;
+          border-radius: 999px;
+          background: rgba(59,130,246,0.12);
+        }
+        .lp-profile-card {
+          position: relative;
+          border: 1px solid #e2e8f0;
+          border-radius: 24px;
+          background: white;
+          padding: 1rem;
+          margin-bottom: 0.8rem;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 0.9rem;
+          align-items: center;
+        }
+        .lp-profile-rank {
+          width: 42px; height: 42px; border-radius: 14px;
+          display: flex; align-items: center; justify-content: center;
+          background: #0f172a; color: white; font-weight: 900;
+        }
+        .lp-profile-person strong { display: block; color: #0f172a; font-size: 0.96rem; }
+        .lp-profile-person span { display: block; color: #64748b; font-size: 0.8rem; margin-top: 0.15rem; }
+        .lp-profile-score {
+          border-radius: 999px;
+          background: #eff6ff;
+          color: #1d4ed8;
+          padding: 0.45rem 0.7rem;
+          font-size: 0.78rem;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+        .lp-profile-note {
+          position: relative;
+          border-radius: 20px;
+          background: linear-gradient(135deg, #0f172a, #1e40af);
+          color: #dbeafe;
+          padding: 1rem;
+          font-size: 0.88rem;
+          line-height: 1.6;
         }
 
         /* ── MENTORSHIP SECTION ───────────── */
@@ -1635,7 +1721,7 @@ export default function NewLanding() {
         @keyframes lpFadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
         /* ── SCROLL MARGIN ────────────────── */
-        #hero, #resume-scan, #features, #mentorship, #campus-program, #how-it-works, #live-jobs { scroll-margin-top: 70px; }
+        #hero, #resume-scan, #features, #public-profiles, #mentorship, #campus-program, #how-it-works, #live-jobs { scroll-margin-top: 70px; }
 
         /* ── MOBILE ───────────────────────── */
         @media (max-width: 480px) {
@@ -1671,6 +1757,7 @@ export default function NewLanding() {
             <li><a href="#hero" className={activeSection === "hero" ? "active" : ""}>Home</a></li>
             <li><a href="#resume-scan" className={activeSection === "resume-scan" ? "active" : ""}>Free ATS Scan</a></li>
             <li><a href="#features" className={activeSection === "features" ? "active" : ""}>Features</a></li>
+            <li><a href="#public-profiles" className={activeSection === "public-profiles" ? "active" : ""}>Profiles</a></li>
             <li><a href="#mentorship" className={activeSection === "mentorship" ? "active" : ""}>Mentorship</a></li>
             <li><a href="#how-it-works" className={activeSection === "how-it-works" ? "active" : ""}>How It Works</a></li>
             <li><a href="#live-jobs" className={activeSection === "live-jobs" ? "active" : ""}>Live Jobs</a></li>
@@ -1692,6 +1779,7 @@ export default function NewLanding() {
         <a href="#hero" onClick={() => setIsMenuOpen(false)}>🏠 Home</a>
         <a href="#resume-scan" onClick={() => setIsMenuOpen(false)}>📄 Free ATS Scan</a>
         <a href="#features" onClick={() => setIsMenuOpen(false)}>⚡ Features</a>
+        <a href="#public-profiles" onClick={() => setIsMenuOpen(false)}>🏆 Profiles & Ranking</a>
         <a href="#mentorship" onClick={() => setIsMenuOpen(false)}>🤝 Mentorship</a>
         <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>🔢 How It Works</a>
         <a href="#live-jobs" onClick={() => setIsMenuOpen(false)}>💼 Live Jobs</a>
@@ -1753,10 +1841,10 @@ export default function NewLanding() {
           <div className="lp-hero-visual">
             <div className="lp-mockup-card">
               <div className="lp-mockup-float lp-float-1">
-                <span className="lp-float-icon">✅</span> Referral Sent!
+                <span className="lp-float-icon">✅</span> Referral Kit Ready
               </div>
               <div className="lp-mockup-float lp-float-2">
-                <span className="lp-float-icon">🎉</span> Interview Scheduled
+                <span className="lp-float-icon">🎉</span> Prep Plan Ready
               </div>
               <div className="lp-mockup-header">
                 <div className="lp-dot lp-dot-r"></div>
@@ -1772,7 +1860,7 @@ export default function NewLanding() {
                 <span className="lp-mockup-tag">Node.js</span>
                 <span className="lp-mockup-tag">System Design</span>
               </div>
-              <button className="lp-mockup-cta" onClick={handleGetStarted}>Request Referral ✨</button>
+              <button className="lp-mockup-cta" onClick={handleGetStarted}>Build Referral Kit ✨</button>
             </div>
           </div>
         </div>
@@ -1885,7 +1973,7 @@ export default function NewLanding() {
                   <div className="lp-ats-locked-inner">
                     <h4>Locked Full Report</h4>
                     <p>Unlock keyword gaps, matched keywords, deeper score breakdown, and personalized resume guidance after signup.</p>
-                    <div className="lp-ats-fake-lines">
+                    <div className="lp-ats-preview-lines">
                       <div></div>
                       <div></div>
                       <div></div>
@@ -1923,6 +2011,51 @@ export default function NewLanding() {
               {f.highlight && <span className="lp-bento-badge">Most Popular ✨</span>}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* PUBLIC PROFILES + LEADERBOARD */}
+      <section id="public-profiles" className="lp-profiles">
+        <div className="lp-profiles-wrap">
+          <div className="lp-profile-copy">
+            <div className="lp-section-tag">Public Profiles</div>
+            <h2 className="lp-section-title">Turn career progress into a <span>shareable profile</span></h2>
+            <p className="lp-section-sub">
+              Seekers, referrers, and mentors can share public profiles. Leaderboard ranking is based on real ReferralMe activity like profile completion, referrals, mentorship sessions, ratings, and ATS readiness.
+            </p>
+            <div className="lp-profile-pills">
+              <span>Seeker profiles</span>
+              <span>Referrer profiles</span>
+              <span>Mentor ratings</span>
+              <span>Real ranking signals</span>
+            </div>
+            <div className="lp-campus-actions">
+              <a href="/leaderboard" className="lp-btn-primary">View Leaderboard</a>
+              <button className="lp-btn-secondary" onClick={handleGetStarted} disabled={isSigningIn}>
+                Create Profile
+              </button>
+            </div>
+          </div>
+
+          <div className="lp-profile-board">
+            {[
+              { rank: "01", name: "Top Mentor", meta: "Completed sessions + ratings", score: "Quality score" },
+              { rank: "02", name: "Referral Champion", meta: "Accepted referral activity", score: "Referral score" },
+              { rank: "03", name: "Placement Ready", meta: "ATS + profile readiness", score: "Seeker score" },
+            ].map((item) => (
+              <div key={item.rank} className="lp-profile-card">
+                <div className="lp-profile-rank">{item.rank}</div>
+                <div className="lp-profile-person">
+                  <strong>{item.name}</strong>
+                  <span>{item.meta}</span>
+                </div>
+                <div className="lp-profile-score">{item.score}</div>
+              </div>
+            ))}
+            <div className="lp-profile-note">
+              Ranking is a transparent progress signal. It helps users understand activity and credibility, but it never guarantees a job, interview, referral, or mentorship outcome.
+            </div>
+          </div>
         </div>
       </section>
 
@@ -2018,7 +2151,7 @@ export default function NewLanding() {
             <span className="lp-activity-live-dot"></span>
             Live Activity
           </div>
-          <h2 className="lp-activity-title">Happening right now on ReferralMe</h2>
+          <h2 className="lp-activity-title">What ReferralMe tracks across the career workflow</h2>
         </div>
         <div className="lp-ticker-wrap">
           <div className="lp-activity-scroll-row">
