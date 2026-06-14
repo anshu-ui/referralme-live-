@@ -1,6 +1,6 @@
-import type { ATSAnalysisHistory, FirestoreUser, MentorshipSession, ReferralRequest } from "./firestore";
+import type { FirestoreUser, MentorshipSession, ReferralRequest } from "./firestore";
 
-export type PublicRankCategory = "referrer" | "mentor" | "seeker";
+export type PublicRankCategory = "referrer" | "mentor";
 
 export interface PublicRankEntry {
   user: FirestoreUser;
@@ -10,12 +10,9 @@ export interface PublicRankEntry {
   badge: string;
   subtitle: string;
   metrics: {
-    jobs?: number;
     acceptedReferrals?: number;
     completedMentorships?: number;
     averageRating?: number;
-    atsScore?: number;
-    applications?: number;
     profileCompletion?: number;
   };
 }
@@ -44,7 +41,7 @@ export const getProfileCompletionScore = (user: Partial<FirestoreUser>) => {
     !!getUserDisplayName(user),
     !!user.email,
     !!user.photoURL || !!user.profileImageUrl,
-    !!user.bio,
+    !!user.bio || !!user.mentorshipBio,
     !!user.company || !!user.designation,
     parseSkills(user.skills).length > 0,
     !!user.linkedinUrl || !!user.linkedin,
@@ -59,11 +56,7 @@ export const getProfileBadge = (score: number, category: PublicRankCategory) => 
     if (score >= 90) return "Career Guide";
     return "New Mentor";
   }
-  if (category === "seeker") {
-    if (score >= 160) return "Placement Ready";
-    if (score >= 90) return "Rising Candidate";
-    return "Profile Starter";
-  }
+
   if (score >= 180) return "Referrer of the Month";
   if (score >= 90) return "Referral Champion";
   return "Trusted Referrer";
@@ -73,64 +66,60 @@ export const buildPublicLeaderboard = ({
   users,
   requests,
   sessions,
-  atsHistoryByUser = {},
 }: {
   users: FirestoreUser[];
   requests: ReferralRequest[];
   sessions: MentorshipSession[];
-  atsHistoryByUser?: Record<string, ATSAnalysisHistory[]>;
 }) => {
-  const activeUsers = (users || []).filter((user) => !user.isSuspended && user.role !== "admin");
+  const activeReferrers = (users || []).filter((user) => !user.isSuspended && user.role === "referrer");
 
-  const entries = activeUsers.map((user) => {
-    const userRequestsAsReferrer = (requests || []).filter((request) => request.referrerId === user.uid);
-    const userRequestsAsSeeker = (requests || []).filter((request) => request.seekerId === user.uid);
+  const entries = activeReferrers.flatMap((user) => {
+    const referrerRequests = (requests || []).filter((request) => request.referrerId === user.uid);
     const mentorSessions = (sessions || []).filter((session) => session.mentorId === user.uid);
-    const menteeSessions = (sessions || []).filter((session) => session.menteeId === user.uid);
-    const atsHistory = atsHistoryByUser[user.uid] || [];
-    const latestAtsScore = atsHistory[0]?.overallScore || 0;
-    const acceptedReferrals = userRequestsAsReferrer.filter((request) => request.status === "accepted").length;
+    const acceptedReferrals = referrerRequests.filter((request) => request.status === "accepted").length;
     const completedMentorships = mentorSessions.filter((session) => session.status === "completed").length;
+    const paidMentorships = mentorSessions.filter((session) => session.paymentStatus === "paid").length;
     const profileCompletion = getProfileCompletionScore(user);
+    const subtitle = user.company && user.designation
+      ? `${user.designation} at ${user.company}`
+      : user.company || user.designation || "ReferralMe professional";
 
-    const category: PublicRankCategory =
-      user.role === "seeker"
-        ? "seeker"
-        : user.isMentorshipEnabled || completedMentorships > 0
-          ? "mentor"
-          : "referrer";
-
-    const referrerScore = acceptedReferrals * 35 + userRequestsAsReferrer.length * 8;
+    const referrerScore = profileCompletion + acceptedReferrals * 35 + referrerRequests.length * 8;
     const mentorScore =
+      profileCompletion +
       completedMentorships * 45 +
-      mentorSessions.filter((session) => session.paymentStatus === "paid").length * 15 +
+      paidMentorships * 15 +
       Math.round((user.mentorshipRating || 0) * 10);
-    const seekerScore =
-      latestAtsScore +
-      userRequestsAsSeeker.length * 10 +
-      menteeSessions.filter((session) => session.status === "completed").length * 12;
-    const score = profileCompletion + referrerScore + mentorScore + seekerScore;
 
-    return {
+    const baseMetrics = {
+      acceptedReferrals,
+      completedMentorships,
+      averageRating: user.mentorshipRating || 0,
+      profileCompletion,
+    };
+
+    const rows: Array<Omit<PublicRankEntry, "rank">> = [{
       user,
-      category,
-      score,
-      badge: getProfileBadge(score, category),
-      subtitle:
-        category === "seeker"
-          ? user.designation || "Career seeker"
-          : user.company && user.designation
-            ? `${user.designation} at ${user.company}`
-            : user.company || user.designation || "ReferralMe professional",
-      metrics: {
-        acceptedReferrals,
-        completedMentorships,
-        averageRating: user.mentorshipRating || 0,
-        atsScore: latestAtsScore,
-        applications: userRequestsAsSeeker.length,
-        profileCompletion,
-      },
-    } satisfies Omit<PublicRankEntry, "rank">;
+      category: "referrer",
+      score: referrerScore,
+      badge: getProfileBadge(referrerScore, "referrer"),
+      subtitle,
+      metrics: baseMetrics,
+    }];
+
+    const hasActiveMentorshipService = (user.mentorshipServices || []).some((service) => service.isActive);
+    if (user.isMentorshipEnabled || hasActiveMentorshipService || mentorSessions.length > 0) {
+      rows.push({
+        user,
+        category: "mentor",
+        score: mentorScore,
+        badge: getProfileBadge(mentorScore, "mentor"),
+        subtitle,
+        metrics: baseMetrics,
+      });
+    }
+
+    return rows;
   });
 
   return entries

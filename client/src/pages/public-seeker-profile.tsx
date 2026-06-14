@@ -10,7 +10,7 @@ import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { getReferralRequestsBySeeker, getUserATSAnalysisHistory, getUserProfile } from "../lib/firestore";
 import type { ATSAnalysisHistory, FirestoreUser, ReferralRequest } from "../lib/firestore";
-import { getProfileBadge, getProfileCompletionScore, getUserDisplayName, parseSkills } from "../lib/publicRanking";
+import { getProfileCompletionScore, getUserDisplayName, parseSkills } from "../lib/publicRanking";
 
 interface PublicSeekerProfileProps {
   seekerId?: string;
@@ -70,7 +70,7 @@ export default function PublicSeekerProfile({ seekerId }: PublicSeekerProfilePro
       profileCompletion,
       acceptedRequests,
       readinessScore,
-      badge: getProfileBadge(readinessScore + acceptedRequests * 20, "seeker"),
+      badge: getSeekerBadge(readinessScore + acceptedRequests * 20),
     };
   }, [atsHistory, profile, requests]);
 
@@ -300,4 +300,10 @@ function MetricCard({ label, value, icon }: { label: string; value: string; icon
       </CardContent>
     </Card>
   );
+}
+
+function getSeekerBadge(score: number) {
+  if (score >= 160) return "Placement Ready";
+  if (score >= 90) return "Rising Candidate";
+  return "Profile Starter";
 }

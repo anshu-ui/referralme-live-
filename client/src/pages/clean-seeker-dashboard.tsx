@@ -54,7 +54,13 @@ import {
 export default function CleanSeekerDashboard() {
   const { user, logout } = useFirebaseAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("career-agent");
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return user?.uid ? localStorage.getItem(`referralme:openTab:${user.uid}`) || "career-agent" : "career-agent";
+    } catch {
+      return "career-agent";
+    }
+  });
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
   const [isATSAnalyzerOpen, setIsATSAnalyzerOpen] = useState(false);
@@ -75,6 +81,19 @@ export default function CleanSeekerDashboard() {
   // Real-time data from Firestore
   const { jobs: jobPostings, loading: jobsLoading } = useJobPostings();
   const { requests: applications, loading: applicationsLoading } = useReferralRequests("seeker");
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    try {
+      const requestedTab = localStorage.getItem(`referralme:openTab:${user.uid}`);
+      if (requestedTab) {
+        setActiveTab(requestedTab);
+        localStorage.removeItem(`referralme:openTab:${user.uid}`);
+      }
+    } catch {
+      // ignore localStorage issues
+    }
+  }, [user?.uid]);
 
   // Calculate real stats from actual data
   const realStats = {

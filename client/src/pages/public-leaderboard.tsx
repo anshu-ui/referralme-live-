@@ -12,16 +12,14 @@ import {
   getAllMentorshipSessions,
   getAllReferralRequests,
   getAllUsers,
-  getUserATSAnalysisHistory,
 } from "../lib/firestore";
-import type { ATSAnalysisHistory, FirestoreUser, MentorshipSession, ReferralRequest } from "../lib/firestore";
+import type { FirestoreUser, MentorshipSession, ReferralRequest } from "../lib/firestore";
 import { buildPublicLeaderboard, getUserDisplayName, parseSkills, type PublicRankCategory, type PublicRankEntry } from "../lib/publicRanking";
 
 const categoryLabels: Record<PublicRankCategory | "all", string> = {
   all: "All",
   referrer: "Referrers",
   mentor: "Mentors",
-  seeker: "Seekers",
 };
 
 export default function PublicLeaderboard() {
@@ -30,7 +28,6 @@ export default function PublicLeaderboard() {
   const [users, setUsers] = useState<FirestoreUser[]>([]);
   const [requests, setRequests] = useState<ReferralRequest[]>([]);
   const [sessions, setSessions] = useState<MentorshipSession[]>([]);
-  const [atsHistoryByUser, setAtsHistoryByUser] = useState<Record<string, ATSAnalysisHistory[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
 
@@ -43,15 +40,9 @@ export default function PublicLeaderboard() {
           getAllMentorshipSessions(),
         ]);
 
-        const seekerUsers = allUsers.filter((user) => user.role === "seeker").slice(0, 40);
-        const atsPairs = await Promise.all(
-          seekerUsers.map(async (user) => [user.uid, await getUserATSAnalysisHistory(user.uid)] as const),
-        );
-
         setUsers(allUsers);
         setRequests(allRequests);
         setSessions(allSessions);
-        setAtsHistoryByUser(Object.fromEntries(atsPairs));
       } catch (error) {
         console.error("Error loading public leaderboard:", error);
         toast({
@@ -68,8 +59,8 @@ export default function PublicLeaderboard() {
   }, [toast]);
 
   const leaderboard = useMemo(
-    () => buildPublicLeaderboard({ users, requests, sessions, atsHistoryByUser }),
-    [atsHistoryByUser, requests, sessions, users],
+    () => buildPublicLeaderboard({ users, requests, sessions }),
+    [requests, sessions, users],
   );
 
   const searchedLeaderboard = useMemo(() => {
@@ -132,7 +123,7 @@ export default function PublicLeaderboard() {
                 Public profiles, visible progress, real competition.
               </h1>
               <p className="mt-4 max-w-2xl text-lg text-blue-100">
-                Rankings are built from real ReferralMe activity: referrals, mentorship sessions, profile completion, ratings, and seeker readiness.
+                Referrers and mentors are ranked separately from real ReferralMe activity: referrals, mentorship sessions, profile completion, and ratings.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -176,17 +167,17 @@ export default function PublicLeaderboard() {
               <div className="rounded-xl border border-blue-100 bg-white p-3">Profile completion builds baseline trust.</div>
               <div className="rounded-xl border border-blue-100 bg-white p-3">Accepted referral requests increase referrer score.</div>
               <div className="rounded-xl border border-blue-100 bg-white p-3">Completed mentorship and ratings increase mentor score.</div>
-              <div className="rounded-xl border border-blue-100 bg-white p-3">ATS readiness and applications increase seeker progress.</div>
+              <div className="rounded-xl border border-blue-100 bg-white p-3">Mentors and referrers are scored in separate ranking lists.</div>
             </CardContent>
           </Card>
 
           <Tabs defaultValue="all" className="mt-8">
-            <TabsList className="grid w-full grid-cols-4">
-              {(["all", "referrer", "mentor", "seeker"] as const).map((category) => (
+            <TabsList className="grid w-full grid-cols-3">
+              {(["all", "referrer", "mentor"] as const).map((category) => (
                 <TabsTrigger key={category} value={category}>{categoryLabels[category]}</TabsTrigger>
               ))}
             </TabsList>
-            {(["all", "referrer", "mentor", "seeker"] as const).map((category) => {
+            {(["all", "referrer", "mentor"] as const).map((category) => {
               const entries = category === "all"
                 ? searchedLeaderboard
                 : searchedLeaderboard.filter((entry) => entry.category === category);
@@ -195,7 +186,7 @@ export default function PublicLeaderboard() {
                   <div className="space-y-3">
                     {entries.slice(0, 50).map((entry) => (
                       <LeaderboardRow key={`${entry.category}-${entry.user.uid}`} entry={entry} onOpen={() => {
-                        setLocation(entry.user.role === "seeker" ? `/seeker/${entry.user.uid}` : `/referrer/${entry.user.uid}`);
+                        setLocation(`/referrer/${entry.user.uid}`);
                       }} />
                     ))}
                     {!entries.length ? (
@@ -284,7 +275,6 @@ function LeaderboardRow({ entry, onOpen }: { entry: PublicRankEntry; onOpen: () 
         <MiniStat label="Score" value={entry.score} />
         <MiniStat label="Referrals" value={entry.metrics.acceptedReferrals || 0} />
         <MiniStat label="Sessions" value={entry.metrics.completedMentorships || 0} />
-        {entry.category === "seeker" ? <MiniStat label="ATS" value={entry.metrics.atsScore || 0} /> : null}
         {entry.metrics.averageRating ? (
           <div className="flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
             <Star className="h-4 w-4 fill-amber-400" />

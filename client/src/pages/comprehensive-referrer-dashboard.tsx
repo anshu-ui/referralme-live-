@@ -23,7 +23,7 @@ import {
   ThumbsUp, ThumbsDown, AlertCircle, ChevronRight, ExternalLink,
   Video, Phone, UserPlus, Search, Tag, BookOpen, Edit, Trash2,
   Shield, Target, Zap, Sparkles, Medal, Gift, ArrowRight,
-  CheckCircle2, BadgeCheck, Flame, Crown, Bot, Brain, Users2, CreditCard, Share2, Copy
+  CheckCircle2, Bot, CreditCard, Share2
 } from "lucide-react";
 
 import ApplicationDetailsModal from "../components/application-details-modal";
@@ -48,11 +48,8 @@ import { useToast } from "../hooks/use-toast";
 import {
   computeRequestMatchScore,
   computeShortlistTier,
-  getUserReferralInvitations,
-  getUserReferralStats,
   isJobAtCapacity,
   isJobExpired,
-  initializeReferralCode,
   subscribeToReferrerJobPostings,
   subscribeToMentorshipSessions,
   updateReferralRequestStatus,
@@ -96,7 +93,13 @@ export default function ComprehensiveReferrerDashboard() {
   const { user, firebaseUser, logout, refreshUser } = useFirebaseAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return user?.uid ? localStorage.getItem(`referralme:openTab:${user.uid}`) || "overview" : "overview";
+    } catch {
+      return "overview";
+    }
+  });
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
@@ -115,6 +118,19 @@ export default function ComprehensiveReferrerDashboard() {
   // Real data from Firebase using the subscription-based hooks
   const { jobs: allJobPostings, loading: jobsLoading, createJob, updateJob, deleteJob } = useJobPostings();
   const { requests, loading: requestsLoading } = useReferralRequests("referrer");
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    try {
+      const requestedTab = localStorage.getItem(`referralme:openTab:${user.uid}`);
+      if (requestedTab) {
+        setActiveTab(requestedTab);
+        localStorage.removeItem(`referralme:openTab:${user.uid}`);
+      }
+    } catch {
+      // ignore localStorage issues
+    }
+  }, [user?.uid]);
 
   // Filter job postings to only show those created by this user
   const myJobPostings = managedJobPostings.length
@@ -831,7 +847,21 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
 
               {user ? (
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <MentorshipSettingsPanel user={user as unknown as FirestoreUser} onUpdated={refreshUser} />
+                  <MentorshipSettingsPanel
+                    user={user as unknown as FirestoreUser}
+                    onUpdated={async () => {
+                      try {
+                        if (user?.uid) {
+                          localStorage.setItem(`referralme:openTab:${user.uid}`, "mentorship");
+                        }
+                      } catch {
+                        // ignore localStorage issues
+                      }
+                      setActiveTab("mentorship");
+                      await refreshUser();
+                      setActiveTab("mentorship");
+                    }}
+                  />
                   <MentorshipSessionsPanel user={user as unknown as FirestoreUser} role="mentor" />
                 </div>
               ) : null}
@@ -1132,107 +1162,7 @@ function OverviewSection({ stats, jobs, requests }: { stats: any; jobs: any[]; r
         </CardContent>
       </Card>
 
-      <InviteColleagueCard />
     </div>
-  );
-}
-
-function InviteColleagueCard() {
-  const { user } = useFirebaseAuth();
-  const { toast } = useToast();
-  const [referralCode, setReferralCode] = useState("");
-
-  useEffect(() => {
-    const loadInviteData = async () => {
-      if (!user?.uid) return;
-
-      try {
-        const stats = await getUserReferralStats(user.uid);
-        const code =
-          stats?.referralCode ||
-          (await initializeReferralCode(user.uid, user.displayName || user.email || "Referrer"));
-        setReferralCode(code || "");
-      } catch (error) {
-        console.error("Error loading referrer invite data:", error);
-      }
-    };
-
-    loadInviteData();
-  }, [user?.uid, user?.displayName, user?.email]);
-
-  const inviteLink = referralCode && typeof window !== "undefined"
-    ? `${window.location.origin}?ref=${referralCode}`
-    : "";
-
-  const copyInviteLink = async () => {
-    if (!inviteLink) return;
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      toast({
-        title: "Invite link copied",
-        description: "Share it with colleagues who can post real opportunities on ReferralMe.",
-      });
-    } catch (error) {
-      console.error("Error copying referrer invite link:", error);
-      toast({
-        title: "Copy failed",
-        description: "The invite link could not be copied. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const shareInviteOnWhatsApp = () => {
-    if (!inviteLink) return;
-    const message = `Know someone who can share real opportunities too? Join me on ReferralMe: ${inviteLink}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-  };
-
-  const emailInvite = () => {
-    if (!inviteLink) return;
-    const subject = encodeURIComponent("Join me on ReferralMe");
-    const body = encodeURIComponent(
-      `Hi,\n\nI’m using ReferralMe to share referral opportunities and manage candidate requests more easily. If you also post internal openings, join me here:\n\n${inviteLink}\n\nThanks!`,
-    );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  };
-
-  return (
-    <Card className="border-violet-200 bg-gradient-to-r from-violet-50 to-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Users2 className="h-5 w-5 text-violet-600" />
-          Invite a Colleague
-        </CardTitle>
-        <CardDescription>
-          Know someone who can share real opportunities too? Invite them to join ReferralMe.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-violet-100 bg-white/90 p-4">
-          <p className="text-sm text-slate-700">
-            Invite coworkers or trusted friends who can post real opportunities and help more candidates get noticed.
-          </p>
-          <div className="mt-3 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-2 text-sm text-violet-900">
-            Invite code: <span className="font-semibold tracking-wide">{referralCode || "--"}</span>
-          </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <Button variant="outline" className="flex-1" onClick={copyInviteLink} disabled={!inviteLink}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Invite Link
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={emailInvite} disabled={!inviteLink}>
-              <MessageCircle className="mr-2 h-4 w-4" />
-              Invite by Email
-            </Button>
-            <Button className="flex-1 bg-violet-600 hover:bg-violet-700" onClick={shareInviteOnWhatsApp} disabled={!inviteLink}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

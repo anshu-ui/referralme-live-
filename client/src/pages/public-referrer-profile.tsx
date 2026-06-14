@@ -164,6 +164,15 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
       return;
     }
 
+    try {
+      localStorage.setItem(`referralme:openTab:${firebaseUser.uid}`, "mentorship");
+      if (referrerId) {
+        localStorage.setItem(`referralme:mentorshipSearch:${firebaseUser.uid}`, getUserDisplayName(referrerData));
+      }
+    } catch {
+      // Non-blocking: navigation still works without localStorage.
+    }
+
     setLocation(user?.role === "seeker" ? "/seeker-dashboard" : "/dashboard");
     toast({
       title: "Open mentorship marketplace",
