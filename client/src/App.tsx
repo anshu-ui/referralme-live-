@@ -5,38 +5,39 @@ import { Toaster } from "./components/ui/toaster";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useCampusAuth } from "./hooks/useCampusAuth";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
 import { updateUser, isProfileComplete, type PlatformAnnouncement, subscribeToPlatformAnnouncements } from "./lib/firestore";
 import { isAdminUser } from "./lib/admin";
 import { Bell, ChevronRight } from "lucide-react";
-import NotFound from "./pages/not-found";
-import ComprehensiveReferrerDashboard from "./pages/comprehensive-referrer-dashboard";
-import CleanSeekerDashboard from "./pages/clean-seeker-dashboard";
 import NewLanding from "./pages/new-landing";
-import AdminDashboard from "./pages/admin-dashboard";
-import RoleSelection from "./pages/role-selection";
-import ProfileEdit from "./pages/profile-edit";
-import CreateJobPosting from "./pages/create-job-posting";
-import JobDetails from "./pages/job-details";
-import PublicReferrerProfile from "./pages/public-referrer-profile";
-import PublicSeekerProfile from "./pages/public-seeker-profile";
-import PublicLeaderboard from "./pages/public-leaderboard";
-import JobPostingPage from "./pages/job-posting-page";
-import PaymentSetup from "./pages/payment-setup";
-import PrivacyPolicy from "./pages/privacy-policy";
-import TermsOfService from "./pages/terms-of-service";
-import RefundPolicy from "./pages/refund-policy";
-import ReturnPolicy from "./pages/return-policy";
-import ContactPage from "./pages/contact";
-import CampusAmbassadorLanding from "./pages/campus-ambassador";
-import CampusAmbassadorApplyPage from "./pages/campus-ambassador-apply";
-import CampusAmbassadorAdminPage from "./pages/campus-ambassador-admin";
-import CampusAmbassadorDashboard from "./pages/campus-ambassador-dashboard";
 import { isCampusFirebaseConfigured } from "./lib/campus-firebase";
 
 const CAMPUS_ADMIN_EMAIL = "amit@referralme.in";
+
+const ComprehensiveReferrerDashboard = lazy(() => import("./pages/comprehensive-referrer-dashboard"));
+const CleanSeekerDashboard = lazy(() => import("./pages/clean-seeker-dashboard"));
+const AdminDashboard = lazy(() => import("./pages/admin-dashboard"));
+const RoleSelection = lazy(() => import("./pages/role-selection"));
+const ProfileEdit = lazy(() => import("./pages/profile-edit"));
+const CreateJobPosting = lazy(() => import("./pages/create-job-posting"));
+const JobDetails = lazy(() => import("./pages/job-details"));
+const PublicReferrerProfile = lazy(() => import("./pages/public-referrer-profile"));
+const PublicSeekerProfile = lazy(() => import("./pages/public-seeker-profile"));
+const PublicLeaderboard = lazy(() => import("./pages/public-leaderboard"));
+const JobPostingPage = lazy(() => import("./pages/job-posting-page"));
+const PaymentSetup = lazy(() => import("./pages/payment-setup"));
+const PrivacyPolicy = lazy(() => import("./pages/privacy-policy"));
+const TermsOfService = lazy(() => import("./pages/terms-of-service"));
+const RefundPolicy = lazy(() => import("./pages/refund-policy"));
+const ReturnPolicy = lazy(() => import("./pages/return-policy"));
+const ContactPage = lazy(() => import("./pages/contact"));
+const PricingPage = lazy(() => import("./pages/pricing"));
+const CampusAmbassadorLanding = lazy(() => import("./pages/campus-ambassador"));
+const CampusAmbassadorApplyPage = lazy(() => import("./pages/campus-ambassador-apply"));
+const CampusAmbassadorAdminPage = lazy(() => import("./pages/campus-ambassador-admin"));
+const CampusAmbassadorDashboard = lazy(() => import("./pages/campus-ambassador-dashboard"));
 
 function Router() {
   const { user, firebaseUser, isLoading, refreshUser, signInWithGoogle, logout } = useFirebaseAuth();
@@ -136,14 +137,16 @@ function Router() {
   return (
     <>
       <PlatformAnnouncementRail announcements={visibleAnnouncements} />
-      <Switch>
-        {/* Public routes - always accessible */}
+      <Suspense fallback={<RouteLoadingScreen />}>
+        <Switch>
+          {/* Public routes - always accessible */}
 
-	      <Route path="/privacy-policy" component={PrivacyPolicy} />
-	      <Route path="/terms-of-service" component={TermsOfService} />
-	      <Route path="/refund-policy" component={RefundPolicy} />
-	      <Route path="/return-policy" component={ReturnPolicy} />
-	      <Route path="/contact" component={ContactPage} />
+	        <Route path="/privacy-policy" component={PrivacyPolicy} />
+	        <Route path="/terms-of-service" component={TermsOfService} />
+	        <Route path="/refund-policy" component={RefundPolicy} />
+	        <Route path="/return-policy" component={ReturnPolicy} />
+	        <Route path="/contact" component={ContactPage} />
+	        <Route path="/pricing" component={PricingPage} />
 	      
 	      {/* Authentication flow routes - PROTECTED */}
 	      <Route path="/role-selection" component={() => {
@@ -383,12 +386,30 @@ function Router() {
       <Route path="/leaderboard" component={PublicLeaderboard} />
       
       {/* ROOT PATH - ALWAYS SHOW LANDING PAGE (MUST BE LAST TO AVOID CONFLICTS) */}
-      <Route path="/" component={NewLanding} />
+        <Route path="/" component={NewLanding} />
       
-      {/* Fallback - always show landing page */}
-        <Route component={NewLanding} />
-      </Switch>
+        {/* Fallback - always show landing page */}
+          <Route component={NewLanding} />
+        </Switch>
+      </Suspense>
     </>
+  );
+}
+
+function RouteLoadingScreen() {
+  return (
+    <div className="min-h-[60vh] bg-slate-50 px-4 py-16">
+      <div className="mx-auto flex max-w-md flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-lg font-black text-white">
+          R
+        </div>
+        <div className="mt-6 h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-slate-900" />
+        </div>
+        <p className="mt-4 text-sm font-semibold text-slate-700">Loading ReferralMe workspace...</p>
+        <p className="mt-1 text-xs text-slate-500">Preparing the right tools for this page.</p>
+      </div>
+    </div>
   );
 }
 

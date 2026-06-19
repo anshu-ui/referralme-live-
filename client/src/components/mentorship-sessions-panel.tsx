@@ -169,9 +169,9 @@ export default function MentorshipSessionsPanel({
                       </span>
                       {Number.isFinite(s.price) ? (
                         <span className="inline-flex items-center gap-1">
-                          ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}
+                          ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))} INR
                           {role === "mentor" && Number.isFinite(s.mentorPayoutAmount)
-                            ? ` (you earn ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))})`
+                            ? ` (you earn ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))} INR)`
                             : ""}
                         </span>
                       ) : null}

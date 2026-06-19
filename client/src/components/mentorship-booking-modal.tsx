@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { 
-  CalendarIcon, Clock, DollarSign, Video, User, Star, 
+  CalendarIcon, Clock, IndianRupee, Video, User, Star, 
   CreditCard, CheckCircle, AlertCircle, Phone
 } from "lucide-react";
 import { format, addDays, setHours, setMinutes } from "date-fns";
@@ -372,8 +372,8 @@ export default function MentorshipBookingModal({
                                 {service.duration} mins
                               </div>
                               <div className="flex items-center gap-1 text-sm font-medium text-green-600">
-                                <DollarSign className="h-4 w-4" />
-                                ₹{service.price}
+                                <IndianRupee className="h-4 w-4" />
+                                ₹{service.price} INR
                               </div>
                             </div>
                           </div>
@@ -406,7 +406,7 @@ export default function MentorshipBookingModal({
                       <span className="font-medium">{selectedService.title}</span>
                     </div>
                     <Badge variant="outline">{selectedService.duration} mins</Badge>
-                    <Badge variant="outline">₹{selectedService.price}</Badge>
+                    <Badge variant="outline">₹{selectedService.price} INR</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -500,7 +500,7 @@ export default function MentorshipBookingModal({
                   <Separator />
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total:</span>
-                    <span>₹{selectedService.price}</span>
+                    <span>₹{selectedService.price} INR</span>
                   </div>
                 </CardContent>
               </Card>
@@ -605,7 +605,7 @@ export default function MentorshipBookingModal({
                 </Button>
                 <Button onClick={handlePayment} disabled={isBooking} className="flex-1">
                   <CreditCard className="h-4 w-4 mr-2" />
-                  {isBooking ? "Processing..." : `Pay ₹${selectedService.price}`}
+                  {isBooking ? "Processing..." : `Pay ₹${selectedService.price} INR`}
                 </Button>
               </div>
             </div>

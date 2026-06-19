@@ -897,7 +897,7 @@ ${user?.firstName ? `Shared by ${user.firstName}${user?.company ? ` from ${user.
                   </div>
                   <div>
                     <Label className="font-semibold">Salary</Label>
-                    <p>{selectedJob.salary}</p>
+                    <p>{selectedJob.salary?.replace(/\$/g, "₹").replace(/\s*INR\s*$/i, "")} INR</p>
                   </div>
                 </div>
                 <div>
@@ -1536,7 +1536,7 @@ function MyJobsSection({ jobPostings, requests, onCreateJob, onViewJob, onEditJo
                 {job.salary && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <IndianRupee className="h-4 w-4" />
-                    {job.salary?.replace(/\$/g, '₹')}
+                    {job.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR
                   </div>
                 )}
                 {job.quickSummary && (
@@ -2143,7 +2143,7 @@ function EditJobForm({ job, onClose, onSave }: { job: any, onClose: () => void, 
       </div>
 
       <div>
-        <Label htmlFor="salary">Salary Range</Label>
+        <Label htmlFor="salary">Salary Range (INR)</Label>
         <Input 
           id="salary" 
           value={formData.salary}
@@ -2546,13 +2546,13 @@ function EarningsSection({
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground">Completed earnings</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{totalEarned}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{totalEarned} INR</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground">Pending from active sessions</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{pendingEarnings}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">₹{pendingEarnings} INR</p>
           </CardContent>
         </Card>
         <Card>
@@ -2577,7 +2577,7 @@ function EarningsSection({
                   {session.menteeName} · {session.status.replace("_", " ")}
                 </p>
               </div>
-              <p className="font-semibold text-slate-900">₹{session.price || 0}</p>
+              <p className="font-semibold text-slate-900">₹{session.price || 0} INR</p>
             </div>
           )) : (
             <div className="rounded-lg border bg-slate-50 p-6 text-center text-sm text-muted-foreground">

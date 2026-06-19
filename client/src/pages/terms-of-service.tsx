@@ -19,7 +19,7 @@ export default function TermsOfService() {
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
             <div className="inline-flex items-center bg-blue-50 border border-blue-200 rounded-lg px-6 py-3">
-              <p className="text-blue-800 font-medium">Last updated: January 12, 2025</p>
+              <p className="text-blue-800 font-medium">Last updated: June 19, 2026</p>
             </div>
           </div>
         </div>
@@ -38,14 +38,15 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-2xl font-semibold mb-4">Service Description</h2>
               <p className="text-gray-700 mb-4">
-                ReferralMe is a professional networking platform that connects job seekers with industry 
-                professionals through a referral system. Our services include:
+                ReferralMe provides digital career tools and connects job seekers with industry professionals.
+                Our services include:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-700">
                 <li>Job posting and discovery platform</li>
                 <li>Referral request and management system</li>
                 <li>Professional networking and mentorship services</li>
-                <li>Premium features for enhanced user experience</li>
+                <li>ATS resume analysis, AI career guidance, and interview preparation</li>
+                <li>Career Pro access for ₹599 INR per 30-day access period</li>
               </ul>
             </section>
 
@@ -64,7 +65,7 @@ export default function TermsOfService() {
                   <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
                     <li><strong>Job Seekers:</strong> Free registration with limited referral requests (3 per month)</li>
                     <li><strong>Referrers:</strong> Free registration with unlimited job posting capabilities</li>
-                    <li><strong>Premium Users:</strong> Paid subscription with unlimited features</li>
+                    <li><strong>Career Pro Users:</strong> ₹599 INR for 30 days of the features listed on our Pricing page</li>
                   </ul>
                 </div>
               </div>
@@ -93,9 +94,10 @@ export default function TermsOfService() {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Subscription Terms</h3>
                   <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
-                    <li>Subscriptions are billed monthly or annually as selected</li>
-                    <li>Auto-renewal can be disabled in account settings</li>
-                    <li>Service access continues until the end of the billing period</li>
+                    <li>Career Pro costs ₹599 INR for one 30-day access period</li>
+                    <li>Career Pro is currently a one-time payment and does not renew automatically</li>
+                    <li>A new payment is required to purchase another 30-day access period</li>
+                    <li>Service access continues until the end of the purchased access period</li>
                     <li>No partial refunds for unused portions of subscription periods</li>
                   </ul>
                 </div>
@@ -202,7 +204,7 @@ export default function TermsOfService() {
                 <div className="space-y-2 text-blue-700">
                   <p><strong>Dispute Resolution Process:</strong></p>
                   <ol className="list-decimal list-inside space-y-1 ml-4">
-                    <li>Contact our support team first: support@referralme.in</li>
+                    <li>Contact our support team first: info@referralme.in</li>
                     <li>Escalate to our legal team: legal@referralme.in</li>
                     <li>Mediation through approved mediators in Bangalore</li>
                     <li>Arbitration as per Indian Arbitration and Conciliation Act</li>

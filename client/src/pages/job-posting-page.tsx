@@ -176,7 +176,7 @@ export default function JobPostingPage() {
                   <Input
                     id="salary"
                     {...form.register("salary")}
-                    placeholder="e.g., ₹12L - ₹20L"
+                    placeholder="e.g., ₹12L - ₹20L INR"
                     className="h-11 border border-gray-200 focus:border-blue-500 rounded-md transition-all duration-200"
                   />
                 </div>

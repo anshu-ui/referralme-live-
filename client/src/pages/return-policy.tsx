@@ -21,7 +21,7 @@ export default function ReturnPolicy() {
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Return Policy</h1>
             <div className="inline-flex items-center bg-blue-50 border border-blue-200 rounded-lg px-6 py-3">
-              <p className="text-blue-800 font-medium">Last updated: May 20, 2026</p>
+              <p className="text-blue-800 font-medium">Last updated: June 19, 2026</p>
             </div>
           </div>
         </div>

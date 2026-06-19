@@ -192,7 +192,7 @@ export default function ReferrerDashboard() {
                       name="salary"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Salary Range</FormLabel>
+                          <FormLabel>Salary Range (INR)</FormLabel>
                           <FormControl>
                             <Input placeholder="$150K - $200K" {...field} value={field.value || ""} />
                           </FormControl>

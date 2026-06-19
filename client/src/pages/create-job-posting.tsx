@@ -241,7 +241,7 @@ export default function CreateJobPosting() {
 
       const salary =
         data.salaryMin || data.salaryMax
-          ? `₹${data.salaryMin || "?"}L - ₹${data.salaryMax || "?"}L`
+          ? `₹${data.salaryMin || "?"}L - ₹${data.salaryMax || "?"}L INR`
           : undefined;
 
       const jobData = {
@@ -772,7 +772,7 @@ export default function CreateJobPosting() {
             <div className="rounded-xl border bg-slate-50 p-4 text-sm text-slate-700 space-y-2">
               <p className="flex items-center gap-2"><Lock className="h-4 w-4" /> Listing: public</p>
               <p className="flex items-center gap-2"><Target className="h-4 w-4" /> ATS cutoff: {values.minAtsScore}</p>
-              <p className="flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Salary: {values.salaryMin || values.salaryMax ? `₹${values.salaryMin || "?"}L - ₹${values.salaryMax || "?"}L` : "Not shared"}</p>
+              <p className="flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Salary: {values.salaryMin || values.salaryMax ? `₹${values.salaryMin || "?"}L - ₹${values.salaryMax || "?"}L INR` : "Not shared"}</p>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowLinkedInShare(false)}>

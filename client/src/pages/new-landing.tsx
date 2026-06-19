@@ -1757,6 +1757,7 @@ export default function NewLanding() {
             <li><a href="#hero" className={activeSection === "hero" ? "active" : ""}>Home</a></li>
             <li><a href="#resume-scan" className={activeSection === "resume-scan" ? "active" : ""}>Free ATS Scan</a></li>
             <li><a href="#features" className={activeSection === "features" ? "active" : ""}>Features</a></li>
+            <li><a href="/pricing">Pricing</a></li>
             <li><a href="#public-profiles" className={activeSection === "public-profiles" ? "active" : ""}>Profiles</a></li>
             <li><a href="#mentorship" className={activeSection === "mentorship" ? "active" : ""}>Mentorship</a></li>
             <li><a href="#how-it-works" className={activeSection === "how-it-works" ? "active" : ""}>How It Works</a></li>
@@ -1779,6 +1780,7 @@ export default function NewLanding() {
         <a href="#hero" onClick={() => setIsMenuOpen(false)}>🏠 Home</a>
         <a href="#resume-scan" onClick={() => setIsMenuOpen(false)}>📄 Free ATS Scan</a>
         <a href="#features" onClick={() => setIsMenuOpen(false)}>⚡ Features</a>
+        <a href="/pricing" onClick={() => setIsMenuOpen(false)}>₹ Pricing</a>
         <a href="#public-profiles" onClick={() => setIsMenuOpen(false)}>🏆 Profiles & Ranking</a>
         <a href="#mentorship" onClick={() => setIsMenuOpen(false)}>🤝 Mentorship</a>
         <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>🔢 How It Works</a>
@@ -2127,7 +2129,7 @@ export default function NewLanding() {
                         <span className="lp-mentor-badge">{count ? `${count}+ sessions` : "Fresh mentor"}</span>
                       </div>
                       <div className="lp-mentor-footer">
-                        <div className="lp-mentor-price">{price ? `From ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(price)}` : "View pricing"}</div>
+                        <div className="lp-mentor-price">{price ? `From ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(price)} INR` : "View INR pricing"}</div>
                         <button className="lp-mentor-cta" onClick={handleGetStarted} disabled={isSigningIn}>
                           Book
                         </button>
@@ -2275,7 +2277,11 @@ export default function NewLanding() {
                     <p className="lp-ref-company">{job.company}</p>
                     <div className="lp-ref-meta">
                       <div className="lp-ref-meta-row">📍 <span>{job.location}</span></div>
-                      {job.salary && <div className="lp-ref-meta-row">₹ <span>{job.salary}</span></div>}
+                      {job.salary && (
+                        <div className="lp-ref-meta-row">
+                          ₹ <span>{job.salary.replace(/^[₹$]\s*/, "").replace(/\$/g, "₹").replace(/\s*INR\s*$/i, "")} INR</span>
+                        </div>
+                      )}
                     </div>
                     {job.skills && job.skills.length > 0 && (
                       <div className="lp-ref-skills">
@@ -2416,6 +2422,7 @@ export default function NewLanding() {
             <h4>Platform</h4>
             <ul>
               <li><a href="#features">Features</a></li>
+              <li><a href="/pricing">Pricing</a></li>
               <li><a href="#how-it-works">How It Works</a></li>
               <li><a href="#live-jobs">Live Jobs</a></li>
               <li><a href="/campus-ambassador">Campus Program</a></li>

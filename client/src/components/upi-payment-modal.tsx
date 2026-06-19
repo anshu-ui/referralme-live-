@@ -134,7 +134,7 @@ export default function UPIPaymentModal({
             UPI Payment
           </DialogTitle>
           <DialogDescription>
-            Pay ₹{paymentData.amount} to {paymentData.merchantName}
+            Pay ₹{paymentData.amount} INR to {paymentData.merchantName}
           </DialogDescription>
         </DialogHeader>
 
@@ -160,7 +160,7 @@ export default function UPIPaymentModal({
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Amount:</span>
-                <span className="font-semibold text-lg text-green-600">₹{paymentData.amount}</span>
+                <span className="font-semibold text-lg text-green-600">₹{paymentData.amount} INR</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">To:</span>
@@ -252,7 +252,7 @@ export default function UPIPaymentModal({
                 ) : (
                   <QrCode className="h-32 w-32 text-gray-400 mx-auto" />
                 )}
-                <p className="text-xs text-gray-500 mt-2">Scan to Pay ₹{paymentData.amount}</p>
+                <p className="text-xs text-gray-500 mt-2">Scan to Pay ₹{paymentData.amount} INR</p>
               </div>
             </div>
           )}

@@ -772,7 +772,7 @@ export default function CleanSeekerDashboard() {
                             {job.salary && (
                               <span className="flex items-center gap-1">
                                 <IndianRupee className="h-4 w-4" />
-                                {job.salary?.replace(/\$/g, '₹')}
+                                {job.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR
                               </span>
                             )}
                           </div>

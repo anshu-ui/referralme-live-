@@ -14,7 +14,7 @@ import { ScrollArea } from "../components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
 import { 
-  Plus, Building, MapPin, DollarSign, Users, TrendingUp, 
+  Plus, Building, MapPin, IndianRupee, Users, TrendingUp, 
   Clock, CheckCircle, XCircle, AlertCircle, Bell, Settings,
   User, Edit, Trash2, Eye, MessageCircle, FileText,
   Target, BarChart3, Activity, Calendar, Filter,
@@ -191,7 +191,7 @@ export default function CleanReferrerDashboard() {
 🚀 ROLE: ${job.title}
 🏢 COMPANY: ${job.company}
 📍 LOCATION: ${job.location}
-💰 SALARY: ${(job.salaryRange || job.salary || 'Competitive package').replace(/\$/g, '₹')}
+💰 SALARY: ${(job.salaryRange || job.salary || 'Competitive package').replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR
 ⏰ TYPE: ${job.type || 'Full-time'}${experienceText}
 
 📝 WHAT YOU'LL BE DOING:
@@ -443,8 +443,8 @@ ${user?.firstName ? `Best regards,\n${user.firstName}` : ''}
                                 </span>
                                 {job.salary && (
                                   <span className="flex items-center gap-1">
-                                    <DollarSign className="h-4 w-4" />
-                                    {job.salary?.replace(/\$/g, '₹')}
+                                    <IndianRupee className="h-4 w-4" />
+                                    {job.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR
                                   </span>
                                 )}
                               </div>

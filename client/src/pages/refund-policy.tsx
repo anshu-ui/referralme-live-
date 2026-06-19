@@ -21,7 +21,7 @@ export default function RefundPolicy() {
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Refund & Cancellation Policy</h1>
             <div className="inline-flex items-center bg-blue-50 border border-blue-200 rounded-lg px-6 py-3">
-              <p className="text-blue-800 font-medium">Last updated: May 20, 2026</p>
+              <p className="text-blue-800 font-medium">Last updated: June 19, 2026</p>
             </div>
           </div>
         </div>
@@ -89,8 +89,9 @@ export default function RefundPolicy() {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Subscription Cancellation</h3>
                   <ul className="list-disc list-inside space-y-2">
-                    <li>Subscriptions can be cancelled any time to stop future renewals.</li>
-                    <li>Fees already paid for a current billing period are typically not refunded unless required by law.</li>
+                    <li>Career Pro costs ₹599 INR for one 30-day access period.</li>
+                    <li>Career Pro does not currently renew automatically, so no cancellation is required to stop future billing.</li>
+                    <li>Fees already paid for the current 30-day period are not refunded after access is activated, except where required by law or where the service is not delivered due to a ReferralMe technical issue.</li>
                   </ul>
                 </div>
               </div>

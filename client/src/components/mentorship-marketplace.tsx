@@ -340,7 +340,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                               </span>
                               <span className="inline-flex items-center gap-1">
                                 <IndianRupee className="h-3 w-3" />
-                                {fmtInr(best.price)}
+                                {fmtInr(best.price)} INR
                               </span>
                             </div>
                           </div>
@@ -417,7 +417,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                   </span>
                                   <span className="inline-flex items-center gap-1">
                                     <IndianRupee className="h-3.5 w-3.5" />
-                                    {fmtInr(svc.price)}
+                                    {fmtInr(svc.price)} INR
                                   </span>
                                 </div>
                               </div>
@@ -468,7 +468,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                         </span>
                                         <span className="inline-flex items-center gap-1">
                                           <IndianRupee className="h-3.5 w-3.5" />
-                                          {fmtInr(svc.price)}
+                                          {fmtInr(svc.price)} INR
                                         </span>
                                       </div>
                                     </div>
@@ -514,7 +514,7 @@ export default function MentorshipMarketplace({ user }: { user: FirestoreUser })
                                         </div>
                                         <div className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
                                           <span className="text-slate-600">Amount</span>
-                                          <span className="font-semibold text-slate-950">₹{fmtInr(svc.price)}</span>
+                                          <span className="font-semibold text-slate-950">₹{fmtInr(svc.price)} INR</span>
                                         </div>
                                       </div>
                                     </div>

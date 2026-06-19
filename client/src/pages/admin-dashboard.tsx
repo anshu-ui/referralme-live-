@@ -632,33 +632,33 @@ export default function AdminDashboard() {
   const recentAnnouncements = announcements.slice(0, 4);
 
   const projectionFinance = useMemo(() => {
-    const inr = (amount: number) => `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)}`;
+    const inr = (amount: number) => `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)} INR`;
     const revenueSources = [
       {
         source: "Student Pro subscriptions",
         users: "500 students",
-        unit: "₹200/month",
+        unit: "₹599 INR / 30 days",
         amount: 100000,
         note: "AI Mentor, ATS, placement plan, interview prep",
       },
       {
         source: "Mentorship platform fee",
         users: "50 bookings",
-        unit: "₹1,000 average booking x 20%",
+        unit: "₹1,000 INR average booking x 20%",
         amount: 10000,
         note: "Platform keeps 20%, mentor payout handled separately",
       },
       {
         source: "Premium resume review",
         users: "60 reviews",
-        unit: "₹500 average",
+        unit: "₹500 INR average",
         amount: 30000,
         note: "Advanced resume/ATS guidance package",
       },
       {
         source: "College/internship cohort",
         users: "20 seats",
-        unit: "₹500 average",
+        unit: "₹500 INR average",
         amount: 10000,
         note: "Campus/internship prep partner revenue",
       },
@@ -1086,7 +1086,7 @@ export default function AdminDashboard() {
               <div className="mt-2 text-xs text-slate-600">
                 Payout amount:{" "}
                 <span className="font-semibold text-slate-900">
-                  ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(payoutTarget?.mentorPayoutAmount || 0))}
+                  ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(payoutTarget?.mentorPayoutAmount || 0))} INR
                 </span>
               </div>
             </div>
@@ -1128,7 +1128,7 @@ export default function AdminDashboard() {
                 <div>
                   Amount:{" "}
                   <span className="font-semibold text-slate-900">
-                    ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(paymentVerifyTarget?.price || 0))}
+                    ₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(paymentVerifyTarget?.price || 0))} INR
                   </span>
                 </div>
                 <div>UPI ID: <span className="font-semibold text-slate-900">{paymentVerifyTarget?.manualUpiId || "—"}</span></div>
@@ -1888,13 +1888,13 @@ export default function AdminDashboard() {
             <div className="grid gap-4 md:grid-cols-2">
               <MetricCard
                 title="Mentorship GMV"
-                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalGmv)}`}
+                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalGmv)} INR`}
                 hint="Sum of session prices"
                 icon={TrendingUp}
               />
               <MetricCard
                 title="Platform Fees"
-                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalFees)}`}
+                value={`₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(mentorshipSummary.totalFees)} INR`}
                 hint="20% fee captured on paid sessions"
                 icon={Target}
               />
@@ -1942,9 +1942,9 @@ export default function AdminDashboard() {
                         <TableCell className="max-w-[180px] truncate text-xs">
                           {s.manualPaymentReference || s.razorpayPaymentId || s.cashfreeOrderId || "-"}
                         </TableCell>
-                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))}</TableCell>
-	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))}</TableCell>
-	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))}</TableCell>
+                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.price || 0))} INR</TableCell>
+	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.platformFeeAmount || 0))} INR</TableCell>
+	                        <TableCell className="text-right">₹{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(s.mentorPayoutAmount || 0))} INR</TableCell>
 	                        <TableCell className="text-xs capitalize">{s.payoutStatus || "unpaid"}</TableCell>
 	                        <TableCell className="text-right">
 	                          {s.paymentProvider === "manual_upi" && s.paymentStatus !== "paid" ? (
@@ -1992,7 +1992,7 @@ export default function AdminDashboard() {
                 hint="Subscription + mentorship + services"
                 icon={TrendingUp}
               />
-              <MetricCard title="Paid Users" value={projectionFinance.latestMonth.paidUsers} hint="Students at ₹200/month" icon={Users} />
+              <MetricCard title="Paid Users" value={projectionFinance.latestMonth.paidUsers} hint="Students at ₹599 INR / 30 days" icon={Users} />
               <MetricCard title="AI Mentor Chats" value={projectionFinance.latestMonth.aiChats.toLocaleString("en-IN")} hint="Monthly guidance conversations" icon={Activity} />
               <MetricCard
                 title="Planned Split"
@@ -2018,7 +2018,7 @@ export default function AdminDashboard() {
                     <BarChart data={projectionFinance.sourceChartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
-                      <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                      <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k INR`} />
                       <Tooltip formatter={(value: number) => projectionFinance.inr(Number(value))} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="#2563eb" />
                     </BarChart>
@@ -2036,7 +2036,7 @@ export default function AdminDashboard() {
                       <AreaChart data={projectionFinance.monthlyTrend}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                        <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                        <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k INR`} />
                         <Tooltip formatter={(value: number) => projectionFinance.inr(Number(value))} />
                         <Area type="monotone" dataKey="subscriptions" stackId="1" stroke="#2563eb" fill="#93c5fd" />
                         <Area type="monotone" dataKey="mentorship" stackId="1" stroke="#0f766e" fill="#5eead4" />

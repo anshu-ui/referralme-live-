@@ -225,9 +225,11 @@ export default function JobDetails({ jobId }: JobDetailsProps) {
                   <div className="flex items-center gap-2 text-xs sm:text-sm">
                     <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
                     <span className="break-words">
-                      {jobData.salaryMin && jobData.salaryMax 
-                        ? `₹${jobData.salaryMin} - ₹${jobData.salaryMax}`
-                        : jobData.salary || 'Competitive salary'}
+                      {jobData.salaryMin && jobData.salaryMax
+                        ? `₹${jobData.salaryMin} - ₹${jobData.salaryMax} INR`
+                        : jobData.salary
+                          ? `${jobData.salary.replace(/\$/g, "₹").replace(/\s*INR\s*$/i, "")} INR`
+                          : "Competitive salary"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm">

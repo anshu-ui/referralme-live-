@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { 
-  Target, TrendingUp, MapPin, DollarSign, Building, 
+  Target, TrendingUp, MapPin, IndianRupee, Building, 
   Star, Sparkles, Brain, CheckCircle, Clock, ExternalLink,
   Users, Calendar, Award, Zap
 } from "lucide-react";
@@ -78,7 +78,7 @@ export default function AIJobMatcher({
         title: "Frontend Engineer",
         company: "ReferralMe Partner - TechFlow Inc.",
         location: "San Francisco, CA",
-        salary: "$120,000 - $160,000",
+        salary: "₹24L - ₹32L INR",
         matchPercentage: 94,
         matchReasons: [
           "Posted by verified referrer on ReferralMe",
@@ -100,7 +100,7 @@ export default function AIJobMatcher({
         title: "Full Stack Developer",
         company: "ReferralMe Partner - InnovateLab",
         location: "Remote (US)",
-        salary: "$100,000 - $140,000",
+        salary: "₹18L - ₹26L INR",
         matchPercentage: 87,
         matchReasons: [
           "Posted by verified referrer Mike Chen on ReferralMe",
@@ -122,7 +122,7 @@ export default function AIJobMatcher({
         title: "React Developer",
         company: "ReferralMe Partner - DataCorp Solutions",
         location: "Austin, TX",
-        salary: "$85,000 - $110,000",
+        salary: "₹12L - ₹18L INR",
         matchPercentage: 82,
         matchReasons: [
           "Posted by Jennifer Rodriguez on ReferralMe",
@@ -144,7 +144,7 @@ export default function AIJobMatcher({
         title: "Frontend Engineering Lead",
         company: "CloudTech Dynamics",
         location: "Seattle, WA",
-        salary: "$140,000 - $180,000",
+        salary: "₹30L - ₹42L INR",
         matchPercentage: 76,
         matchReasons: [
           "Leadership experience valued",
@@ -326,8 +326,8 @@ export default function AIJobMatcher({
                       {job.location}
                     </div>
                     <div className="flex items-center gap-1">
-                      <DollarSign className="h-4 w-4" />
-                      {job.salary}
+                      <IndianRupee className="h-4 w-4" />
+                      {job.salary.replace(/\$/g, "₹")}
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />

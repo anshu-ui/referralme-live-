@@ -160,7 +160,7 @@ export default function JobPostingModal({ isOpen, onClose, user, onJobPosted }: 
           </div>
 
           <div>
-            <Label htmlFor="salary">Salary Range (Optional)</Label>
+            <Label htmlFor="salary">Salary Range in INR (Optional)</Label>
             <Input
               id="salary"
               value={jobData.salary}

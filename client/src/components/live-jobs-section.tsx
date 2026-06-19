@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getJobPostings, JobPosting } from "../lib/firestore";
-import { Briefcase, MapPin, DollarSign, ChevronRight, ExternalLink } from "lucide-react";
+import { Briefcase, MapPin, IndianRupee, ChevronRight, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 
 export default function LiveJobsSection() {
@@ -73,8 +73,8 @@ export default function LiveJobsSection() {
                   </div>
                   {job.salary && (
                     <div className="flex items-center gap-2">
-                      <DollarSign size={16} />
-                      <span>{job.salary}</span>
+                      <IndianRupee size={16} />
+                      <span>{job.salary.replace(/\$/g, "₹").replace(/\s*INR\s*$/i, "")} INR</span>
                     </div>
                   )}
                 </div>

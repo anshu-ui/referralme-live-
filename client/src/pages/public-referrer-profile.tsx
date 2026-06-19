@@ -332,7 +332,7 @@ export default function PublicReferrerProfile({ referrerId }: PublicReferrerProf
                         </div>
                         <Badge className="bg-teal-100 text-teal-800">
                           <IndianRupee className="mr-1 h-3 w-3" />
-                          {service.price}
+                          {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(service.price)} INR
                         </Badge>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-sm text-slate-500">

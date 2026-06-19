@@ -9,7 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { 
   CreditCard, CheckCircle, AlertCircle, ExternalLink, 
   Smartphone, IndianRupee, Shield, Zap, Building2, 
-  ArrowRight, Clock, DollarSign
+  ArrowRight, Clock
 } from "lucide-react";
 import { updateUser, FirestoreUser } from "../lib/firestore";
 import { validateUPIId } from "../lib/upi";
@@ -102,7 +102,7 @@ export default function DualPaymentSetup({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
+            <IndianRupee className="h-5 w-5 text-green-600" />
             Payment Method Setup
           </DialogTitle>
           <DialogDescription>

@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { X, Briefcase, MapPin, DollarSign, FileText, Users } from "lucide-react";
+import { X, Briefcase, MapPin, IndianRupee, FileText, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -177,8 +177,8 @@ export default function JobPostingForm({ isOpen, onClose, onJobPosted }: JobPost
 
                 <div className="space-y-2">
                   <Label htmlFor="salary" className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Salary Range
+                    <IndianRupee className="h-4 w-4" />
+                    Salary Range (INR)
                   </Label>
                   <Input
                     id="salary"

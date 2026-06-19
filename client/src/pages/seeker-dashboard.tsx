@@ -228,7 +228,7 @@ export default function SeekerDashboard() {
                   {referral.salary && (
                     <div className="flex items-center text-sm text-gray-600">
                       <IndianRupee className="w-4 h-4 mr-2" />
-                      <span>{referral.salary?.replace(/\$/g, '₹')}</span>
+                      <span>{referral.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR</span>
                     </div>
                   )}
                   <div className="flex items-center text-sm text-gray-600">

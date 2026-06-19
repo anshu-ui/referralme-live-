@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { 
-  Search, MapPin, DollarSign, Calendar, Building, Send, 
+  Search, MapPin, IndianRupee, Calendar, Building, Send, 
   MessageCircle, FileText, TrendingUp, Target, Star, 
   Clock, CheckCircle, XCircle, Upload, Download, Bell, 
   Activity, BarChart3, Award, Filter, Settings, User,
@@ -676,8 +676,8 @@ function JobCard({ job, onApply, getMatchScoreBadge }: any) {
               {job.location}
             </span>
             <span className="flex items-center gap-1">
-              <DollarSign className="h-4 w-4" />
-              {job.salary?.replace(/\$/g, '₹')}
+              <IndianRupee className="h-4 w-4" />
+              {job.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR
             </span>
           </div>
           
@@ -1048,7 +1048,7 @@ function CareerToolsSection({ onATSAnalyzer }: any) {
     {
       title: "Salary Negotiation Guide",
       description: "Learn how to research and negotiate competitive compensation packages",
-      icon: <DollarSign className="h-8 w-8" />,
+      icon: <IndianRupee className="h-8 w-8" />,
       color: "bg-yellow-50 text-yellow-600",
       action: () => {},
       buttonText: "View Guide",
@@ -1242,7 +1242,7 @@ function ApplyJobForm({ job, onClose }: any) {
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
         <h3 className="font-semibold text-gray-900 dark:text-white">{job.title}</h3>
         <p className="text-gray-600 dark:text-gray-400">{job.company} • {job.location}</p>
-        <p className="text-sm text-green-600 font-medium">{job.salary?.replace(/\$/g, '₹')}</p>
+        <p className="text-sm text-green-600 font-medium">{job.salary?.replace(/\$/g, '₹').replace(/\s*INR\s*$/i, '')} INR</p>
       </div>
 
       {/* Personal Information */}
