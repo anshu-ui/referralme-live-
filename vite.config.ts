@@ -31,23 +31,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-
-          if (id.includes("/firebase/") || id.includes("@firebase")) return "vendor-firebase";
-          if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
-          if (id.includes("@radix-ui")) return "vendor-radix";
-          if (id.includes("lucide-react")) return "vendor-icons";
-          if (id.includes("@tanstack")) return "vendor-query";
-          if (id.includes("react") || id.includes("wouter")) return "vendor-react";
-          if (id.includes("framer-motion")) return "vendor-motion";
-
-          return "vendor";
-        },
-      },
-    },
   },
   server: {
     fs: {
@@ -58,7 +41,6 @@ export default defineConfig({
     },
   },
 });
-
 
 
 
