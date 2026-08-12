@@ -29,7 +29,6 @@ import {
 import ApplicationDetailsModal from "../components/application-details-modal";
 import EnhancedRequestDetails from "../components/enhanced-request-details";
 import ReferralSystem from "../components/referral-system";
-import ComingSoonBadge from "../components/coming-soon-badge";
 import RealTimeGamification from "../components/real-time-gamification";
 import DashboardFooter from "../components/dashboard-footer";
 import AutoAchievementSystem from "../components/auto-achievement-system";
@@ -2148,7 +2147,7 @@ function EditJobForm({ job, onClose, onSave }: { job: any, onClose: () => void, 
           id="salary" 
           value={formData.salary}
           onChange={(e) => handleChange("salary", e.target.value)}
-          placeholder="e.g. $120k - $160k" 
+          placeholder="e.g. ₹18L - ₹28L INR" 
         />
       </div>
 
@@ -2594,7 +2593,7 @@ function EarningsSection({
   );
 }
 
-// Mentorship Section - Temporarily disabled for phased launch
+// Legacy mentorship section kept for older dashboard routes.
 interface MentorshipSectionProps {
   user: any;
   isMentorAccountSetupOpen: boolean;
@@ -2608,7 +2607,7 @@ function MentorshipSection({ user, isMentorAccountSetupOpen, setIsMentorAccountS
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mentorship Platform</h2>
-        <ComingSoonBadge feature="Coming Soon" variant="sparkle" size="lg" />
+        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Live</Badge>
       </div>
 
       <Card>
@@ -2617,10 +2616,9 @@ function MentorshipSection({ user, isMentorAccountSetupOpen, setIsMentorAccountS
             <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
               <Users className="h-12 w-12 text-purple-600" />
             </div>
-            <h3 className="text-xl font-semibold">Mentorship Feature Coming Soon!</h3>
+            <h3 className="text-xl font-semibold">Mentorship is available</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Offer paid mentorship sessions with video calls, payment integration, and scheduling. 
-              Earn extra income by sharing your expertise!
+              Offer paid mentorship sessions, confirm payment after admin verification, add a meeting link, and track session payouts.
             </p>
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">

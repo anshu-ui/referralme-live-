@@ -84,12 +84,12 @@ export default function ApplicationTracker({ isOpen, onClose }: ApplicationTrack
           description: "Application being evaluated"
         };
       case 'accepted':
-        return {
-          label: "Accepted",
-          color: "bg-green-100 text-green-800 border-green-200",
-          icon: <CheckCircle2 className="w-4 h-4" />,
-          description: "Referral accepted! Next steps coming soon"
-        };
+      return {
+        label: "Accepted",
+        color: "bg-green-100 text-green-800 border-green-200",
+        icon: <CheckCircle2 className="w-4 h-4" />,
+        description: "Referral accepted. Watch your dashboard for the next action."
+      };
       case 'sent_to_hr':
         return {
           label: "Sent to HR",

@@ -517,6 +517,190 @@ export function generateLiteInterviewPack(args: { intake?: Intake; roundType?: s
   return lines.join("\n");
 }
 
+export function generateLiteInterviewQuestions(args: {
+  intake?: Intake;
+  roundType?: string;
+  difficulty?: string;
+  questionCount?: number;
+}) {
+  const intake = args.intake || {};
+  const role = norm(intake.targetRole) || "your target role";
+  const round = norm(args.roundType) || "technical";
+  const difficulty = norm(args.difficulty) || "fresher";
+  const track = guessTrack(role);
+  const count = Math.max(3, Math.min(8, Number(args.questionCount || 5)));
+
+  const technicalByTrack: Record<string, string[]> = {
+    frontend: [
+      "Explain a React project you built. How did you manage state, data fetching, and deployment?",
+      "What performance issue did you face in a frontend app, and how did you diagnose it?",
+      "How would you design a reusable form component with validation and error handling?",
+      "Explain event loop, promises, and async/await using a real example.",
+      "How do you make a web page accessible and responsive for mobile users?",
+    ],
+    backend: [
+      "Walk me through an API you built. What were the endpoints, data model, and auth flow?",
+      "How would you design rate limiting and retries for a production API?",
+      "Explain SQL indexes and one case where an index can hurt performance.",
+      "How do you handle validation, logging, and errors in a backend service?",
+      "Describe a difficult bug you fixed in a server-side project.",
+    ],
+    data: [
+      "Explain a data project where your analysis changed a decision.",
+      "Write how you would investigate a sudden drop in conversion rate.",
+      "What SQL concepts do you use most often, and where do people make mistakes?",
+      "How do you handle missing data, outliers, and biased samples?",
+      "Explain a dashboard metric and how you would prevent misinterpretation.",
+    ],
+    product: [
+      "Choose one product you use daily. What would you improve and why?",
+      "How would you prioritize features when engineering capacity is limited?",
+      "Define success metrics for a referral or mentorship product.",
+      "Tell me about a time you used data to make a product decision.",
+      "How would you validate a new feature before building it fully?",
+    ],
+    design: [
+      "Walk me through one case study: problem, users, constraints, solution, outcome.",
+      "How do you handle conflicting feedback from users and stakeholders?",
+      "What accessibility issue do you commonly check in UI design?",
+      "Explain your design process from research to handoff.",
+      "How would you redesign a confusing onboarding flow?",
+    ],
+    general: [
+      "Walk me through your strongest project and the impact it created.",
+      "What is one technical or domain skill you improved recently, and how?",
+      "Describe a difficult problem you solved and the tradeoffs you considered.",
+      "How do you approach a task when requirements are unclear?",
+      "Why are you a strong fit for this role compared with other candidates?",
+    ],
+  };
+
+  const roundLower = round.toLowerCase();
+  const hrQuestions = [
+    "Tell me about yourself in 90 seconds, focusing on your target role.",
+    "Why do you want this role, and why now?",
+    "Tell me about a failure or mistake and what changed after that.",
+    "Describe a conflict with a teammate and how you handled it.",
+    "What are your strengths and one honest improvement area?",
+  ];
+  const managerQuestions = [
+    "Tell me about a project you owned end-to-end. How did you plan and execute it?",
+    "How do you prioritize when multiple tasks are urgent?",
+    "Describe a time you handled ambiguity or unclear requirements.",
+    "How do you communicate delays, blockers, or tradeoffs?",
+    "What would your previous teammates say you are reliable for?",
+  ];
+  const systemQuestions = [
+    "Design a notification system for job alerts. Clarify requirements first.",
+    "Design a resume upload and analysis pipeline for thousands of users.",
+    "Design an application tracker with reminders and status updates.",
+    "How would you scale search and filtering for mentor discovery?",
+    "Explain your database choice, APIs, caching, and failure handling.",
+  ];
+  const caseQuestions = [
+    "ReferralMe wants to improve paid mentorship bookings. How would you diagnose and improve conversion?",
+    "A student has low ATS score but wants referrals. What product flow should guide them?",
+    "Company recruiters want only high-quality candidates. What screening signals would you use?",
+    "How would you price a career pro subscription for Indian students?",
+    "What metrics would you track for an AI interview product?",
+  ];
+
+  const pool = roundLower.includes("hr")
+    ? hrQuestions
+    : roundLower.includes("manager")
+      ? managerQuestions
+      : roundLower.includes("system")
+        ? systemQuestions
+        : roundLower.includes("case")
+          ? caseQuestions
+          : technicalByTrack[track] || technicalByTrack.general;
+
+  return pool.slice(0, count).map((question, index) => ({
+    id: `q${index + 1}`,
+    question,
+    focus: `${round} ${difficulty} readiness`,
+  }));
+}
+
+export function generateLiteInterviewEvaluation(args: {
+  intake?: Intake;
+  roundType?: string;
+  difficulty?: string;
+  answers?: Array<{ question?: string; answer?: string }>;
+}) {
+  const intake = args.intake || {};
+  const role = norm(intake.targetRole) || "your target role";
+  const round = norm(args.roundType) || "technical";
+  const answers = Array.isArray(args.answers) ? args.answers : [];
+  const joined = answers.map((a) => norm(a.answer)).join(" ");
+  const words = joined.split(/\s+/).filter(Boolean).length;
+  const hasNumbers = /\d|%|users|reduced|improved|increased|decreased|saved/i.test(joined);
+  const hasStructure = /because|first|second|finally|tradeoff|impact|result|learned/i.test(joined);
+  const hasRoleTerms = new RegExp(role.split(/\s+/).filter((w) => w.length > 2).slice(0, 3).join("|"), "i").test(joined);
+
+  const base = Math.min(78, 42 + Math.round(words / 9));
+  const communication = Math.min(92, base + (hasStructure ? 10 : 0));
+  const technical = Math.min(90, base + (hasNumbers ? 7 : 0) + (hasRoleTerms ? 5 : 0));
+  const confidence = Math.min(88, base + (answers.filter((a) => norm(a.answer).length > 140).length * 3));
+  const roleFit = Math.min(90, base + (hasRoleTerms ? 10 : 0));
+  const overall = Math.round((communication + technical + confidence + roleFit) / 4);
+  const verdict = overall >= 78 ? "ready" : overall >= 62 ? "almost_ready" : "needs_practice";
+
+  const feedback = [
+    "AI INTERVIEW SCORECARD",
+    `Role: ${role}`,
+    `Round: ${round}`,
+    "",
+    `Overall readiness: ${overall}/100`,
+    `Communication: ${communication}/100`,
+    `Technical/domain depth: ${technical}/100`,
+    `Confidence: ${confidence}/100`,
+    `Role fit: ${roleFit}/100`,
+    "",
+    "STRENGTHS",
+    "• You attempted the questions with relevant context.",
+    hasStructure ? "• Your answers show some structure and reasoning." : "• You have a starting point for clearer answer structure.",
+    hasNumbers ? "• Some answers include measurable impact or concrete details." : "• You can improve by adding measurable impact.",
+    "",
+    "TOP IMPROVEMENTS",
+    "• Use STAR format: Situation, Task, Action, Result.",
+    "• Add numbers, scale, tools, constraints, and tradeoffs.",
+    "• End each answer with the business or user impact.",
+    "",
+    "NEXT PRACTICE PLAN",
+    "• Rewrite your weakest 2 answers in 6-8 lines each.",
+    "• Record yourself once and remove filler words.",
+    "• Do one mentor mock if your score is below 70.",
+  ].join("\n");
+
+  return {
+    text: feedback,
+    scorecard: {
+      overall,
+      communication,
+      technical,
+      confidence,
+      roleFit,
+      verdict,
+      strengths: [
+        "Relevant attempt across interview questions.",
+        hasStructure ? "Some structured reasoning is visible." : "Clear opportunity to build stronger structure.",
+        hasNumbers ? "Includes concrete impact signals." : "Answers can become stronger with numbers.",
+      ],
+      improvements: [
+        "Use STAR format for behavioral and project answers.",
+        "Add metrics, tools, constraints, and tradeoffs.",
+        "Make answers specific to the target role.",
+      ],
+      nextSteps: [
+        "Rewrite the weakest two answers.",
+        "Practice one timed mock interview.",
+        overall < 70 ? "Book a mentor mock interview for targeted feedback." : "Apply this structure to company-specific rounds.",
+      ],
+    },
+  };
+}
+
 export function generateLiteResumeRewrite(args: { intake?: Intake; resumeText?: string }) {
   const intake = args.intake || {};
   const role = norm(intake.targetRole) || "your target role";

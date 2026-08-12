@@ -224,7 +224,7 @@ function TopThree({ entries }: { entries: PublicRankEntry[] }) {
         const icons = [Crown, Trophy, Medal];
         const Icon = icons[index] || Award;
         return (
-          <Card key={entry.user.uid} className={index === 0 ? "border-amber-200 bg-amber-50" : ""}>
+          <Card key={`${entry.category}-${entry.user.uid}-${index}`} className={index === 0 ? "border-amber-200 bg-amber-50" : ""}>
             <CardContent className="p-5 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-white">
                 <Icon className="h-6 w-6" />

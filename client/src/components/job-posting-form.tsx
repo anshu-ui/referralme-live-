@@ -183,7 +183,7 @@ export default function JobPostingForm({ isOpen, onClose, onJobPosted }: JobPost
                   <Input
                     id="salary"
                     {...register("salary")}
-                    placeholder="e.g. $120k - $150k"
+                    placeholder="e.g. ₹12L - ₹20L INR"
                   />
                 </div>
 

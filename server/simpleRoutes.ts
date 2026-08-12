@@ -6,7 +6,15 @@
   import crypto from "crypto";
   import Razorpay from "razorpay";
   import { GoogleGenAI } from "@google/genai";
-  import { generateLiteChat, generateLiteInterviewPack, generateLitePlan, generateLiteReferralDm, generateLiteResumeRewrite } from "./mentorLite";
+  import {
+    generateLiteChat,
+    generateLiteInterviewEvaluation,
+    generateLiteInterviewPack,
+    generateLiteInterviewQuestions,
+    generateLitePlan,
+    generateLiteReferralDm,
+    generateLiteResumeRewrite,
+  } from "./mentorLite";
   import mammoth from "mammoth";
   import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
   import { initializeApp, cert } from "firebase-admin/app";
@@ -1251,6 +1259,8 @@
     // AI Mentor (text) - server-side Gemini
     // Simple in-memory cooldown to avoid hammering upstream when quota is exhausted.
     let aiCooldownUntil = 0;
+    const aiUsageByKey = new Map<string, { day: string; count: number }>();
+    const AI_DAILY_LIMIT = Math.max(5, Number(process.env.AI_MENTOR_DAILY_LIMIT || 35));
 
     app.post("/api/ai/mentor", async (req: Request, res: Response) => {
       let intake: any = null;
@@ -1278,8 +1288,40 @@
               channel: body.channel || "linkedin",
             });
           if (mode === "interview-pack") return generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" });
+          if (mode === "interview-questions") return JSON.stringify({
+            questions: generateLiteInterviewQuestions({
+              intake: intake || {},
+              roundType: body.roundType || "",
+              difficulty: body.difficulty || "",
+              questionCount: body.questionCount || 5,
+            }),
+          });
+          if (mode === "interview-evaluate") return JSON.stringify(generateLiteInterviewEvaluation({
+            intake: intake || {},
+            roundType: body.roundType || "",
+            difficulty: body.difficulty || "",
+            answers: Array.isArray(body.answers) ? body.answers : [],
+          }));
           return generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
         };
+
+        const today = new Date().toISOString().slice(0, 10);
+        const usageKey = String(body.userId || profile?.uid || req.ip || "anonymous").slice(0, 120);
+        const usage = aiUsageByKey.get(usageKey);
+        const nextUsage = usage?.day === today ? usage : { day: today, count: 0 };
+
+        if (nextUsage.count >= AI_DAILY_LIMIT) {
+          return res.json({
+            text: offlineForMode(),
+            offline: true,
+            usageLimited: true,
+            usage: { count: nextUsage.count, limit: AI_DAILY_LIMIT },
+            message: "Daily AI usage limit reached. Returned offline guidance.",
+          });
+        }
+
+        nextUsage.count += 1;
+        aiUsageByKey.set(usageKey, nextUsage);
 
         // If we recently hit rate limit, skip upstream calls and return fallback immediately.
         if (Date.now() < aiCooldownUntil && !process.env.OPENAI_API_KEY) {
@@ -1287,6 +1329,7 @@
           return res.json({
             text: fallbackText,
             offline: true,
+            usage: { count: nextUsage.count, limit: AI_DAILY_LIMIT },
             message: "AI temporarily limited. Returned offline guidance.",
           });
         }
@@ -1336,6 +1379,33 @@
                 "",
                 "ASSISTANT:",
               ].join("\n")
+            : mode === "interview-questions"
+              ? [
+                  `SYSTEM:\n${system}\n\n`,
+                  intakeLine,
+                  "",
+                  `USER: Generate ${Math.max(3, Math.min(8, Number(body.questionCount || 5)))} interview questions for role "${intake?.targetRole || "target role"}".`,
+                  `Round type: ${body.roundType || "technical"}. Difficulty: ${body.difficulty || "fresher"}.`,
+                  "Return ONLY valid JSON in this shape:",
+                  '{"questions":[{"id":"q1","question":"...","focus":"..."}]}',
+                  "Questions should be specific, practical, and suitable for evaluating real hiring readiness.",
+                  "",
+                  "ASSISTANT:",
+                ].join("\n")
+              : mode === "interview-evaluate"
+                ? [
+                    `SYSTEM:\n${system}\n\n`,
+                    intakeLine,
+                    "",
+                    `USER: Evaluate this AI mock interview for role "${intake?.targetRole || "target role"}".`,
+                    `Round type: ${body.roundType || "technical"}. Difficulty: ${body.difficulty || "fresher"}.`,
+                    `Answers JSON: ${JSON.stringify(Array.isArray(body.answers) ? body.answers : []).slice(0, 9000)}`,
+                    "Return ONLY valid JSON in this shape:",
+                    '{"text":"professional feedback in plain text","scorecard":{"overall":75,"communication":75,"technical":75,"confidence":75,"roleFit":75,"verdict":"ready|almost_ready|needs_practice","strengths":["..."],"improvements":["..."],"nextSteps":["..."]}}',
+                    "Scoring must be honest. Penalize vague answers, missing metrics, missing role-specific depth, and weak structure.",
+                    "",
+                    "ASSISTANT:",
+                  ].join("\n")
             : [
                 `SYSTEM:\n${system}\n\n`,
                 intakeLine,
@@ -1347,7 +1417,7 @@
         const openaiText = await createOpenAIResponse({ instructions: system, input: prompt }).catch((e) => {
           throw e;
         });
-        if (openaiText) return res.json({ text: openaiText });
+        if (openaiText) return res.json({ text: openaiText, usage: { count: nextUsage.count, limit: AI_DAILY_LIMIT } });
 
         const genAI = getGeminiClient();
         if (!genAI) {
@@ -1360,7 +1430,7 @@
         });
 
         const text = response.text || "";
-        return res.json({ text });
+        return res.json({ text, usage: { count: nextUsage.count, limit: AI_DAILY_LIMIT } });
       } catch (error: any) {
         console.error("AI mentor error:", error);
         const msg = error instanceof Error ? error.message : String(error);
@@ -1383,6 +1453,22 @@
                     })
                   : m === "interview-pack"
                     ? generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" })
+                    : m === "interview-questions"
+                      ? JSON.stringify({
+                          questions: generateLiteInterviewQuestions({
+                            intake: intake || {},
+                            roundType: body.roundType || "",
+                            difficulty: body.difficulty || "",
+                            questionCount: body.questionCount || 5,
+                          }),
+                        })
+                    : m === "interview-evaluate"
+                      ? JSON.stringify(generateLiteInterviewEvaluation({
+                          intake: intake || {},
+                          roundType: body.roundType || "",
+                          difficulty: body.difficulty || "",
+                          answers: Array.isArray(body.answers) ? body.answers : [],
+                        }))
                     : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.json({
             text: fallbackText,
@@ -1409,6 +1495,22 @@
                     })
                   : m === "interview-pack"
                     ? generateLiteInterviewPack({ intake: intake || {}, roundType: body.roundType || "" })
+                    : m === "interview-questions"
+                      ? JSON.stringify({
+                          questions: generateLiteInterviewQuestions({
+                            intake: intake || {},
+                            roundType: body.roundType || "",
+                            difficulty: body.difficulty || "",
+                            questionCount: body.questionCount || 5,
+                          }),
+                        })
+                    : m === "interview-evaluate"
+                      ? JSON.stringify(generateLiteInterviewEvaluation({
+                          intake: intake || {},
+                          roundType: body.roundType || "",
+                          difficulty: body.difficulty || "",
+                          answers: Array.isArray(body.answers) ? body.answers : [],
+                        }))
                     : generateLiteChat({ intake: intake || {}, lastUserMessage: lastUser });
           return res.json({
             text: fallbackText,

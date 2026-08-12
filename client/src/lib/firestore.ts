@@ -139,6 +139,50 @@ export interface CareerReferralKit {
   updatedAt: Timestamp;
 }
 
+export interface AiInterviewQuestion {
+  id: string;
+  question: string;
+  focus: string;
+}
+
+export interface AiInterviewAnswer {
+  questionId: string;
+  question: string;
+  answer: string;
+}
+
+export interface AiInterviewScorecard {
+  overall: number;
+  communication: number;
+  technical: number;
+  confidence: number;
+  roleFit: number;
+  verdict: "ready" | "almost_ready" | "needs_practice";
+  strengths: string[];
+  improvements: string[];
+  nextSteps: string[];
+}
+
+export interface AiInterviewSession {
+  id?: string;
+  userId: string;
+  targetRole: string;
+  roundType: string;
+  difficulty: "fresher" | "intermediate" | "experienced";
+  questions: AiInterviewQuestion[];
+  answers: AiInterviewAnswer[];
+  scorecard?: AiInterviewScorecard;
+  aiFeedback?: string;
+  userFeedbackRating?: number;
+  userFeedbackComment?: string;
+  userFeedbackUseful?: boolean;
+  userWantsMentorHelp?: boolean;
+  userFeedbackAt?: Timestamp;
+  status: "draft" | "completed";
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface JobPosting {
   id?: string;
   title: string;
@@ -1550,6 +1594,66 @@ export const subscribeToCareerReferralKits = (
     callback(kits);
   }, (error) => {
     console.error("Error subscribing to career referral kits:", error);
+    onError?.(error);
+  });
+};
+
+// AI Interview operations
+export const saveAiInterviewSession = async (
+  sessionData: Omit<AiInterviewSession, "id" | "createdAt" | "updatedAt">,
+) => {
+  try {
+    const docRef = await addDoc(collection(db, "aiInterviewSessions"), sanitizeFirestorePayload({
+      ...sessionData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+
+    return docRef.id;
+  } catch (error) {
+    console.error("Error saving AI interview session:", error);
+    throw error;
+  }
+};
+
+export const updateAiInterviewSession = async (
+  sessionId: string,
+  updates: Partial<AiInterviewSession>,
+) => {
+  try {
+    const sessionRef = doc(db, "aiInterviewSessions", sessionId);
+    await updateDoc(sessionRef, sanitizeFirestorePayload({
+      ...updates,
+      updatedAt: serverTimestamp(),
+    }));
+  } catch (error) {
+    console.error("Error updating AI interview session:", error);
+    throw error;
+  }
+};
+
+export const subscribeToAiInterviewSessions = (
+  userId: string,
+  callback: (sessions: AiInterviewSession[]) => void,
+  onError?: (error: Error) => void,
+) => {
+  const q = query(collection(db, "aiInterviewSessions"), where("userId", "==", userId));
+
+  return onSnapshot(q, (querySnapshot) => {
+    const sessions = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as AiInterviewSession[];
+
+    sessions.sort((a, b) => {
+      const aTime = a.updatedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+      const bTime = b.updatedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+      return bTime.getTime() - aTime.getTime();
+    });
+
+    callback(sessions);
+  }, (error) => {
+    console.error("Error subscribing to AI interview sessions:", error);
     onError?.(error);
   });
 };

@@ -194,7 +194,7 @@ export default function ReferrerDashboard() {
                         <FormItem>
                           <FormLabel>Salary Range (INR)</FormLabel>
                           <FormControl>
-                            <Input placeholder="$150K - $200K" {...field} value={field.value || ""} />
+                            <Input placeholder="₹12L - ₹20L INR" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

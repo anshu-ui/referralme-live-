@@ -1038,30 +1038,27 @@ function CareerToolsSection({ onATSAnalyzer }: any) {
     },
     {
       title: "Interview Prep Assistant",
-      description: "Practice common interview questions and get AI-powered feedback",
+      description: "Use AI Mentor in the main seeker dashboard for role-wise interview practice and scorecards",
       icon: <Video className="h-8 w-8" />,
       color: "bg-green-50 text-green-600",
-      action: () => {},
-      buttonText: "Start Practice",
-      comingSoon: true
+      action: () => window.location.href = "/seeker-dashboard",
+      buttonText: "Open AI Mentor"
     },
     {
       title: "Salary Negotiation Guide",
-      description: "Learn how to research and negotiate competitive compensation packages",
+      description: "Prepare compensation questions with AI Mentor after your interview readiness check",
       icon: <IndianRupee className="h-8 w-8" />,
       color: "bg-yellow-50 text-yellow-600",
-      action: () => {},
-      buttonText: "View Guide",
-      comingSoon: true
+      action: () => window.location.href = "/seeker-dashboard",
+      buttonText: "Open Dashboard"
     },
     {
       title: "Career Path Planner",
-      description: "Map out your career progression and identify skill gaps",
+      description: "Generate a 30-day placement plan from your target role, resume, and blockers",
       icon: <TrendingUp className="h-8 w-8" />,
       color: "bg-purple-50 text-purple-600",
-      action: () => {},
-      buttonText: "Plan Career",
-      comingSoon: true
+      action: () => window.location.href = "/seeker-dashboard",
+      buttonText: "Open Career Agent"
     }
   ];
 
@@ -1076,11 +1073,6 @@ function CareerToolsSection({ onATSAnalyzer }: any) {
         {tools.map((tool, index) => (
           <Card key={index} className="relative">
             <CardContent className="p-6">
-              {tool.comingSoon && (
-                <Badge className="absolute top-4 right-4 bg-yellow-100 text-yellow-700 border-yellow-300">
-                  Coming Soon
-                </Badge>
-              )}
               <div className={`${tool.color} p-3 rounded-lg w-fit mb-4`}>
                 {tool.icon}
               </div>
@@ -1088,9 +1080,8 @@ function CareerToolsSection({ onATSAnalyzer }: any) {
               <p className="text-gray-600 dark:text-gray-400 mb-4">{tool.description}</p>
               <Button 
                 onClick={tool.action} 
-                disabled={tool.comingSoon}
                 className="w-full"
-                variant={tool.comingSoon ? "outline" : "default"}
+                variant="default"
               >
                 {tool.buttonText}
               </Button>

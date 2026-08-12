@@ -120,7 +120,7 @@ export default function NewLanding() {
 
   const roles = ["Software Engineer", "Product Manager", "Data Analyst", "UX Designer", "DevOps Engineer"];
   const typedRole = useTypewriter(roles);
-  const heroSignal = useRotatingLabel(["AI Career Agent", "ATS", "Mentorship", "Public Profile"]);
+  const heroSignal = useRotatingLabel(["AI Career Agent", "AI Interview", "ATS", "Mentorship", "Public Profile"]);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   useEffect(() => {
@@ -215,7 +215,8 @@ export default function NewLanding() {
   };
 
   const features = [
-    { icon: "🧠", title: "AI Career Agent", desc: "A connected workspace for resume readiness, job matching, referral kits, interview prep, and mentor suggestions.", wide: true, highlight: true },
+    { icon: "🧠", title: "AI Career Agent", desc: "A connected workspace for resume readiness, job matching, referral kits, AI interview practice, and mentor suggestions.", wide: true, highlight: true },
+    { icon: "🎤", title: "AI Interview Arena", desc: "Practice role-wise mock interviews, write answers, and get a hiring-readiness scorecard with next steps.", wide: false, highlight: false },
     { icon: "📞", title: "1:1 Mentorship", desc: "Book sessions with experienced professionals. Pay first, get a meeting link, and track everything in the dashboard.", wide: false, highlight: false },
     { icon: "📊", title: "ATS Resume Analysis", desc: "Get an instant resume score with actionable feedback and keyword suggestions.", wide: false, highlight: false },
     { icon: "🎯", title: "Referral Support (Optional)", desc: "Where available, mentors may guide you on referrals and applications. Referrals are not guaranteed and depend on company policy.", wide: false, highlight: false },
@@ -225,9 +226,9 @@ export default function NewLanding() {
 
   const steps = [
     { num: "01", icon: "👤", title: "Create Your Profile", desc: "Sign up with Google in seconds. Set your role as a job seeker or a professional referrer." },
-    { num: "02", icon: "🧠", title: "Use Career Agent", desc: "Get job matches, referral kits, interview prep, and mentor suggestions from your profile signals." },
-    { num: "03", icon: "📄", title: "Improve Your Resume", desc: "Run an ATS scan and get clear fixes: keywords, formatting, and impact bullets." },
-    { num: "04", icon: "🏆", title: "Share Your Progress", desc: "Use your public profile and leaderboard position to show activity, credibility, and momentum." },
+    { num: "02", icon: "📄", title: "Improve Your Resume", desc: "Run an ATS scan and get clear fixes: keywords, formatting, and impact bullets." },
+    { num: "03", icon: "🎤", title: "Take AI Interview", desc: "Practice round-wise questions and get a scorecard before applying or booking mentorship." },
+    { num: "04", icon: "🧠", title: "Apply With Career Agent", desc: "Get job matches, referral kits, mentor suggestions, and a cleaner application path." },
   ];
 
   const testimonials = [
@@ -1801,21 +1802,21 @@ export default function NewLanding() {
           <div>
             <div className="lp-hero-badge">
               <span className="lp-hero-badge-dot"></span>
-              Career Mentorship + ATS Toolkit
+              AI Career Copilot + Interview Readiness
             </div>
             <h1>Land Your Dream Job as a</h1>
             <div className="lp-hero-role-line">
               {typedRole}<span className="lp-typewriter-cursor"></span>
             </div>
             <p className="lp-hero-sub">
-              Get a clear plan for resumes, interviews, and applications. Use AI guidance, ATS feedback, and 1:1 mentorship to move faster with confidence.
+              Improve your resume, practice AI mock interviews, get a hiring-readiness scorecard, and use mentorship/referral support when you need human guidance.
             </p>
             <div className="lp-hero-signals">
               <div className="lp-signal-pill">
                 <span className="lp-signal-dot"></span>
                 Next up: <strong key={heroSignal}>{heroSignal}</strong>
               </div>
-              <div className="lp-signal-mini">Mentors, feedback, and live roles in one place</div>
+              <div className="lp-signal-mini">ATS, AI interviews, mentors, and live roles in one place</div>
             </div>
             <div className="lp-hero-ctas">
               <button className="lp-btn-primary" onClick={handleGetStarted} disabled={isSigningIn}>
@@ -1843,10 +1844,10 @@ export default function NewLanding() {
           <div className="lp-hero-visual">
             <div className="lp-mockup-card">
               <div className="lp-mockup-float lp-float-1">
-                <span className="lp-float-icon">✅</span> Referral Kit Ready
+                <span className="lp-float-icon">🎤</span> Interview Scorecard
               </div>
               <div className="lp-mockup-float lp-float-2">
-                <span className="lp-float-icon">🎉</span> Prep Plan Ready
+                <span className="lp-float-icon">✅</span> Referral Kit Ready
               </div>
               <div className="lp-mockup-header">
                 <div className="lp-dot lp-dot-r"></div>
@@ -1860,9 +1861,9 @@ export default function NewLanding() {
               <div className="lp-mockup-tags">
                 <span className="lp-mockup-tag">React</span>
                 <span className="lp-mockup-tag">Node.js</span>
-                <span className="lp-mockup-tag">System Design</span>
+                <span className="lp-mockup-tag">AI Mock</span>
               </div>
-              <button className="lp-mockup-cta" onClick={handleGetStarted}>Build Referral Kit ✨</button>
+              <button className="lp-mockup-cta" onClick={handleGetStarted}>Start AI Interview ✨</button>
             </div>
           </div>
         </div>

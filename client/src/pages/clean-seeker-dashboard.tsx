@@ -3,7 +3,7 @@ import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useJobPostings, useReferralRequests } from "../hooks/useFirestore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { isJobAtCapacity, isJobExpired } from "../lib/firestore";
+import { isJobAtCapacity, isJobExpired, subscribeToAiInterviewSessions, type AiInterviewSession } from "../lib/firestore";
 import { Link } from "wouter";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -50,6 +50,9 @@ import {
   trackFilterUsage 
 } from "../lib/analytics";
 
+function needsMentorFromSignals(atsScore: number | null, hasCompletedAiInterview: boolean) {
+  return !hasCompletedAiInterview || (typeof atsScore === "number" && atsScore > 0 && atsScore < 60);
+}
 
 export default function CleanSeekerDashboard() {
   const { user, logout } = useFirebaseAuth();
@@ -76,6 +79,7 @@ export default function CleanSeekerDashboard() {
   const [selectedReferrer, setSelectedReferrer] = useState<any>(null);
   const [isReferrerProfileOpen, setIsReferrerProfileOpen] = useState(false);
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+  const [aiInterviewSessions, setAiInterviewSessions] = useState<AiInterviewSession[]>([]);
 
 
   // Real-time data from Firestore
@@ -93,6 +97,13 @@ export default function CleanSeekerDashboard() {
     } catch {
       // ignore localStorage issues
     }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    return subscribeToAiInterviewSessions(user.uid, setAiInterviewSessions, () => {
+      console.error("Failed to load AI interview sessions for onboarding checklist");
+    });
   }, [user?.uid]);
 
   // Calculate real stats from actual data
@@ -238,6 +249,45 @@ export default function CleanSeekerDashboard() {
   const atsShareUrl = typeof window !== "undefined" ? `${window.location.origin}/#resume-scan` : "/#resume-scan";
   const atsShareMessage =
     "Check your ATS score free on ReferralMe and improve your resume before applying: " + atsShareUrl;
+  const hasCompletedAiInterview = aiInterviewSessions.some((session) => session.status === "completed");
+  const launchChecklist = [
+    {
+      title: "Complete your profile",
+      description: "Add role, skills, links, and profile proof so mentors/referrers can trust your background.",
+      done: profileCompletion >= 100,
+      action: "Edit profile",
+      onClick: () => (window.location.href = "/profile-edit"),
+    },
+    {
+      title: "Run ATS scan",
+      description: "Check resume structure, keywords, and truthful improvements before applying.",
+      done: Boolean(realStats.atsScore),
+      action: "Run ATS",
+      onClick: () => setIsATSAnalyzerOpen(true),
+    },
+    {
+      title: "Generate career plan",
+      description: "Use Career Agent or AI Mentor to create a focused path for jobs, prep, and referrals.",
+      done: false,
+      action: "Open AI Mentor",
+      onClick: () => setActiveTab("ai-mentor"),
+    },
+    {
+      title: "Take AI interview",
+      description: "Practice a real round and save your hiring-readiness scorecard.",
+      done: hasCompletedAiInterview,
+      action: "Start interview",
+      onClick: () => setActiveTab("ai-mentor"),
+    },
+    {
+      title: "Apply or book mentor",
+      description: "Apply to strong-fit jobs or book a mentor when ATS/interview signals are weak.",
+      done: realStats.totalApplications > 0,
+      action: needsMentorFromSignals(realStats.atsScore, hasCompletedAiInterview) ? "Find mentor" : "Browse jobs",
+      onClick: () => setActiveTab(needsMentorFromSignals(realStats.atsScore, hasCompletedAiInterview) ? "mentorship" : "jobs"),
+    },
+  ];
+  const launchChecklistDone = launchChecklist.filter((item) => item.done).length;
 
   const handleShareATSScan = async () => {
     try {
@@ -433,6 +483,46 @@ export default function CleanSeekerDashboard() {
                       <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100">Jobs</p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6 overflow-hidden rounded-3xl border-blue-100 bg-gradient-to-br from-white via-blue-50/70 to-slate-50">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <Badge className="mb-2 bg-blue-100 text-blue-700 hover:bg-blue-100">Beta launch checklist</Badge>
+                    <CardTitle className="text-xl">Your fastest path to a stronger application</CardTitle>
+                    <CardDescription>
+                      Complete these steps once. ReferralMe uses these real signals for job fit, mentor matching, and readiness guidance.
+                    </CardDescription>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-center">
+                    <p className="text-2xl font-bold text-blue-700">{launchChecklistDone}/{launchChecklist.length}</p>
+                    <p className="text-xs font-medium text-slate-500">steps complete</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 lg:grid-cols-5">
+                  {launchChecklist.map((item) => (
+                    <button
+                      key={item.title}
+                      type="button"
+                      onClick={item.onClick}
+                      className={[
+                        "rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md",
+                        item.done ? "border-emerald-100 bg-emerald-50" : "border-slate-200 bg-white",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <CheckCircle2 className={item.done ? "h-5 w-5 text-emerald-600" : "h-5 w-5 text-slate-300"} />
+                        <Badge variant={item.done ? "default" : "outline"}>{item.done ? "Done" : item.action}</Badge>
+                      </div>
+                      <h3 className="mt-3 text-sm font-semibold text-slate-950">{item.title}</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p>
+                    </button>
+                  ))}
                 </div>
               </CardContent>
             </Card>
